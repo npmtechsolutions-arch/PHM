@@ -204,7 +204,7 @@ export default function Dashboard() {
                         {monthlySales.map((sale, i) => (
                             <div key={i} className="flex-1 flex flex-col items-center gap-2">
                                 <div
-                                    className="w-full bg-gradient-to-t from-blue-600 to-indigo-500 rounded-t-lg transition-all duration-500"
+                                    className="w-full bg-blue-600 rounded-t-lg transition-all duration-500"
                                     style={{ height: `${(sale.amount / maxSale) * 100}%`, minHeight: '20px' }}
                                 />
                                 <span className="text-xs text-slate-500 font-medium">{sale.month}</span>

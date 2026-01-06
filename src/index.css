@@ -329,32 +329,26 @@ body {
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* ========== GRADIENTS ========== */
+/* ========== SOLID COLORS ========== */
 
-.gradient-primary {
-  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+.bg-primary-solid {
+  background: #2563eb;
 }
 
-.gradient-success {
-  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+.bg-success-solid {
+  background: #10b981;
 }
 
-.gradient-warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+.bg-warning-solid {
+  background: #f59e0b;
 }
 
-.gradient-danger {
-  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+.bg-danger-solid {
+  background: #ef4444;
 }
 
-.gradient-purple {
-  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
-}
-
-.gradient-animated {
-  background: linear-gradient(-45deg, #2563eb, #06b6d4, #8b5cf6, #2563eb);
-  background-size: 400% 400%;
-  animation: gradientFlow 8s ease infinite;
+.bg-purple-solid {
+  background: #8b5cf6;
 }
 
 /* ========== CARDS ========== */

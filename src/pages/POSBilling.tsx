@@ -266,8 +266,8 @@ export default function POSBilling() {
                                 key={method}
                                 onClick={() => setPaymentMethod(method)}
                                 className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${paymentMethod === method
-                                        ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 {method === 'cash' ? '💵' : method === 'card' ? '💳' : '📱'} {method.toUpperCase()}
@@ -310,7 +310,7 @@ export default function POSBilling() {
                 <button
                     onClick={handleCheckout}
                     disabled={loading || cart.length === 0}
-                    className="mt-4 w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 hover:from-blue-700 hover:to-indigo-700 transition-colors"
+                    className="mt-4 w-full py-3 bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
                 >
                     {loading ? (
                         <>

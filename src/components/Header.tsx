@@ -82,7 +82,7 @@ export default function Header() {
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">Admin User</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Super Admin</p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                    <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
                         A
                     </div>
                     <button
