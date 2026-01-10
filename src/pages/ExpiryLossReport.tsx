@@ -45,7 +45,7 @@ export default function ExpiryLossReport() {
     ];
 
     return (
-        <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
             {/* Page Head */}
             <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
                 <div>

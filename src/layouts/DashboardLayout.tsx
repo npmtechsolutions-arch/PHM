@@ -15,7 +15,7 @@ export default function DashboardLayout() {
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 scroll-smooth">
-                    <div className="page-content animate-fadeIn">
+                    <div className="page-content animate-fadeIn p-6">
                         <Outlet />
                     </div>
                 </main>

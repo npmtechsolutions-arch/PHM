@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { shopsApi, warehousesApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
 
 interface Shop {
     id: string;
@@ -55,6 +57,11 @@ const emptyForm: ShopForm = {
 };
 
 export default function ShopList() {
+    const navigate = useNavigate();
+    const { user } = useUser();
+    const userRole = user?.role || 'user';
+    const canDelete = userRole === 'super_admin';
+
     const [shops, setShops] = useState<Shop[]>([]);
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,7 +71,7 @@ export default function ShopList() {
     const [totalItems, setTotalItems] = useState(0);
     const pageSize = 10;
 
-    // Modal states
+    // Modal states (kept for edit functionality)
     const [showModal, setShowModal] = useState(false);
     const [editingShop, setEditingShop] = useState<Shop | null>(null);
     const [formData, setFormData] = useState<ShopForm>(emptyForm);
@@ -186,7 +193,7 @@ export default function ShopList() {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -204,7 +211,7 @@ export default function ShopList() {
                         Refresh
                     </button>
                     <button
-                        onClick={openCreateModal}
+                        onClick={() => navigate('/shops/add')}
                         className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 hover:shadow-blue-500/40"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
@@ -320,19 +327,21 @@ export default function ShopList() {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
-                                                    onClick={() => openEditModal(shop)}
+                                                    onClick={() => navigate(`/shops/${shop.id}/edit`)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
                                                 >
                                                     <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">edit</span>
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(shop)}
-                                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
-                                                </button>
+                                                {canDelete && (
+                                                    <button
+                                                        onClick={() => handleDelete(shop)}
+                                                        className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

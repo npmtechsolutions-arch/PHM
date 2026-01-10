@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
 import BatchManagementModal from '../components/BatchManagementModal';
 
 interface Medicine {
@@ -21,6 +22,10 @@ interface Medicine {
     purchase_price: number;
     total_stock: number;
     is_active: boolean;
+    batch_number?: string;
+    expiry_date?: string;
+    rack_number?: string;
+    rack_name?: string;
 }
 
 interface MedicineForm {
@@ -39,6 +44,10 @@ interface MedicineForm {
     mrp: number;
     purchase_price: number;
     is_prescription_required: boolean;
+    batch_number: string;
+    expiry_date: string;
+    rack_number: string;
+    rack_name: string;
 }
 
 const emptyForm: MedicineForm = {
@@ -57,9 +66,18 @@ const emptyForm: MedicineForm = {
     mrp: 0,
     purchase_price: 0,
     is_prescription_required: false,
+    batch_number: '',
+    expiry_date: '',
+    rack_number: '',
+    rack_name: '',
 };
 
 export default function MedicineList() {
+    const navigate = useNavigate();
+    const { user } = useUser();
+    const userRole = user?.role || 'user';
+    const canDelete = userRole === 'super_admin';
+
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -68,7 +86,7 @@ export default function MedicineList() {
     const [totalItems, setTotalItems] = useState(0);
     const pageSize = 15;
 
-    // Modal states
+    // Modal states (kept for edit functionality)
     const [showModal, setShowModal] = useState(false);
     const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
     const [formData, setFormData] = useState<MedicineForm>(emptyForm);
@@ -129,6 +147,10 @@ export default function MedicineList() {
                 mrp: data.mrp || 0,
                 purchase_price: data.purchase_price || 0,
                 is_prescription_required: data.is_prescription_required || false,
+                batch_number: data.batch_number || '',
+                expiry_date: data.expiry_date || '',
+                rack_number: data.rack_number || '',
+                rack_name: data.rack_name || '',
             });
             setError('');
             setShowModal(true);
@@ -191,7 +213,7 @@ export default function MedicineList() {
     };
 
     return (
-        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -213,7 +235,7 @@ export default function MedicineList() {
                         Import
                     </button>
                     <button
-                        onClick={openCreateModal}
+                        onClick={() => navigate('/medicines/add')}
                         className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 hover:shadow-blue-500/40"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
@@ -340,6 +362,7 @@ export default function MedicineList() {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Type</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">MRP</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Stock</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Location</th>
                                     <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Status</th>
                                     <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
                                 </tr>
@@ -377,6 +400,12 @@ export default function MedicineList() {
                                                 {(medicine.total_stock || 0).toLocaleString()}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 text-left">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-slate-900 dark:text-white">{medicine.rack_name || '-'}</span>
+                                                <span className="text-xs text-slate-500">{medicine.rack_number ? `Rack: ${medicine.rack_number}` : ''}</span>
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${medicine.is_active
                                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
@@ -411,13 +440,15 @@ export default function MedicineList() {
                                                 >
                                                     <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">edit</span>
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(medicine)}
-                                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
-                                                </button>
+                                                {canDelete && (
+                                                    <button
+                                                        onClick={() => handleDelete(medicine)}
+                                                        className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -635,6 +666,51 @@ export default function MedicineList() {
                                     </div>
                                 </div>
 
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Batch Number</label>
+                                        <input
+                                            type="text"
+                                            value={formData.batch_number}
+                                            onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Batch123"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Expiry Date</label>
+                                        <input
+                                            type="date"
+                                            value={formData.expiry_date}
+                                            onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Rack Name</label>
+                                        <input
+                                            type="text"
+                                            value={formData.rack_name}
+                                            onChange={(e) => setFormData({ ...formData, rack_name: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="Shelf A"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Rack Number</label>
+                                        <input
+                                            type="text"
+                                            value={formData.rack_number}
+                                            onChange={(e) => setFormData({ ...formData, rack_number: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
+                                            placeholder="12"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="checkbox"
@@ -667,21 +743,24 @@ export default function MedicineList() {
                             </div>
                         </form>
                     </div>
-                </div>
-            )}
+                </div >
+            )
+            }
 
             {/* Batch Management Modal */}
-            {showBatchModal && selectedMedicine && (
-                <BatchManagementModal
-                    medicineId={selectedMedicine.id}
-                    medicineName={selectedMedicine.name}
-                    onClose={() => {
-                        setShowBatchModal(false);
-                        setSelectedMedicine(null);
-                        fetchMedicines(); // Refresh to update batch counts
-                    }}
-                />
-            )}
-        </div>
+            {
+                showBatchModal && selectedMedicine && (
+                    <BatchManagementModal
+                        medicineId={selectedMedicine.id}
+                        medicineName={selectedMedicine.name}
+                        onClose={() => {
+                            setShowBatchModal(false);
+                            setSelectedMedicine(null);
+                            fetchMedicines(); // Refresh to update batch counts
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 }

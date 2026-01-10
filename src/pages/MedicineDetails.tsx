@@ -86,7 +86,7 @@ export default function MedicineDetails() {
     }
 
     return (
-        <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
             {/* Breadcrumb and Page Header */}
             <div className="mb-6">
                 <nav className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -171,10 +171,10 @@ export default function MedicineDetails() {
                                             <td className="px-6 py-4 text-right font-medium text-slate-900 dark:text-white">{batch.quantity}</td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${batch.is_expired
-                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                        : batch.days_to_expiry < 60
-                                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    : batch.days_to_expiry < 60
+                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                     }`}>
                                                     {batch.is_expired ? 'Expired' : batch.days_to_expiry < 60 ? 'Expiring Soon' : 'Active'}
                                                 </span>

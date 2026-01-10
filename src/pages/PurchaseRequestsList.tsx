@@ -138,7 +138,7 @@ export default function PurchaseRequestsList() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
                     <p className="text-sm text-slate-500">Total Requests</p>

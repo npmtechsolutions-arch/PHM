@@ -79,7 +79,7 @@ export default function WarehouseEdit() {
     }
 
     return (
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fadeIn">
+        <div className="max-w-4xl mx-auto animate-fadeIn">
             <div className="mb-6">
                 <button
                     onClick={() => navigate('/warehouses')}

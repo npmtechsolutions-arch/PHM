@@ -9,7 +9,9 @@ import WarehouseStockEntry from './pages/WarehouseStockEntry';
 import ShopList from './pages/ShopList';
 import MedicineList from './pages/MedicineList';
 import MedicineDetails from './pages/MedicineDetails';
+import MedicineAdd from './pages/MedicineAdd';
 import EditMedicalShop from './pages/EditMedicalShop';
+import ShopAdd from './pages/ShopAdd';
 import ApplicationSettings from './pages/ApplicationSettings';
 import SystemSettings from './pages/SystemSettings';
 import ExpiryLossReport from './pages/ExpiryLossReport';
@@ -64,10 +66,12 @@ function App() {
 
             {/* Shops */}
             <Route path="shops" element={<ShopList />} />
+            <Route path="shops/add" element={<ShopAdd />} />
             <Route path="shops/:id/edit" element={<EditMedicalShop />} />
 
             {/* Medicines */}
             <Route path="medicines" element={<MedicineList />} />
+            <Route path="medicines/add" element={<MedicineAdd />} />
             <Route path="medicines/:id" element={<MedicineDetails />} />
 
 

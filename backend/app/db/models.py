@@ -250,6 +250,8 @@ class Medicine(Base):
     storage_conditions = Column(Text)
     reorder_level = Column(Integer, default=50)
     is_active = Column(Boolean, default=True)
+    rack_number = Column(String(50))
+    rack_name = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 

@@ -101,7 +101,7 @@ export default function InventoryPage() {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Inventory Movements</h1>

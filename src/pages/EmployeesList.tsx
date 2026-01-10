@@ -158,7 +158,7 @@ export default function EmployeesList() {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="p-6 lg:p-8 space-y-6">
+        <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -269,8 +269,8 @@ export default function EmployeesList() {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${emp.status === 'active'
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                 }`}>
                                                 {emp.status || 'Active'}
                                             </span>

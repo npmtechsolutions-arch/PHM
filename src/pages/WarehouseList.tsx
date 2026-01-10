@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { warehousesApi } from '../services/api';
+import { useUser } from '../contexts/UserContext';
 
 interface Warehouse {
     id: string;
@@ -44,6 +46,11 @@ const emptyForm: WarehouseForm = {
 };
 
 export default function WarehouseList() {
+    const navigate = useNavigate();
+    const { user } = useUser();
+    const userRole = user?.role || 'user';
+    const canDelete = userRole === 'super_admin';
+
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -52,7 +59,7 @@ export default function WarehouseList() {
     const [totalItems, setTotalItems] = useState(0);
     const pageSize = 10;
 
-    // Modal states
+    // Modal states (kept for edit functionality)
     const [showModal, setShowModal] = useState(false);
     const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
     const [formData, setFormData] = useState<WarehouseForm>(emptyForm);
@@ -169,7 +176,7 @@ export default function WarehouseList() {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return (
-        <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -187,7 +194,7 @@ export default function WarehouseList() {
                         Refresh
                     </button>
                     <button
-                        onClick={openCreateModal}
+                        onClick={() => navigate('/warehouses/add')}
                         className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 hover:shadow-blue-500/40"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
@@ -363,19 +370,21 @@ export default function WarehouseList() {
                                                     <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">visibility</span>
                                                 </button>
                                                 <button
-                                                    onClick={() => openEditModal(warehouse)}
+                                                    onClick={() => navigate(`/warehouses/edit/${warehouse.id}`)}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
                                                 >
                                                     <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-[20px] hover:text-primary">edit</span>
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(warehouse)}
-                                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
-                                                </button>
+                                                {canDelete && (
+                                                    <button
+                                                        onClick={() => handleDelete(warehouse)}
+                                                        className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <span className="material-symbols-outlined text-red-500 text-[20px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
