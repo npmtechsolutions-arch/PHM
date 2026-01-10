@@ -72,11 +72,13 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
     
-    # Create tokens
+    # Create tokens with entity context for RBAC
     token_data = {
         "user_id": user.id,
         "sub": user.email,
-        "role": user.role.value if user.role else "user"
+        "role": user.role.value if user.role else "user",
+        "warehouse_id": user.assigned_warehouse_id,  # Entity scope
+        "shop_id": user.assigned_shop_id,            # Entity scope
     }
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
@@ -142,7 +144,7 @@ async def refresh_token(
             raise HTTPException(status_code=401, detail="Session not found or expired")
         
         # Check if session is expired
-        if session.expires_at < datetime.now(timezone.utc):
+        if session.expires_at < datetime.utcnow():
             db.delete(session)
             db.commit()
             raise HTTPException(status_code=401, detail="Session expired")
@@ -212,7 +214,7 @@ async def get_current_user_info(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get current authenticated user info"""
+    """Get current authenticated user info with entity scope"""
     user = db.query(User).filter(User.id == current_user["user_id"]).first()
     
     if not user:
@@ -227,7 +229,10 @@ async def get_current_user_info(
         "is_active": user.is_active,
         "email_verified": user.email_verified,
         "last_login": user.last_login,
-        "created_at": user.created_at
+        "created_at": user.created_at,
+        # Entity scope for RBAC
+        "warehouse_id": user.assigned_warehouse_id,
+        "shop_id": user.assigned_shop_id,
     }
 
 
@@ -282,7 +287,7 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     
     # Check if token is expired
-    if reset_record.expires_at < datetime.now(timezone.utc):
+    if reset_record.expires_at < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Reset token has expired")
     
     # Get user

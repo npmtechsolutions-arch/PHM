@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { warehousesApi, medicinesApi } from '../services/api';
+import { warehousesApi, medicinesApi, inventoryApi } from '../services/api';
+import { useWarehouseContext } from '../hooks/useEntityContext';
 
 interface Medicine {
     id: string;
@@ -25,29 +26,53 @@ interface Warehouse {
 }
 
 export default function WarehouseStockEntry() {
+    // Entity context - handles role-based warehouse resolution
+    const entityContext = useWarehouseContext();
+
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [medicines, setMedicines] = useState<Medicine[]>([]);
-    const [batches, setBatches] = useState<Batch[]>([]);
+    const [existingBatches, setExistingBatches] = useState<Batch[]>([]); // For convenience dropdown
     const [selectedWarehouse, setSelectedWarehouse] = useState('');
     const [selectedMedicine, setSelectedMedicine] = useState('');
-    const [selectedBatch, setSelectedBatch] = useState('');
+    // Batch is entered directly (created implicitly with stock)
+    const [batchNumber, setBatchNumber] = useState('');
+    const [expiryDate, setExpiryDate] = useState('');
     const [quantity, setQuantity] = useState('');
-    const [rackLocation, setRackLocation] = useState('');
+    // Rack fields - physical storage location
+    const [rackName, setRackName] = useState('');  // e.g., "Painkillers Box", "Cold Medicines"
+    const [rackNumber, setRackNumber] = useState('');  // e.g., "R-01", "R-2A"
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [recentEntries, setRecentEntries] = useState<any[]>([]);
+    const [selectedExistingBatch, setSelectedExistingBatch] = useState('');
 
+    // Initialize with entity context
     useEffect(() => {
+        // Super Admin: loads all warehouses for selection
+        // Warehouse Admin: auto-applied, but we still load for display
         loadWarehouses();
         loadMedicines();
     }, []);
 
+    // Auto-apply warehouse context for non-Super Admin users
+    useEffect(() => {
+        if (!entityContext.isSuperAdmin && entityContext.assignedWarehouseId) {
+            // Warehouse Admin: auto-select their assigned warehouse
+            setSelectedWarehouse(entityContext.assignedWarehouseId);
+        }
+    }, [entityContext.isSuperAdmin, entityContext.assignedWarehouseId]);
+
+    // Load batches when medicine changes
     useEffect(() => {
         if (selectedMedicine) {
-            loadBatches(selectedMedicine);
+            loadExistingBatches(selectedMedicine);
         } else {
-            setBatches([]);
+            setExistingBatches([]);
         }
+        // Reset batch fields when medicine changes
+        setBatchNumber('');
+        setExpiryDate('');
+        setSelectedExistingBatch('');
     }, [selectedMedicine]);
 
     const loadWarehouses = async () => {
@@ -68,12 +93,11 @@ export default function WarehouseStockEntry() {
         }
     };
 
-    const loadBatches = async (medicineId: string) => {
+    // Load existing batches for convenience (optional reuse)
+    const loadExistingBatches = async (medicineId: string) => {
         try {
             const response = await medicinesApi.getBatches(medicineId);
-
-            // Extract batches array safely
-            let batchesData = [];
+            let batchesData: Batch[] = [];
             if (response.data) {
                 if (Array.isArray(response.data)) {
                     batchesData = response.data;
@@ -83,19 +107,31 @@ export default function WarehouseStockEntry() {
                     batchesData = response.data.data;
                 }
             }
-
-            setBatches(batchesData);
+            setExistingBatches(batchesData);
         } catch (error) {
             console.error('Error loading batches:', error);
-            setBatches([]);
+            setExistingBatches([]);
+        }
+    };
+
+    // When user selects an existing batch, populate the fields
+    const handleExistingBatchSelect = (batchId: string) => {
+        setSelectedExistingBatch(batchId);
+        if (batchId) {
+            const batch = existingBatches.find(b => b.id === batchId);
+            if (batch) {
+                setBatchNumber(batch.batch_number);
+                setExpiryDate(batch.expiry_date);
+            }
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!selectedWarehouse || !selectedMedicine || !selectedBatch || !quantity) {
-            setMessage({ type: 'error', text: 'Please fill all required fields' });
+        // Validation: batch_number, expiry_date, quantity are MANDATORY
+        if (!selectedWarehouse || !selectedMedicine || !batchNumber || !expiryDate || !quantity) {
+            setMessage({ type: 'error', text: 'Please fill all required fields: Warehouse, Medicine, Batch Number, Expiry Date, and Quantity' });
             return;
         }
 
@@ -104,27 +140,34 @@ export default function WarehouseStockEntry() {
             const stockData = {
                 warehouse_id: selectedWarehouse,
                 medicine_id: selectedMedicine,
-                batch_id: selectedBatch,
+                batch_number: batchNumber,  // Batch created implicitly
+                expiry_date: expiryDate,     // Batch created implicitly
                 quantity: parseInt(quantity),
-                rack_location: rackLocation || null
+                rack_name: rackName || undefined,    // Physical storage - e.g., "Painkillers Box"
+                rack_number: rackNumber || undefined  // Physical rack - e.g., "R-01"
             };
 
-            await warehousesApi.create(stockData); // This should be a stock entry endpoint
+            await inventoryApi.stockEntry(stockData); // This creates stock + batch implicitly
 
             const medicine = medicines.find(m => m.id === selectedMedicine);
-            const batch = batches.find(b => b.id === selectedBatch);
 
             setRecentEntries(prev => [{
                 medicine: medicine?.name,
-                batch: batch?.batch_number,
+                batch: batchNumber,
                 quantity: parseInt(quantity),
+                rack: rackName ? `${rackName} (${rackNumber})` : rackNumber,
                 timestamp: new Date().toLocaleTimeString()
             }, ...prev.slice(0, 9)]);
 
-            setMessage({ type: 'success', text: 'Stock entry added successfully!' });
+            setMessage({ type: 'success', text: 'Stock entry added successfully! Batch created/updated.' });
             setQuantity('');
-            setRackLocation('');
-            setSelectedBatch('');
+            setRackName('');
+            setRackNumber('');
+            setBatchNumber('');
+            setExpiryDate('');
+            setSelectedExistingBatch('');
+            // Reload batches to show the newly created one
+            if (selectedMedicine) loadExistingBatches(selectedMedicine);
         } catch (error: any) {
             setMessage({ type: 'error', text: error.response?.data?.detail || 'Failed to add stock entry' });
         } finally {
@@ -307,21 +350,37 @@ export default function WarehouseStockEntry() {
                     )}
 
                     <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label>Warehouse *</label>
-                            <select
-                                value={selectedWarehouse}
-                                onChange={(e) => setSelectedWarehouse(e.target.value)}
-                                required
-                            >
-                                <option value="">Select Warehouse</option>
-                                {warehouses.map(wh => (
-                                    <option key={wh.id} value={wh.id}>
-                                        {wh.name} ({wh.code})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Warehouse Selector - ONLY visible to Super Admin */}
+                        {entityContext.isSuperAdmin ? (
+                            <div className="form-group" style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #fdba74' }}>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span style={{ color: '#ea580c' }}>🔐</span>
+                                    <label style={{ color: '#c2410c', fontWeight: 600, fontSize: '13px' }}>Super Admin: Select Warehouse Context</label>
+                                </div>
+                                <select
+                                    value={selectedWarehouse}
+                                    onChange={(e) => setSelectedWarehouse(e.target.value)}
+                                    required
+                                    style={{ borderColor: '#fdba74' }}
+                                >
+                                    <option value="">-- Select Warehouse --</option>
+                                    {warehouses.map(wh => (
+                                        <option key={wh.id} value={wh.id}>
+                                            {wh.name} ({wh.code})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ) : (
+                            // Warehouse Admin: Show assigned warehouse (read-only)
+                            <div className="form-group" style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #86efac' }}>
+                                <label style={{ color: '#166534', fontWeight: 600 }}>📦 Warehouse (Auto-Applied)</label>
+                                <div style={{ padding: '10px', background: '#dcfce7', borderRadius: '6px', fontWeight: 500, color: '#166534' }}>
+                                    {warehouses.find(w => w.id === selectedWarehouse)?.name || 'Loading...'}
+                                </div>
+                                <p style={{ fontSize: '12px', color: '#15803d', marginTop: '4px' }}>Your assigned warehouse is auto-selected</p>
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label>Medicine *</label>
@@ -358,22 +417,48 @@ export default function WarehouseStockEntry() {
                             })()}
                         </div>
 
+                        {/* Batch Entry Section - Batch is created implicitly */}
                         <div className="form-group">
-                            <label>Batch *</label>
-                            <select
-                                value={selectedBatch}
-                                onChange={(e) => setSelectedBatch(e.target.value)}
+                            <label>Batch Number *</label>
+                            <input
+                                type="text"
+                                value={batchNumber}
+                                onChange={(e) => setBatchNumber(e.target.value.toUpperCase())}
+                                placeholder="Enter batch number (e.g., BATCH2024-001)"
                                 required
                                 disabled={!selectedMedicine}
-                            >
-                                <option value="">Select Batch</option>
-                                {batches.map(batch => (
-                                    <option key={batch.id} value={batch.id}>
-                                        {batch.batch_number} (Exp: {batch.expiry_date})
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
+
+                        <div className="form-group">
+                            <label>Expiry Date *</label>
+                            <input
+                                type="date"
+                                value={expiryDate}
+                                onChange={(e) => setExpiryDate(e.target.value)}
+                                required
+                                disabled={!selectedMedicine}
+                            />
+                        </div>
+
+                        {/* Optional: Select from existing batches for convenience */}
+                        {existingBatches.length > 0 && (
+                            <div className="form-group" style={{ background: '#f0f7ff', padding: '12px', borderRadius: '8px', marginTop: '-8px' }}>
+                                <label style={{ fontSize: '12px', color: '#666' }}>Or select an existing batch:</label>
+                                <select
+                                    value={selectedExistingBatch}
+                                    onChange={(e) => handleExistingBatchSelect(e.target.value)}
+                                    disabled={!selectedMedicine}
+                                >
+                                    <option value="">-- Use new batch above --</option>
+                                    {existingBatches.map(batch => (
+                                        <option key={batch.id} value={batch.id}>
+                                            {batch.batch_number} (Exp: {batch.expiry_date})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label>Quantity *</label>
@@ -388,12 +473,22 @@ export default function WarehouseStockEntry() {
                         </div>
 
                         <div className="form-group">
-                            <label>Rack Location</label>
+                            <label>Rack Name / Box Name</label>
                             <input
                                 type="text"
-                                value={rackLocation}
-                                onChange={(e) => setRackLocation(e.target.value)}
-                                placeholder="e.g., A1-S3"
+                                value={rackName}
+                                onChange={(e) => setRackName(e.target.value)}
+                                placeholder="e.g., Painkillers Box, Cold Medicines"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label>Rack Number</label>
+                            <input
+                                type="text"
+                                value={rackNumber}
+                                onChange={(e) => setRackNumber(e.target.value.toUpperCase())}
+                                placeholder="e.g., R-01, R-2A"
                             />
                         </div>
 

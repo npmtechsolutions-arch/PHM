@@ -32,10 +32,31 @@ import InventoryPage from './pages/InventoryPage';
 import WarehouseAdd from './pages/WarehouseAdd';
 import WarehouseEdit from './pages/WarehouseEdit';
 
+// New Super Admin Dashboard Pages
+import WarehouseShopMapping from './pages/WarehouseShopMapping';
+import RackMaster from './pages/RackMaster';
+import InventoryOversight from './pages/InventoryOversight';
+import AuditLogsPage from './pages/AuditLogsPage';
+import LoginActivityPage from './pages/LoginActivityPage';
+import RolesPermissionsPage from './pages/RolesPermissionsPage';
+import CategoriesPage from './pages/CategoriesPage';
+import UnitsPage from './pages/UnitsPage';
+import HSNCodesPage from './pages/HSNCodesPage';
+import GSTVATPage from './pages/GSTVATPage';
+
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
   return token ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+// Role-based home page: 
+// SAME features for all roles - difference is entity context resolution
+// Super Admin: Dashboard with entity selector (explicit selection)
+// Other roles: Dashboard filtered by their assigned entity (auto-applied)
+function RoleBasedHome() {
+  // All roles see Dashboard - entity context is handled inside each module
+  return <Dashboard />;
 }
 
 function App() {
@@ -53,10 +74,12 @@ function App() {
               <DashboardLayout />
             </PrivateRoute>
           }>
-            <Route index element={<Dashboard />} />
+            <Route index element={<RoleBasedHome />} />
 
-            {/* Users */}
+            {/* Users & Access */}
             <Route path="users" element={<UsersList />} />
+            <Route path="roles" element={<RolesPermissionsPage />} />
+            <Route path="login-activity" element={<LoginActivityPage />} />
 
             {/* Warehouses */}
             <Route path="warehouses" element={<WarehouseList />} />
@@ -69,14 +92,33 @@ function App() {
             <Route path="shops/add" element={<ShopAdd />} />
             <Route path="shops/:id/edit" element={<EditMedicalShop />} />
 
-            {/* Medicines */}
+            {/* Warehouse-Shop Mapping */}
+            <Route path="warehouse-mapping" element={<WarehouseShopMapping />} />
+
+            {/* Medicines (Medicine Master) */}
             <Route path="medicines" element={<MedicineList />} />
             <Route path="medicines/add" element={<MedicineAdd />} />
             <Route path="medicines/:id" element={<MedicineDetails />} />
+            <Route path="categories" element={<CategoriesPage />} />
+            <Route path="units" element={<UnitsPage />} />
+            <Route path="hsn" element={<HSNCodesPage />} />
+            <Route path="gst" element={<GSTVATPage />} />
 
+            {/* Rack Master (Physical storage locations) */}
+            <Route path="racks" element={<RackMaster />} />
+            {/* Note: Batch is NOT a master - it's created implicitly during Stock Entry */}
 
-            {/* Inventory */}
+            {/* Inventory Oversight (Read-Only for Super Admin) */}
             <Route path="inventory" element={<InventoryPage />} />
+            <Route path="inventory-oversight" element={<InventoryOversight />} />
+            <Route path="inventory-oversight/warehouse" element={<InventoryOversight />} />
+            <Route path="inventory-oversight/shop" element={<InventoryOversight />} />
+            <Route path="inventory-oversight/expiry" element={<InventoryOversight />} />
+            <Route path="inventory-oversight/dead-stock" element={<InventoryOversight />} />
+
+            {/* Supply Chain Analytics */}
+            <Route path="analytics/dispatch" element={<DispatchesList />} /> {/* Placeholder */}
+            <Route path="analytics/demand" element={<SalesReports />} /> {/* Placeholder */}
 
             {/* Customers */}
             <Route path="customers" element={<CustomersList />} />
@@ -86,13 +128,13 @@ function App() {
             <Route path="employees/attendance" element={<AttendanceManagement />} />
             <Route path="employees/salary" element={<SalaryManagement />} />
 
-            {/* Dispatches */}
+            {/* Dispatches (Operational) */}
             <Route path="dispatches" element={<DispatchesList />} />
 
             {/* Purchase Requests */}
             <Route path="purchase-requests" element={<PurchaseRequestsList />} />
 
-            {/* Sales & Billing */}
+            {/* Sales & Billing (Operational - Not for Super Admin) */}
             <Route path="sales" element={<InvoicesList />} />
             <Route path="sales/pos" element={<POSBilling />} />
             <Route path="sales/invoices" element={<InvoicesList />} />
@@ -103,14 +145,19 @@ function App() {
             <Route path="reports/sales" element={<SalesReports />} />
             <Route path="reports/expiry" element={<ExpiryLossReport />} />
             <Route path="reports/tax" element={<TaxReports />} />
+            <Route path="reports/inventory-aging" element={<InventoryPage />} /> {/* Placeholder */}
+            <Route path="reports/compliance" element={<SalesReports />} /> {/* Placeholder */}
 
             {/* Notifications */}
             <Route path="notifications" element={<NotificationsPage />} />
 
-            {/* Settings */}
+            {/* System */}
             <Route path="settings" element={<ApplicationSettings />} />
             <Route path="settings/application" element={<ApplicationSettings />} />
             <Route path="settings/system" element={<SystemSettings />} />
+            <Route path="feature-flags" element={<SystemSettings />} /> {/* Placeholder */}
+            <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="backup-restore" element={<SystemSettings />} /> {/* Placeholder */}
           </Route>
 
           {/* Fallback */}
@@ -122,6 +169,3 @@ function App() {
 }
 
 export default App;
-
-
-

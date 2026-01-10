@@ -60,6 +60,8 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(min_length=8)
     role: RoleType = RoleType.PHARMACIST
+    assigned_warehouse_id: Optional[str] = None
+    assigned_shop_id: Optional[str] = None
 
 
 class UserUpdate(BaseModel):

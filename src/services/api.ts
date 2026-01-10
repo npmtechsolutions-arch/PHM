@@ -158,6 +158,17 @@ export const inventoryApi = {
     getMovements: (params?: { page?: number; size?: number; location_type?: string; location_id?: string; movement_type?: string }) =>
         api.get('/stock/movements', { params }),
 
+    // Stock Entry - creates batch implicitly
+    stockEntry: (data: {
+        warehouse_id: string;
+        medicine_id: string;
+        batch_number: string;
+        expiry_date: string;
+        quantity: number;
+        rack_name?: string;
+        rack_number?: string;
+    }) => api.post('/stock/entry', data),
+
     adjustStock: (data: any) => api.post('/stock/adjust', data),
 
     getAlerts: (alertType?: string) =>
@@ -326,4 +337,56 @@ export const taxApi = {
 
     updateSettings: (data: any) => api.put('/tax/settings', data),
 };
+
+// Rack Master API
+export const racksApi = {
+    list: (params?: { page?: number; size?: number; search?: string; warehouse_id?: string; shop_id?: string }) =>
+        api.get('/racks', { params }),
+
+    get: (id: string) => api.get(`/racks/${id}`),
+
+    create: (data: any) => api.post('/racks', data),
+
+    update: (id: string, data: any) => api.put(`/racks/${id}`, data),
+
+    delete: (id: string) => api.delete(`/racks/${id}`),
+};
+
+// Audit Logs API (Read-Only)
+export const auditLogsApi = {
+    list: (params?: { page?: number; size?: number; action?: string; entity_type?: string; user_id?: string; date_from?: string; date_to?: string }) =>
+        api.get('/audit-logs', { params }),
+
+    getStats: () => api.get('/audit-logs/stats'),
+};
+
+// Login Activity API (Read-Only)
+export const loginActivityApi = {
+    list: (params?: { page?: number; size?: number; action?: string; status?: string; user_id?: string; date_from?: string; date_to?: string }) =>
+        api.get('/login-activity', { params }),
+
+    getStats: () => api.get('/login-activity/stats'),
+};
+
+// Masters API (Categories, Units, HSN)
+export const mastersApi = {
+    // Categories
+    listCategories: () => api.get('/masters/categories'),
+    createCategory: (data: any) => api.post('/masters/categories', data),
+    updateCategory: (id: string, data: any) => api.put(`/masters/categories/${id}`, data),
+    deleteCategory: (id: string) => api.delete(`/masters/categories/${id}`),
+
+    // Units
+    listUnits: () => api.get('/masters/units'),
+    createUnit: (data: any) => api.post('/masters/units', data),
+    updateUnit: (id: string, data: any) => api.put(`/masters/units/${id}`, data),
+    deleteUnit: (id: string) => api.delete(`/masters/units/${id}`),
+
+    // HSN Codes
+    listHSN: () => api.get('/masters/hsn'),
+    createHSN: (data: any) => api.post('/masters/hsn', data),
+    updateHSN: (id: string, data: any) => api.put(`/masters/hsn/${id}`, data),
+    deleteHSN: (id: string) => api.delete(`/masters/hsn/${id}`),
+};
+
 

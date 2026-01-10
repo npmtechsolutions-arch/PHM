@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { usersApi } from '../services/api';
+import { usersApi, warehousesApi, shopsApi } from '../services/api';
 
 interface User {
     id: string;
@@ -10,6 +10,8 @@ interface User {
     is_active: boolean;
     last_login?: string;
     created_at: string;
+    assigned_warehouse_id?: string;
+    assigned_shop_id?: string;
 }
 
 export default function UsersList() {
@@ -25,11 +27,31 @@ export default function UsersList() {
         phone: '',
         role: 'pharmacist',
         password: '',
+        assigned_warehouse_id: '',
+        assigned_shop_id: '',
     });
+
+    // Entity lists for assignment
+    const [warehouses, setWarehouses] = useState<{ id: string, name: string }[]>([]);
+    const [shops, setShops] = useState<{ id: string, name: string }[]>([]);
 
     useEffect(() => {
         fetchUsers();
+        fetchEntities();
     }, []);
+
+    const fetchEntities = async () => {
+        try {
+            const [warehouseRes, shopRes] = await Promise.all([
+                warehousesApi.list(),
+                shopsApi.list()
+            ]);
+            setWarehouses(warehouseRes.data?.items || warehouseRes.data || []);
+            setShops(shopRes.data?.items || shopRes.data || []);
+        } catch (error) {
+            console.error('Failed to fetch entities:', error);
+        }
+    };
 
     const fetchUsers = async () => {
         try {
@@ -50,7 +72,7 @@ export default function UsersList() {
 
     const openCreateModal = () => {
         setEditingUser(null);
-        setFormData({ email: '', full_name: '', phone: '', role: 'pharmacist', password: '' });
+        setFormData({ email: '', full_name: '', phone: '', role: 'pharmacist', password: '', assigned_warehouse_id: '', assigned_shop_id: '' });
         setShowModal(true);
     };
 
@@ -62,6 +84,8 @@ export default function UsersList() {
             phone: user.phone || '',
             role: user.role,
             password: '',
+            assigned_warehouse_id: user.assigned_warehouse_id || '',
+            assigned_shop_id: user.assigned_shop_id || '',
         });
         setShowModal(true);
     };
@@ -337,18 +361,55 @@ export default function UsersList() {
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
                                 <select
                                     value={formData.role}
-                                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                    onChange={(e) => setFormData({ ...formData, role: e.target.value, assigned_warehouse_id: '', assigned_shop_id: '' })}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                 >
                                     <option value="pharmacist">Pharmacist</option>
                                     <option value="shop_owner">Shop Owner</option>
                                     <option value="warehouse_admin">Warehouse Admin</option>
-                                    <option value="super_admin">Super Admin</option>
                                     <option value="cashier">Cashier</option>
                                     <option value="hr_manager">HR Manager</option>
                                     <option value="accountant">Accountant</option>
                                 </select>
+                                <p className="text-xs text-slate-500 mt-1">Super Admin cannot be created from UI</p>
                             </div>
+                            {/* Entity Assignment based on Role */}
+                            {formData.role === 'warehouse_admin' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                        Assign to Warehouse *
+                                    </label>
+                                    <select
+                                        value={formData.assigned_warehouse_id}
+                                        onChange={(e) => setFormData({ ...formData, assigned_warehouse_id: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                        required
+                                    >
+                                        <option value="">Select Warehouse</option>
+                                        {warehouses.map(w => (
+                                            <option key={w.id} value={w.id}>{w.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            {['pharmacist', 'shop_owner', 'cashier', 'hr_manager', 'accountant'].includes(formData.role) && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                        Assign to Medical Shop *
+                                    </label>
+                                    <select
+                                        value={formData.assigned_shop_id}
+                                        onChange={(e) => setFormData({ ...formData, assigned_shop_id: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                        required
+                                    >
+                                        <option value="">Select Medical Shop</option>
+                                        {shops.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             {!editingUser && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

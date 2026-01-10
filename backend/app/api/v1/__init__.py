@@ -19,6 +19,11 @@ from app.api.v1.notifications import router as notifications_router
 from app.api.v1.settings import router as settings_router
 from app.api.v1.roles import router as roles_router
 from app.api.v1.tax import router as tax_router
+# New Super Admin Dashboard Routes
+from app.api.v1.racks import router as racks_router
+from app.api.v1.audit_logs import router as audit_logs_router
+from app.api.v1.login_activity import router as login_activity_router
+from app.api.v1.masters import router as masters_router
 
 router = APIRouter()
 
@@ -39,3 +44,9 @@ router.include_router(reports_router, prefix="/reports", tags=["Reports"])
 router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
 router.include_router(settings_router, prefix="/settings", tags=["Settings"])
 router.include_router(tax_router, prefix="/tax", tags=["Tax & Accounting"])
+# New Super Admin Dashboard Routes
+router.include_router(racks_router, prefix="/racks", tags=["Rack Master"])
+router.include_router(audit_logs_router, prefix="/audit-logs", tags=["Audit Logs"])
+router.include_router(login_activity_router, prefix="/login-activity", tags=["Login Activity"])
+router.include_router(masters_router, prefix="/masters", tags=["Masters"])
+

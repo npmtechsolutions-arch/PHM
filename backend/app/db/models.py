@@ -110,9 +110,18 @@ class User(Base):
     last_login = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    
+    # Entity Assignment for Role-Based Access Control
+    # super_admin: both null (global access)
+    # warehouse_admin: warehouse_id set, shop_id null
+    # shop_owner/pharmacist/cashier: shop_id set (warehouse_id derived)
+    assigned_warehouse_id = Column(String(36), ForeignKey("warehouses.id"), nullable=True)
+    assigned_shop_id = Column(String(36), ForeignKey("medical_shops.id"), nullable=True)
 
     # Relationships
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    assigned_warehouse = relationship("Warehouse", foreign_keys=[assigned_warehouse_id])
+    assigned_shop = relationship("MedicalShop", foreign_keys=[assigned_shop_id])
 
 
 class Role(Base):
@@ -264,7 +273,7 @@ class Batch(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     medicine_id = Column(String(36), ForeignKey("medicines.id"), nullable=False)
     batch_number = Column(String(50), nullable=False, index=True)
-    manufacturing_date = Column(Date, nullable=False)
+    manufacturing_date = Column(Date, nullable=True)
     expiry_date = Column(Date, nullable=False, index=True)
     quantity = Column(Integer, default=0)
     purchase_price = Column(Float, nullable=False)
@@ -290,6 +299,9 @@ class WarehouseStock(Base):
     batch_id = Column(String(36), ForeignKey("batches.id"), nullable=False)
     quantity = Column(Integer, default=0, nullable=False)
     reserved_quantity = Column(Integer, default=0)
+    # Physical storage location
+    rack_name = Column(String(100))  # e.g., "Painkillers Box", "Cold Medicines"
+    rack_number = Column(String(50))  # e.g., "R-01", "R-2A"
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     warehouse = relationship("Warehouse", back_populates="stock")
@@ -787,6 +799,24 @@ class HSNMaster(Base):
     igst_rate = Column(Float, default=12.0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Rack(Base):
+    """Physical storage rack/location master"""
+    __tablename__ = "racks"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    rack_name = Column(String(100), nullable=False)
+    rack_number = Column(String(50), unique=True, nullable=False, index=True)
+    description = Column(Text)
+    warehouse_id = Column(String(36), ForeignKey("warehouses.id"))
+    shop_id = Column(String(36), ForeignKey("medical_shops.id"))
+    floor = Column(String(20))
+    section = Column(String(50))
+    capacity = Column(Integer)  # Optional: number of items it can hold
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
 
 # ==================== INVENTORY EXTENDED MODELS ====================

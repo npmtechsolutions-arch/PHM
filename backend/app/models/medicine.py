@@ -51,8 +51,6 @@ class MedicineBase(BaseModel):
     is_controlled: bool = False
     storage_conditions: Optional[str] = None
     is_active: bool = True
-    batch_number: Optional[str] = None
-    expiry_date: Optional[date] = None
     rack_number: Optional[str] = None
     rack_name: Optional[str] = None
 
@@ -80,8 +78,6 @@ class MedicineUpdate(BaseModel):
     is_controlled: Optional[bool] = None
     storage_conditions: Optional[str] = None
     is_active: Optional[bool] = None
-    batch_number: Optional[str] = None
-    expiry_date: Optional[date] = None
     rack_number: Optional[str] = None
     rack_name: Optional[str] = None
 

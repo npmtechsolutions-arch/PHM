@@ -59,7 +59,9 @@ async def list_users(
                 "role": u.role.value if u.role else None,
                 "is_active": u.is_active,
                 "last_login": u.last_login,
-                "created_at": u.created_at
+                "created_at": u.created_at,
+                "assigned_warehouse_id": u.assigned_warehouse_id,
+                "assigned_shop_id": u.assigned_shop_id
             }
             for u in users
         ],
@@ -78,6 +80,27 @@ async def create_user(
     """Create a new user"""
     logger.info(f"Creating user with data: {user_data.model_dump()}")
     
+    # SECURITY: Block super_admin creation from API
+    if user_data.role == RoleType.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Super Admin cannot be created through the API. Contact system administrator."
+        )
+    
+    # Validate entity assignment based on role
+    if user_data.role == RoleType.WAREHOUSE_ADMIN:
+        if not user_data.assigned_warehouse_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Warehouse Admin must be assigned to a warehouse"
+            )
+    elif user_data.role in [RoleType.SHOP_OWNER, RoleType.PHARMACIST, RoleType.CASHIER, RoleType.HR_MANAGER, RoleType.ACCOUNTANT]:
+        if not user_data.assigned_shop_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{user_data.role.value} must be assigned to a medical shop"
+            )
+    
     # Check if email exists
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
@@ -89,6 +112,9 @@ async def create_user(
         full_name=user_data.full_name,
         phone=user_data.phone,
         role=user_data.role,
+        # Convert empty strings to None for foreign key fields
+        assigned_warehouse_id=user_data.assigned_warehouse_id if user_data.assigned_warehouse_id else None,
+        assigned_shop_id=user_data.assigned_shop_id if user_data.assigned_shop_id else None,
         is_active=True
     )
     
@@ -128,7 +154,9 @@ async def get_user(
         "email_verified": user.email_verified,
         "last_login": user.last_login,
         "created_at": user.created_at,
-        "updated_at": user.updated_at
+        "updated_at": user.updated_at,
+        "assigned_warehouse_id": user.assigned_warehouse_id,
+        "assigned_shop_id": user.assigned_shop_id
     }
 
 

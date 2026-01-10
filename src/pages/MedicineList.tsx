@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
-import BatchManagementModal from '../components/BatchManagementModal';
 
 interface Medicine {
     id: string;
@@ -22,8 +21,6 @@ interface Medicine {
     purchase_price: number;
     total_stock: number;
     is_active: boolean;
-    batch_number?: string;
-    expiry_date?: string;
     rack_number?: string;
     rack_name?: string;
 }
@@ -44,8 +41,6 @@ interface MedicineForm {
     mrp: number;
     purchase_price: number;
     is_prescription_required: boolean;
-    batch_number: string;
-    expiry_date: string;
     rack_number: string;
     rack_name: string;
 }
@@ -66,8 +61,6 @@ const emptyForm: MedicineForm = {
     mrp: 0,
     purchase_price: 0,
     is_prescription_required: false,
-    batch_number: '',
-    expiry_date: '',
     rack_number: '',
     rack_name: '',
 };
@@ -92,10 +85,6 @@ export default function MedicineList() {
     const [formData, setFormData] = useState<MedicineForm>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-
-    // Batch modal states
-    const [showBatchModal, setShowBatchModal] = useState(false);
-    const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
 
     useEffect(() => {
         fetchMedicines();
@@ -147,8 +136,6 @@ export default function MedicineList() {
                 mrp: data.mrp || 0,
                 purchase_price: data.purchase_price || 0,
                 is_prescription_required: data.is_prescription_required || false,
-                batch_number: data.batch_number || '',
-                expiry_date: data.expiry_date || '',
                 rack_number: data.rack_number || '',
                 rack_name: data.rack_name || '',
             });
@@ -416,16 +403,6 @@ export default function MedicineList() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedMedicine(medicine);
-                                                        setShowBatchModal(true);
-                                                    }}
-                                                    className="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                                                    title="Manage Batches"
-                                                >
-                                                    <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-[20px]">inventory_2</span>
-                                                </button>
                                                 <Link
                                                     to={`/medicines/${medicine.id}`}
                                                     className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -668,28 +645,6 @@ export default function MedicineList() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Batch Number</label>
-                                        <input
-                                            type="text"
-                                            value={formData.batch_number}
-                                            onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                            placeholder="Batch123"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Expiry Date</label>
-                                        <input
-                                            type="date"
-                                            value={formData.expiry_date}
-                                            onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Rack Name</label>
                                         <input
                                             type="text"
@@ -710,6 +665,7 @@ export default function MedicineList() {
                                         />
                                     </div>
                                 </div>
+
 
                                 <div className="flex items-center gap-2">
                                     <input
@@ -747,20 +703,6 @@ export default function MedicineList() {
             )
             }
 
-            {/* Batch Management Modal */}
-            {
-                showBatchModal && selectedMedicine && (
-                    <BatchManagementModal
-                        medicineId={selectedMedicine.id}
-                        medicineName={selectedMedicine.name}
-                        onClose={() => {
-                            setShowBatchModal(false);
-                            setSelectedMedicine(null);
-                            fetchMedicines(); // Refresh to update batch counts
-                        }}
-                    />
-                )
-            }
         </div >
     );
 }

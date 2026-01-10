@@ -4,7 +4,7 @@ import { shopsApi } from '../services/api';
 import type { MedicalShop } from '../types';
 
 export default function EditMedicalShop() {
-    const { shopId } = useParams<{ shopId: string }>();
+    const { id: shopId } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

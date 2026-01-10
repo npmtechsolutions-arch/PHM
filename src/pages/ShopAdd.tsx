@@ -44,8 +44,8 @@ export default function ShopAdd() {
         e.preventDefault();
         setError('');
 
-        if (!formData.name || !formData.code || !formData.city || !formData.state || !formData.license_number) {
-            setError('Please fill in all required fields (Name, Code, License Number, City, State)');
+        if (!formData.name || !formData.code || !formData.city || !formData.state || !formData.license_number || !formData.warehouse_id) {
+            setError('Please fill in all required fields (Name, Code, License Number, Warehouse, City, State)');
             return;
         }
 
@@ -55,7 +55,7 @@ export default function ShopAdd() {
                 ...formData,
                 email: formData.email || undefined,
                 gst_number: formData.gst_number || undefined,
-                warehouse_id: formData.warehouse_id || undefined,
+                warehouse_id: formData.warehouse_id, // Required - not optional
             };
             await shopsApi.create(payload);
             navigate('/shops');
@@ -160,26 +160,37 @@ export default function ShopAdd() {
                             </div>
                         </div>
 
-                        {/* Warehouse Mapping */}
-                        <div>
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Warehouse Mapping</h3>
+                        {/* Warehouse Mapping - MANDATORY */}
+                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 border border-amber-200 dark:border-amber-700">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-amber-600">warehouse</span>
+                                Warehouse Mapping *
+                            </h3>
+                            <p className="text-sm text-amber-700 dark:text-amber-400 mb-4">
+                                Every medical shop must be linked to a warehouse. This determines the stock source for this shop.
+                            </p>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    Linked Warehouse
+                                    Select Warehouse *
                                 </label>
                                 <select
                                     value={formData.warehouse_id}
                                     onChange={(e) => setFormData({ ...formData, warehouse_id: e.target.value })}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                                    required
+                                    className={`w-full px-4 py-2.5 rounded-lg border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all ${!formData.warehouse_id ? 'border-amber-300 dark:border-amber-600' : 'border-slate-200 dark:border-slate-600'
+                                        }`}
                                 >
-                                    <option value="">Select Warehouse (Optional)</option>
+                                    <option value="">-- Select a Warehouse (Required) --</option>
                                     {warehouses.map(w => (
                                         <option key={w.id} value={w.id}>{w.name}</option>
                                     ))}
                                 </select>
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                    Link this shop to a warehouse for stock and dispatch management
-                                </p>
+                                {!formData.warehouse_id && (
+                                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[14px]">warning</span>
+                                        Warehouse selection is mandatory for supply chain integrity
+                                    </p>
+                                )}
                             </div>
                         </div>
 

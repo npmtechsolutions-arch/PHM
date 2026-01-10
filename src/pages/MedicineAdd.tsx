@@ -22,8 +22,6 @@ export default function MedicineAdd() {
         is_prescription_required: false,
         is_controlled: false,
         storage_conditions: '',
-        batch_number: '',
-        expiry_date: '',
         rack_number: '',
         rack_name: '',
     });
@@ -295,33 +293,10 @@ export default function MedicineAdd() {
                             </div>
                         </div>
 
-                        {/* Batch & Location */}
+                        {/* Storage Location */}
                         <div>
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Batch & Location</h3>
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Storage Location</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Batch Number
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.batch_number}
-                                        onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                        placeholder="BATCH123"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Expiry Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.expiry_date}
-                                        onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                    />
-                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Rack Name

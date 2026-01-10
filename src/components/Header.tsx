@@ -49,7 +49,7 @@ export default function Header() {
     const userName = user?.full_name || 'User';
     const userEmail = user?.email || 'user@example.com';
     const userRole = getRoleName(user?.role || 'user');
-    const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const userInitials = userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 
     // Generate breadcrumbs from path
     const generateBreadcrumbs = () => {

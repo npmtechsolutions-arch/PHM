@@ -70,6 +70,124 @@ async def adjust_stock(
     return APIResponse(message="Stock adjusted successfully", data={"new_quantity": batch.quantity})
 
 
+# Stock Entry - creates batch implicitly
+class StockEntry(BaseModel):
+    warehouse_id: str
+    medicine_id: str
+    batch_number: str  # Batch is created implicitly here
+    expiry_date: str   # Batch expiry date (YYYY-MM-DD)
+    quantity: int
+    rack_name: Optional[str] = None  # Physical storage - e.g., "Painkillers Box"
+    rack_number: Optional[str] = None  # Physical rack - e.g., "R-01"
+
+
+@router.post("/entry")
+async def create_stock_entry(
+    entry: StockEntry,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
+):
+    """
+    Add stock entry to warehouse.
+    Batch is created implicitly - NOT a separate master.
+    
+    ENTITY CONTEXT RESOLUTION:
+    - Super Admin: can specify any warehouse (explicit selection)
+    - Warehouse Admin: MUST use their assigned warehouse (server enforces)
+    """
+    from fastapi import HTTPException
+    from datetime import datetime
+    from app.db.models import WarehouseStock, Warehouse
+    
+    # ENTITY CONTEXT ENFORCEMENT
+    user_role = current_user.get("role")
+    assigned_warehouse_id = current_user.get("assigned_warehouse_id")
+    
+    if user_role != "super_admin":
+        # Non-Super Admin: MUST use their assigned warehouse
+        if not assigned_warehouse_id:
+            raise HTTPException(status_code=403, detail="User not assigned to any warehouse")
+        if entry.warehouse_id != assigned_warehouse_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="Cannot add stock to another warehouse. You can only operate on your assigned warehouse."
+            )
+    
+    # Validate warehouse
+    warehouse = db.query(Warehouse).filter(Warehouse.id == entry.warehouse_id).first()
+    if not warehouse:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    
+    # Validate medicine
+    medicine = db.query(Medicine).filter(Medicine.id == entry.medicine_id).first()
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    
+    # Parse expiry date
+    try:
+        expiry = datetime.strptime(entry.expiry_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid expiry date format. Use YYYY-MM-DD")
+    
+    # Check if batch already exists for this medicine
+    existing_batch = db.query(Batch).filter(
+        Batch.medicine_id == entry.medicine_id,
+        Batch.batch_number == entry.batch_number
+    ).first()
+    
+    if existing_batch:
+        # Add quantity to existing batch
+        existing_batch.quantity = (existing_batch.quantity or 0) + entry.quantity
+        batch = existing_batch
+    else:
+        # Create new batch implicitly
+        batch = Batch(
+            medicine_id=entry.medicine_id,
+            batch_number=entry.batch_number,
+            expiry_date=expiry,
+            quantity=entry.quantity,
+            mrp=medicine.mrp,
+            purchase_price=medicine.purchase_price
+        )
+        db.add(batch)
+        db.flush()  # Get batch ID
+    
+    # Create or update warehouse stock
+    wh_stock = db.query(WarehouseStock).filter(
+        WarehouseStock.warehouse_id == entry.warehouse_id,
+        WarehouseStock.batch_id == batch.id
+    ).first()
+    
+    if wh_stock:
+        wh_stock.quantity = (wh_stock.quantity or 0) + entry.quantity
+        if entry.rack_name:
+            wh_stock.rack_name = entry.rack_name
+        if entry.rack_number:
+            wh_stock.rack_number = entry.rack_number
+    else:
+        wh_stock = WarehouseStock(
+            warehouse_id=entry.warehouse_id,
+            medicine_id=entry.medicine_id,  # Required field
+            batch_id=batch.id,
+            quantity=entry.quantity,
+            rack_name=entry.rack_name,
+            rack_number=entry.rack_number
+        )
+        db.add(wh_stock)
+    
+    db.commit()
+    
+    return APIResponse(
+        message="Stock entry added successfully",
+        data={
+            "batch_id": batch.id,
+            "batch_number": batch.batch_number,
+            "quantity_added": entry.quantity,
+            "total_batch_quantity": batch.quantity
+        }
+    )
+
+
 @router.get("/alerts")
 async def get_stock_alerts(
     alert_type: Optional[str] = None,

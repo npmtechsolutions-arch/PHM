@@ -117,33 +117,6 @@ export default function ShopList() {
         setShowModal(true);
     };
 
-    const openEditModal = async (shop: Shop) => {
-        try {
-            const response = await shopsApi.get(shop.id);
-            const data = response.data;
-            setEditingShop(shop);
-            setFormData({
-                name: data.name || '',
-                code: data.code || '',
-                shop_type: data.shop_type || 'retail',
-                license_number: data.license_number || '',
-                address: data.address || '',
-                city: data.city || '',
-                state: data.state || '',
-                pincode: data.pincode || '',
-                phone: data.phone || '',
-                email: data.email || '',
-                gst_number: data.gst_number || '',
-                warehouse_id: data.warehouse_id || '',
-            });
-            setError('');
-            setShowModal(true);
-        } catch (err) {
-            console.error('Failed to fetch shop details:', err);
-            alert('Failed to load shop details');
-        }
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');

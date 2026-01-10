@@ -1,8 +1,10 @@
 """
 Security utilities for authentication and authorization
+Production-grade Role-Based Entity Authorization
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
+from dataclasses import dataclass
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -62,10 +64,68 @@ def decode_token(token: str) -> dict:
         )
 
 
-async def get_current_user(
+# ==================== AUTH CONTEXT ====================
+
+@dataclass
+class AuthContext:
+    """
+    Authentication context containing user identity and entity scope.
+    This is the source of truth for authorization decisions.
+    """
+    user_id: str
+    email: str
+    role: str
+    warehouse_id: Optional[str] = None
+    shop_id: Optional[str] = None
+    
+    @property
+    def is_super_admin(self) -> bool:
+        """Check if user is super admin (global access)"""
+        return self.role == "super_admin"
+    
+    @property
+    def is_warehouse_admin(self) -> bool:
+        """Check if user is warehouse admin"""
+        return self.role == "warehouse_admin"
+    
+    @property
+    def is_shop_level(self) -> bool:
+        """Check if user is shop-level (shop_owner, pharmacist, cashier)"""
+        return self.role in ["shop_owner", "pharmacist", "cashier"]
+    
+    def can_access_warehouse(self, warehouse_id: str) -> bool:
+        """Check if user can access a specific warehouse"""
+        if self.is_super_admin:
+            return True
+        if self.is_warehouse_admin:
+            return self.warehouse_id == warehouse_id
+        # Shop-level users access their shop's warehouse
+        # This should be validated at the API level with DB lookup
+        return False
+    
+    def can_access_shop(self, shop_id: str) -> bool:
+        """Check if user can access a specific shop"""
+        if self.is_super_admin:
+            return True
+        if self.is_shop_level:
+            return self.shop_id == shop_id
+        # Warehouse admin can access all shops in their warehouse
+        # This should be validated at the API level with DB lookup
+        return False
+    
+    def can_perform_operation(self, operation: str) -> bool:
+        """Check if user can perform a specific operation"""
+        # Super Admin restrictions
+        if self.is_super_admin:
+            blocked_ops = ["billing", "pos", "stock_adjust", "dispatch_create"]
+            return operation not in blocked_ops
+        return True
+
+
+async def get_auth_context(
     credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> dict:
-    """Get current authenticated user from JWT token"""
+) -> AuthContext:
+    """Get authentication context from JWT token"""
     token = credentials.credentials
     payload = decode_token(token)
     
@@ -82,17 +142,99 @@ async def get_current_user(
             detail="Invalid token payload"
         )
     
-    # Return user info from token
-    return {"user_id": user_id, "email": payload.get("sub"), "role": payload.get("role", "user")}
+    return AuthContext(
+        user_id=user_id,
+        email=payload.get("sub", ""),
+        role=payload.get("role", "user"),
+        warehouse_id=payload.get("warehouse_id"),
+        shop_id=payload.get("shop_id")
+    )
 
 
-def require_role(required_roles: list[str]):
+# Legacy function for backward compatibility
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """Get current authenticated user from JWT token (legacy)"""
+    auth = await get_auth_context(credentials)
+    return {
+        "user_id": auth.user_id,
+        "email": auth.email,
+        "role": auth.role,
+        "warehouse_id": auth.warehouse_id,
+        "shop_id": auth.shop_id
+    }
+
+
+# ==================== AUTHORIZATION DECORATORS ====================
+
+def require_role(required_roles: List[str]):
     """Dependency to require specific roles"""
-    async def role_checker(current_user: dict = Depends(get_current_user)):
-        if current_user.get("role") not in required_roles:
+    async def role_checker(auth: AuthContext = Depends(get_auth_context)):
+        if auth.role not in required_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions"
             )
-        return current_user
+        return auth
     return role_checker
+
+
+def require_super_admin():
+    """Dependency to require super_admin role"""
+    async def checker(auth: AuthContext = Depends(get_auth_context)):
+        if not auth.is_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Super Admin access required"
+            )
+        return auth
+    return checker
+
+
+def require_warehouse_access():
+    """
+    Dependency factory for warehouse access validation.
+    Use with path parameter 'warehouse_id'.
+    """
+    async def checker(
+        warehouse_id: str,
+        auth: AuthContext = Depends(get_auth_context)
+    ):
+        if not auth.can_access_warehouse(warehouse_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this warehouse"
+            )
+        return auth
+    return checker
+
+
+def require_shop_access():
+    """
+    Dependency factory for shop access validation.
+    Use with path parameter 'shop_id'.
+    """
+    async def checker(
+        shop_id: str,
+        auth: AuthContext = Depends(get_auth_context)
+    ):
+        if not auth.can_access_shop(shop_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this shop"
+            )
+        return auth
+    return checker
+
+
+def block_super_admin():
+    """Dependency to block super_admin from operational endpoints"""
+    async def checker(auth: AuthContext = Depends(get_auth_context)):
+        if auth.is_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Super Admin cannot perform operational actions"
+            )
+        return auth
+    return checker
