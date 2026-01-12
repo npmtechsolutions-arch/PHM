@@ -67,10 +67,6 @@ export default function InventoryOversight() {
                 last_movement: alert.last_movement_date
             }));
 
-            // Client-side filter simulation if API doesn't support it yet
-            // This ensures the UI feels responsive to the filters even if backend is mocking
-            let filteredItems = items;
-            // (Optional refinement)
 
             setStockData(items);
         } catch (err) {

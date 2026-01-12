@@ -127,6 +127,18 @@ export interface RackItem {
     is_active: boolean;
 }
 
+export interface SupplierItem {
+    id: string;
+    code: string;
+    name: string;
+    is_active: boolean;
+}
+
+export interface AdjustmentReasonItem extends MasterItem {
+    adjustment_type: 'increase' | 'decrease';
+    description?: string;
+}
+
 export interface AllMasterData {
     categories: CategoryItem[];
     units: UnitItem[];
@@ -146,6 +158,8 @@ export interface AllMasterData {
     warehouses: WarehouseItem[];
     shops: ShopItem[];
     racks: RackItem[];
+    suppliers: SupplierItem[];
+    adjustment_reasons: AdjustmentReasonItem[];
 }
 
 // ==================== CONTEXT DEFINITION ====================

@@ -13,6 +13,7 @@ import ShopList from './pages/ShopList';
 import MedicineList from './pages/MedicineList';
 import MedicineDetails from './pages/MedicineDetails';
 import MedicineAdd from './pages/MedicineAdd';
+import MedicineEdit from './pages/MedicineEdit';
 import EditMedicalShop from './pages/EditMedicalShop';
 import ShopAdd from './pages/ShopAdd';
 import ApplicationSettings from './pages/ApplicationSettings';
@@ -47,6 +48,10 @@ import CategoriesPage from './pages/CategoriesPage';
 import UnitsPage from './pages/UnitsPage';
 import HSNCodesPage from './pages/HSNCodesPage';
 import GSTVATPage from './pages/GSTVATPage';
+import GSTSlabsPage from './pages/GSTSlabsPage';
+import SuppliersPage from './pages/SuppliersPage';
+import AdjustmentReasonsPage from './pages/AdjustmentReasonsPage';
+import PaymentMethodsPage from './pages/PaymentMethodsPage';
 
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -106,10 +111,15 @@ function App() {
                   <Route path="medicines" element={<MedicineList />} />
                   <Route path="medicines/add" element={<MedicineAdd />} />
                   <Route path="medicines/:id" element={<MedicineDetails />} />
+                  <Route path="medicines/:id/edit" element={<MedicineEdit />} />
                   <Route path="categories" element={<CategoriesPage />} />
                   <Route path="units" element={<UnitsPage />} />
                   <Route path="hsn" element={<HSNCodesPage />} />
                   <Route path="gst" element={<GSTVATPage />} />
+                  <Route path="gst-slabs" element={<GSTSlabsPage />} />
+                  <Route path="suppliers" element={<SuppliersPage />} />
+                  <Route path="adjustment-reasons" element={<AdjustmentReasonsPage />} />
+                  <Route path="payment-methods" element={<PaymentMethodsPage />} />
 
                   {/* Rack Master (Physical storage locations) */}
                   <Route path="racks" element={<RackMaster />} />

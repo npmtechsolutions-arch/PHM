@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import MedicineCategory, UnitMaster, HSNMaster
+from app.db.models import MedicineCategory, UnitMaster, HSNMaster, GSTSlabMaster
 from app.api.v1.auth import get_current_user
 
 router = APIRouter()

@@ -102,6 +102,8 @@ export interface Medicine {
     is_prescription_required: boolean;
     is_controlled: boolean;
     storage_conditions?: string;
+    rack_name?: string;
+    rack_number?: string;
     is_active: boolean;
     created_at: string;
     updated_at?: string;

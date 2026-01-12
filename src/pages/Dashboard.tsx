@@ -283,21 +283,21 @@ export default function Dashboard() {
             {/* Personalized Greeting */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
                         {(() => {
                             const hour = new Date().getHours();
-                            if (hour < 12) return '🌅 Good Morning';
-                            if (hour < 17) return '☀️ Good Afternoon';
-                            return '🌙 Good Evening';
-                        })()}, {user?.full_name || 'User'}!
+                            if (hour < 12) return 'Good Morning';
+                            if (hour < 17) return 'Good Afternoon';
+                            return 'Good Evening';
+                        })()}, {user?.full_name || 'User'}
                     </h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
-                        <span className="material-symbols-outlined text-blue-600 text-[20px]">business</span>
+                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <span className="material-symbols-outlined text-slate-600 dark:text-slate-400 text-[20px]">business</span>
                         <div>
                             <p className="text-xs text-slate-500 dark:text-slate-400">Total Locations</p>
                             <p className="text-sm font-bold text-slate-900 dark:text-white">{stats.warehouses + stats.shops}</p>
@@ -309,26 +309,26 @@ export default function Dashboard() {
             {/* Quick Actions Bar */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h2 className="text-xl lg:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        Dashboard Overview
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                        Dashboard
                     </h2>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Monitor your pharmacy network performance
+                        Overview of pharmacy operations
                     </p>
                 </div>
                 <div className="flex gap-3">
                     <button
                         onClick={fetchDashboardData}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+                        className="btn btn-secondary"
                     >
-                        <span className="material-symbols-outlined text-[18px]">refresh</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
                         Refresh
                     </button>
                     <button
                         onClick={() => navigate('/sales/pos')}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/40 hover:-translate-y-0.5"
+                        className="btn btn-primary"
                     >
-                        <span className="material-symbols-outlined text-[18px]">add</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
                         New Sale
                     </button>
                 </div>
@@ -346,22 +346,21 @@ export default function Dashboard() {
 
             {/* KPI Cards - Always Visible (Global & Entity) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpiCards.map((card, index) => (
+                {kpiCards.map((card) => (
                     <div
                         key={card.title}
-                        className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 animate-fadeInUp"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                        className="card"
                     >
-                        <div className="flex items-start justify-between mb-3">
-                            <div className={`w-12 h-12 rounded-xl bg-${card.color}-100 dark:bg-${card.color}-900/30 flex items-center justify-center`}>
-                                <span className={`material-symbols-outlined text-${card.color}-600 dark:text-${card.color}-400 text-2xl`}>
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-slate-600 dark:text-slate-400" style={{ fontSize: 20 }}>
                                     {card.icon}
                                 </span>
                             </div>
                         </div>
-                        <h4 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{card.value}</h4>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">{card.title}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{card.subtitle}</p>
+                        <h4 className="text-2xl font-bold text-slate-900 dark:text-white">{card.value}</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">{card.title}</p>
+                        <p className="text-xs text-slate-400 mt-1">{card.subtitle}</p>
                     </div>
                 ))}
             </div>
@@ -371,26 +370,25 @@ export default function Dashboard() {
                 <>
                     {/* Alert Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {alertCards.map((card, index) => (
+                        {alertCards.map((card) => (
                             <div
                                 key={card.title}
-                                className={`bg-white dark:bg-slate-800 rounded-xl border ${card.color === 'red' ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-700'} p-5 shadow-sm hover:shadow-md transition-all animate-fadeInUp relative overflow-hidden`}
-                                style={{ animationDelay: `${(index + 4) * 50}ms` }}
+                                className="card"
                             >
-                                <div className="flex items-start justify-between mb-2">
-                                    <div className={`w-10 h-10 rounded-lg bg-${card.color}-100 dark:bg-${card.color}-900/30 flex items-center justify-center`}>
-                                        <span className={`material-symbols-outlined text-${card.color}-600 dark:text-${card.color}-400`}>
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-slate-600 dark:text-slate-400" style={{ fontSize: 20 }}>
                                             {card.icon}
                                         </span>
                                     </div>
                                     {card.badge && (
-                                        <span className={`text-xs font-medium text-${card.badgeColor}-600 bg-${card.badgeColor}-50 dark:bg-${card.badgeColor}-900/20 px-2 py-0.5 rounded-full`}>
+                                        <span className="badge badge-warning">
                                             {card.badge}
                                         </span>
                                     )}
                                 </div>
                                 <h4 className="text-2xl font-bold text-slate-900 dark:text-white">{card.value}</h4>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">{card.title}</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{card.title}</p>
                             </div>
                         ))}
                     </div>
@@ -412,7 +410,7 @@ export default function Dashboard() {
                                 {monthlySales.map((sale, i) => (
                                     <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
                                         <div
-                                            className="w-full max-w-[60px] bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all duration-500 hover:from-blue-700 hover:to-blue-500 cursor-pointer"
+                                            className="w-full max-w-[60px] bg-primary rounded-t-lg"
                                             style={{ height: `${(sale.amount / maxSale) * 100}%`, minHeight: '20px' }}
                                         />
                                         <span className="text-xs font-medium text-slate-500">{sale.month}</span>

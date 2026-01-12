@@ -1,19 +1,17 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
-import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
-import { MasterDataWarning } from '../components/MasterDataWarning';
 import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
 import Button from '../components/Button';
 
-export default function MedicineAdd() {
+export default function MedicineEdit() {
     const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
     const { isLoading: mastersLoading } = useMasterData();
-    const { canCreate, missingPrerequisites, warnings } = useMasterDataPrerequisites('medicines');
 
     const [formData, setFormData] = useState({
         name: '',
@@ -36,8 +34,49 @@ export default function MedicineAdd() {
         rack_number: '',
         rack_name: '',
     });
+    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (id) {
+            fetchMedicine(id);
+        }
+    }, [id]);
+
+    const fetchMedicine = async (medicineId: string) => {
+        try {
+            setLoading(true);
+            const response = await medicinesApi.get(medicineId);
+            const data = response.data;
+            setFormData({
+                name: data.name || '',
+                generic_name: data.generic_name || '',
+                brand: data.brand || '',
+                manufacturer: data.manufacturer || '',
+                medicine_type: data.medicine_type || 'tablet',
+                category: data.category || '',
+                composition: data.composition || '',
+                strength: data.strength || '',
+                unit: data.unit || 'Strip',
+                pack_size: data.pack_size || 10,
+                hsn_code: data.hsn_code || '',
+                gst_rate: data.gst_rate || 12,
+                mrp: data.mrp || 0,
+                purchase_price: data.purchase_price || 0,
+                is_prescription_required: data.is_prescription_required || false,
+                is_controlled: data.is_controlled || false,
+                storage_conditions: data.storage_conditions || '',
+                rack_number: data.rack_number || '',
+                rack_name: data.rack_name || '',
+            });
+        } catch (err) {
+            console.error('Failed to fetch medicine:', err);
+            setError('Failed to load medicine details');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,33 +89,36 @@ export default function MedicineAdd() {
 
         setSaving(true);
         try {
-            await medicinesApi.create(formData);
-            navigate('/medicines');
+            if (id) {
+                await medicinesApi.update(id, formData);
+                navigate('/medicines');
+            }
         } catch (err: any) {
-            console.error('Failed to create medicine:', err);
-            setError(err.response?.data?.detail || 'Failed to create medicine');
+            console.error('Failed to update medicine:', err);
+            setError(err.response?.data?.detail || 'Failed to update medicine');
         } finally {
             setSaving(false);
         }
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="spinner"></div>
+            </div>
+        );
+    }
+
     return (
         <PageLayout
-            title="Add New Medicine"
-            description="Create a new medicine in your catalog"
+            title="Edit Medicine"
+            description={`Update information for ${formData.name}`}
             breadcrumbs={[
                 { label: 'Medicines', path: '/medicines' },
-                { label: 'Add New', path: undefined }
+                { label: 'Edit', path: undefined }
             ]}
         >
             <div className="max-w-4xl mx-auto">
-                {/* Prerequisite Warning */}
-                <MasterDataWarning
-                    masterType="Medicines"
-                    missingPrerequisites={missingPrerequisites}
-                    warnings={warnings}
-                />
-
                 <form onSubmit={handleSubmit}>
                     <Card className="space-y-6">
                         {error && (
@@ -93,26 +135,22 @@ export default function MedicineAdd() {
                                     label="Medicine Name *"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="Paracetamol 500mg"
                                     required
                                 />
                                 <Input
                                     label="Generic Name"
                                     value={formData.generic_name}
                                     onChange={(e) => setFormData({ ...formData, generic_name: e.target.value })}
-                                    placeholder="Paracetamol"
                                 />
                                 <Input
                                     label="Brand"
                                     value={formData.brand}
                                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                                    placeholder="Dolo"
                                 />
                                 <Input
                                     label="Manufacturer"
                                     value={formData.manufacturer}
                                     onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                                    placeholder="Micro Labs"
                                 />
                             </div>
                         </div>
@@ -141,7 +179,6 @@ export default function MedicineAdd() {
                                     label="Strength"
                                     value={formData.strength}
                                     onChange={(e) => setFormData({ ...formData, strength: e.target.value })}
-                                    placeholder="500mg"
                                 />
                             </div>
                         </div>
@@ -169,7 +206,6 @@ export default function MedicineAdd() {
                                     value={formData.hsn_code}
                                     onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })}
                                     className="font-mono"
-                                    placeholder="30049099"
                                 />
                             </div>
                         </div>
@@ -212,7 +248,6 @@ export default function MedicineAdd() {
                                     label="Rack Name"
                                     value={formData.rack_name}
                                     onChange={(e) => setFormData({ ...formData, rack_name: e.target.value })}
-                                    placeholder="Shelf A"
                                 />
                                 <Input
                                     label="Rack Number"
@@ -233,14 +268,12 @@ export default function MedicineAdd() {
                                         onChange={(e) => setFormData({ ...formData, composition: e.target.value })}
                                         className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                                         rows={2}
-                                        placeholder="Active ingredients..."
                                     />
                                 </div>
                                 <Input
                                     label="Storage Conditions"
                                     value={formData.storage_conditions}
                                     onChange={(e) => setFormData({ ...formData, storage_conditions: e.target.value })}
-                                    placeholder="Store below 25°C"
                                 />
                                 <div className="flex gap-6 pt-2">
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -269,8 +302,8 @@ export default function MedicineAdd() {
                             <Button variant="secondary" onClick={() => navigate('/medicines')} type="button">
                                 Cancel
                             </Button>
-                            <Button variant="primary" type="submit" loading={saving} disabled={!canCreate}>
-                                {saving ? 'Creating...' : 'Create Medicine'}
+                            <Button variant="primary" type="submit" loading={saving}>
+                                {saving ? 'Updating...' : 'Update Medicine'}
                             </Button>
                         </div>
                     </Card>

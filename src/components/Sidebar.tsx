@@ -49,7 +49,6 @@ const platformManagementItems: NavItemType[] = [
         children: [
             { path: '/shops', label: 'View All Shops', icon: 'list', permissions: ['shops.view'] },
             { path: '/shops/add', label: 'Add Shop', icon: 'add', permissions: ['shops.create'] },
-            { path: '/warehouse-mapping', label: 'Warehouse ↔ Shop Mapping', icon: 'swap_horiz', permissions: ['warehouses.edit', 'shops.edit'] },
         ]
     },
 
@@ -228,13 +227,7 @@ export default function Sidebar() {
 
     const userRole = user?.role || 'user';
     const isSuperAdmin = userRole === 'super_admin';
-    const {
-        scope,
-        activeEntity,
-        switchContext,
-        availableWarehouses,
-        availableShops
-    } = useOperationalContext();
+    useOperationalContext();
 
     // Check if user can see an item based on permissions or roles
     const canSeeItem = (item: NavItemType | SubItem | OperationalNavItem): boolean => {
@@ -342,9 +335,9 @@ export default function Sidebar() {
                                         to={child.path}
                                         end={child.path === item.path}
                                         className={({ isActive }) =>
-                                            `flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm
+                                            `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm
                                             ${isActive
-                                                ? 'bg-primary text-white shadow-md shadow-primary/30'
+                                                ? 'bg-primary text-white'
                                                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                                             }`
                                         }
@@ -367,13 +360,12 @@ export default function Sidebar() {
                 to={item.path}
                 end={item.path === '/'}
                 className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group
                     ${isActive
-                        ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                        ? 'bg-primary text-white'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                     }
-                    ${isCollapsed ? 'justify-center' : ''}
-                    animate-fadeIn`
+                    ${isCollapsed ? 'justify-center' : ''}`
                 }
                 style={{ animationDelay: `${index * 20}ms` }}
                 title={isCollapsed ? item.label : undefined}
@@ -404,10 +396,7 @@ export default function Sidebar() {
         const visibleOps = operationalItems.filter(item => canSeeItem(item));
         items.push(...visibleOps);
 
-        // Add system items
-        const visibleSystem = systemItems.filter(item => canSeeItem(item));
-        items.push(...visibleSystem);
-
+        // Note: System items are rendered separately in nav section, not here
         return items;
     };
 
@@ -422,8 +411,8 @@ export default function Sidebar() {
             {/* Logo Section */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-slate-100 dark:border-slate-800">
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
-                    <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30">
-                        <span className="material-symbols-outlined">local_pharmacy</span>
+                    <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
+                        <span className="material-symbols-outlined" style={{ fontSize: 20 }}>local_pharmacy</span>
                     </div>
                     {!isCollapsed && (
                         <div className="animate-fadeIn">
@@ -478,7 +467,7 @@ export default function Sidebar() {
                 {!isCollapsed ? (
                     <div className="flex items-center gap-3 animate-fadeIn">
                         <div className="relative">
-                            <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                            <div className="size-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-sm">
                                 {userRole === 'super_admin' ? 'SA' : userRole === 'warehouse_admin' ? 'WA' : 'U'}
                             </div>
                             <div className="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
@@ -505,7 +494,7 @@ export default function Sidebar() {
                 ) : (
                     <div className="flex flex-col items-center gap-2">
                         <div className="relative">
-                            <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                            <div className="size-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-sm">
                                 {userRole === 'super_admin' ? 'SA' : userRole === 'warehouse_admin' ? 'WA' : 'U'}
                             </div>
                             <div className="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>

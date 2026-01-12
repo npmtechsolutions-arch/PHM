@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { warehousesApi } from '../services/api';
+import PageLayout from '../components/PageLayout';
+import Card from '../components/Card';
+import Input from '../components/Input';
+import Button from '../components/Button';
 
 export default function WarehouseEdit() {
     const navigate = useNavigate();
@@ -73,93 +77,125 @@ export default function WarehouseEdit() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <div className="spinner"></div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto animate-fadeIn">
-            <div className="mb-6">
-                <button
-                    onClick={() => navigate('/warehouses')}
-                    className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-4 transition-colors"
-                >
-                    <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-                    <span>Back to Warehouses</span>
-                </button>
-                <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Edit Warehouse</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">Update warehouse information</p>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <PageLayout
+            title="Edit Warehouse"
+            description="Update warehouse information"
+            breadcrumbs={[
+                { label: 'Warehouses', path: '/warehouses' },
+                { label: 'Edit', path: undefined }
+            ]}
+        >
+            <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>
-                    <div className="p-6 space-y-6">
+                    <Card className="space-y-6">
                         {error && (
-                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                                 {error}
                             </div>
                         )}
 
+                        {/* Basic Information */}
                         <div>
                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Basic Information</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Warehouse Name *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Code *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.code}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 font-mono"
-                                        disabled
-                                    />
-                                </div>
+                                <Input
+                                    label="Warehouse Name *"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    required
+                                />
+                                <Input
+                                    label="Code *"
+                                    value={formData.code}
+                                    className="font-mono bg-slate-100 dark:bg-slate-800"
+                                    disabled
+                                    required
+                                />
                             </div>
                         </div>
 
+                        {/* Location */}
                         <div>
                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Location</h3>
                             <div className="space-y-4">
-                                <textarea
-                                    value={formData.address}
-                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-                                    rows={2}
-                                    placeholder="Address"
-                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Address
+                                    </label>
+                                    <textarea
+                                        value={formData.address}
+                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                        className="input min-h-[80px] py-2"
+                                        placeholder="Address"
+                                    />
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="City *" required />
-                                    <input type="text" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="State *" required />
+                                    <Input
+                                        label="City *"
+                                        value={formData.city}
+                                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                        required
+                                    />
+                                    <Input
+                                        label="State *"
+                                        value={formData.state}
+                                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                                        required
+                                    />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <input type="text" value={formData.pincode} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Pincode" />
-                                    <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Phone" />
-                                    <input type="number" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Capacity" />
+                                    <Input
+                                        label="Pincode"
+                                        value={formData.pincode}
+                                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Phone"
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Capacity"
+                                        type="number"
+                                        value={formData.capacity}
+                                        onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                                    />
                                 </div>
                             </div>
                         </div>
 
+                        {/* Contact */}
                         <div>
                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Contact</h3>
-                            <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Email" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    label="Email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
-                        <button type="button" onClick={() => navigate('/warehouses')} className="px-5 py-2.5 border border-slate-200 dark:border-slate-600 rounded-lg font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
-                        <button type="submit" disabled={saving} className="px-5 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-primary/30">{saving ? 'Updating...' : 'Update Warehouse'}</button>
-                    </div>
+                        {/* Actions */}
+                        <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                            <Button variant="secondary" type="button" onClick={() => navigate('/warehouses')}>
+                                Cancel
+                            </Button>
+                            <Button variant="primary" type="submit" loading={saving}>
+                                {saving ? 'Updating...' : 'Update Warehouse'}
+                            </Button>
+                        </div>
+                    </Card>
                 </form>
             </div>
-        </div>
+        </PageLayout>
     );
 }

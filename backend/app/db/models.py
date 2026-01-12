@@ -882,6 +882,9 @@ class HSNMaster(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+# Note: GSTSlabMaster is defined in SSOT MASTER TABLES section below
+
+
 class Rack(Base):
     """Physical storage rack/location master"""
     __tablename__ = "racks"

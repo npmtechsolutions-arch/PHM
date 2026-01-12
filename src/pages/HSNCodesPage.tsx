@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
-import { GSTSlabSelect } from '../components/MasterSelect';
+import { useMasterData } from '../contexts/MasterDataContext';
+import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
+import { MasterDataWarning } from '../components/MasterDataWarning';
+
 
 interface HSN {
     id: string;
     hsn_code: string;
     description: string;
+    gst_slab_id?: string;  // Link to GST slab
     gst_rate: number;
     cgst_rate: number;
     sgst_rate: number;
@@ -19,12 +23,22 @@ interface HSN {
 export default function HSNCodesPage() {
     const { user } = useUser();
     const navigate = useNavigate();
+    const { getMaster } = useMasterData();
+    const { canCreate, missingPrerequisites } = useMasterDataPrerequisites('hsn_codes');
+    const gstSlabs = getMaster('gst_slabs');
+
     const [hsnCodes, setHsnCodes] = useState<HSN[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingHSN, setEditingHSN] = useState<HSN | null>(null);
     const [formData, setFormData] = useState({
-        hsn_code: '', description: '', gst_rate: 12, cgst_rate: 6, sgst_rate: 6, igst_rate: 12
+        hsn_code: '',
+        description: '',
+        gst_slab_id: '',
+        gst_rate: 0,
+        cgst_rate: 0,
+        sgst_rate: 0,
+        igst_rate: 0
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -53,15 +67,38 @@ export default function HSNCodesPage() {
 
     const openCreateModal = () => {
         setEditingHSN(null);
-        setFormData({ hsn_code: '', description: '', gst_rate: 12, cgst_rate: 6, sgst_rate: 6, igst_rate: 12 });
+        setFormData({
+            hsn_code: '',
+            description: '',
+            gst_slab_id: '',
+            gst_rate: 0,
+            cgst_rate: 0,
+            sgst_rate: 0,
+            igst_rate: 0
+        });
         setError('');
         setShowModal(true);
+    };
+
+    // Auto-derive GST rates when slab is selected
+    const handleGSTSlabChange = (slabId: string) => {
+        const slab = gstSlabs.find((s: any) => s.id === slabId);
+        if (slab) {
+            setFormData({
+                ...formData,
+                gst_slab_id: slabId,
+                gst_rate: slab.rate,
+                cgst_rate: slab.rate / 2,
+                sgst_rate: slab.rate / 2,
+                igst_rate: slab.rate
+            });
+        }
     };
 
     const openEditModal = (hsn: HSN) => {
         setEditingHSN(hsn);
         setFormData({
-            hsn_code: hsn.hsn_code, description: hsn.description,
+            hsn_code: hsn.hsn_code, description: hsn.description, gst_slab_id: hsn.gst_slab_id || '',
             gst_rate: hsn.gst_rate, cgst_rate: hsn.cgst_rate, sgst_rate: hsn.sgst_rate, igst_rate: hsn.igst_rate
         });
         setError('');
@@ -98,10 +135,6 @@ export default function HSNCodesPage() {
         }
     };
 
-    const handleGSTChange = (rate: number) => {
-        setFormData({ ...formData, gst_rate: rate, cgst_rate: rate / 2, sgst_rate: rate / 2, igst_rate: rate });
-    };
-
     const filtered = hsnCodes.filter(h =>
         h.hsn_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         h.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -109,12 +142,26 @@ export default function HSNCodesPage() {
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+            {/* Prerequisite Warning */}
+            <MasterDataWarning
+                masterType="HSN Codes"
+                missingPrerequisites={missingPrerequisites}
+            />
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">HSN Codes</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Manage HSN codes with GST rates.</p>
                 </div>
-                <button onClick={openCreateModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl font-medium shadow-lg shadow-amber-500/25 hover:shadow-xl transition-all">
+                <button
+                    onClick={openCreateModal}
+                    disabled={!canCreate}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium shadow-lg transition-all ${!canCreate
+                        ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-amber-500/25 hover:shadow-xl'
+                        }`}
+                    title={!canCreate ? 'GST slabs must be created first' : 'Add HSN Code'}
+                >
                     <span className="material-symbols-outlined text-[20px]">add</span>Add HSN Code
                 </button>
             </div>
@@ -202,19 +249,56 @@ export default function HSNCodesPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">HSN Code *</label><input type="text" value={formData.hsn_code} onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })} placeholder="e.g., 3004" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">GST Rate %</label>
-                                    <GSTSlabSelect
-                                        value={formData.gst_rate}
-                                        onChange={handleGSTChange}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
-                                    />
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">GST Slab *</label>
+                                    <select
+                                        value={formData.gst_slab_id}
+                                        onChange={(e) => handleGSTSlabChange(e.target.value)}
+                                        required
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    >
+                                        <option value="">Select GST Slab</option>
+                                        {gstSlabs.map((slab: any) => (
+                                            <option key={slab.id} value={slab.id}>
+                                                {slab.rate}% - {slab.description || `GST ${slab.rate}%`}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                             <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description *</label><input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="e.g., Medicaments" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">CGST %</label><input type="number" value={formData.cgst_rate} onChange={(e) => setFormData({ ...formData, cgst_rate: Number(e.target.value) })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
-                                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">SGST %</label><input type="number" value={formData.sgst_rate} onChange={(e) => setFormData({ ...formData, sgst_rate: Number(e.target.value) })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
-                                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">IGST %</label><input type="number" value={formData.igst_rate} onChange={(e) => setFormData({ ...formData, igst_rate: Number(e.target.value) })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" /></div>
+
+                            {/* Auto-derived GST rates (read-only) */}
+                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-3">
+                                    <span className="material-symbols-outlined text-sm align-middle mr-1">info</span>
+                                    GST rates are auto-calculated from selected slab
+                                </p>
+                                <div className="grid grid-cols-4 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Total GST</label>
+                                        <div className="px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <span className="font-bold text-blue-600">{formData.gst_rate}%</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">CGST</label>
+                                        <div className="px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <span className="font-medium text-slate-700 dark:text-slate-300">{formData.cgst_rate}%</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">SGST</label>
+                                        <div className="px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <span className="font-medium text-slate-700 dark:text-slate-300">{formData.sgst_rate}%</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">IGST</label>
+                                        <div className="px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <span className="font-medium text-slate-700 dark:text-slate-300">{formData.igst_rate}%</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </form>
                         <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">

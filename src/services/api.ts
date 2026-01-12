@@ -411,6 +411,30 @@ export const mastersApi = {
     createHSN: (data: any) => api.post('/masters/hsn', data),
     updateHSN: (id: string, data: any) => api.put(`/masters/hsn/${id}`, data),
     deleteHSN: (id: string) => api.delete(`/masters/hsn/${id}`),
+
+    // GST Slabs
+    listGSTSlabs: () => api.get('/masters/gst-slabs'),
+    createGSTSlab: (data: any) => api.post('/masters/gst-slabs', data),
+    updateGSTSlab: (id: string, data: any) => api.put(`/masters/gst-slabs/${id}`, data),
+    deleteGSTSlab: (id: string) => api.delete(`/masters/gst-slabs/${id}`),
+
+    // Suppliers
+    listSuppliers: () => api.get('/masters/suppliers'),
+    createSupplier: (data: any) => api.post('/masters/suppliers', data),
+    updateSupplier: (id: string, data: any) => api.put(`/masters/suppliers/${id}`, data),
+    deleteSupplier: (id: string) => api.delete(`/masters/suppliers/${id}`),
+
+    // Adjustment Reasons
+    listAdjustmentReasons: () => api.get('/masters/adjustment-reasons'),
+    createAdjustmentReason: (data: any) => api.post('/masters/adjustment-reasons', data),
+    updateAdjustmentReason: (id: string, data: any) => api.put(`/masters/adjustment-reasons/${id}`, data),
+    deleteAdjustmentReason: (id: string) => api.delete(`/masters/adjustment-reasons/${id}`),
+
+    // Payment Methods
+    listPaymentMethods: () => api.get('/masters/payment-methods'),
+    createPaymentMethod: (data: any) => api.post('/masters/payment-methods', data),
+    updatePaymentMethod: (id: string, data: any) => api.put(`/masters/payment-methods/${id}`, data),
+    deletePaymentMethod: (id: string) => api.delete(`/masters/payment-methods/${id}`),
 };
 
 // Master Options API (Status, Types, Priorities - Configurable Dropdowns)
