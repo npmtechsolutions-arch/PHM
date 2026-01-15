@@ -109,10 +109,6 @@ export default function GSTSlabsPage() {
         <PageLayout
             title="GST Slabs"
             description="Manage GST tax rates for your products"
-            breadcrumbs={[
-                { label: 'Settings', path: '/settings' },
-                { label: 'GST Slabs', path: undefined }
-            ]}
             actions={
                 hasPermission('gst.create') && (
                     <Button variant="primary" onClick={openCreateModal}>

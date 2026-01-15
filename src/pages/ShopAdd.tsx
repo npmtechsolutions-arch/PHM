@@ -57,10 +57,6 @@ export default function ShopAdd() {
         <PageLayout
             title="Add New Medical Shop"
             description="Create a new retail pharmacy location"
-            breadcrumbs={[
-                { label: 'Medical Shops', path: '/shops' },
-                { label: 'Add New', path: undefined }
-            ]}
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>

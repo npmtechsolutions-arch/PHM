@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
+import Button from '../components/Button';
+import Badge from '../components/Badge';
+import Modal from '../components/Modal';
+import Input from '../components/Input';
+import { type Column } from '../components/Table';
 
 interface Category {
     id: string;
@@ -29,6 +36,8 @@ export default function CategoriesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const pageSize = 15;
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Access Control: Check permission
     useEffect(() => {
@@ -109,7 +118,7 @@ export default function CategoriesPage() {
         }
     };
 
-    const filteredCategories = categories.filter(cat =>
+    const filtered = categories.filter(cat =>
         cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         cat.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -120,265 +129,168 @@ export default function CategoriesPage() {
         return parent?.name;
     };
 
+    const stats = {
+        total: categories.length,
+        active: categories.filter(c => c.is_active).length,
+        subcategories: categories.filter(c => c.parent_id).length
+    };
+
+    const columns: Column<Category>[] = [
+        {
+            header: 'Category',
+            key: 'name',
+            render: (category) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-emerald-600 text-[18px]">folder</span>
+                    </div>
+                    <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{category.name}</p>
+                        {category.description && (
+                            <p className="text-xs text-slate-500 line-clamp-1">{category.description}</p>
+                        )}
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: 'Parent',
+            key: 'parent_id',
+            render: (category) => {
+                const parentName = getParentName(category.parent_id);
+                return parentName ? <span className="text-sm text-slate-600 dark:text-slate-400">{parentName}</span> : <span className="text-sm text-slate-400">—</span>;
+            }
+        },
+        {
+            header: 'Status',
+            key: 'is_active',
+            align: 'center',
+            render: (category) => <Badge variant={category.is_active ? 'success' : 'secondary'}>{category.is_active ? 'Active' : 'Inactive'}</Badge>
+        },
+        {
+            header: 'Created',
+            key: 'created_at',
+            render: (category) => <span className="text-sm text-slate-600 dark:text-slate-400">{new Date(category.created_at).toLocaleDateString()}</span>
+        },
+        {
+            header: 'Actions',
+            key: 'id',
+            align: 'right',
+            render: (category) => (
+                <div className="flex justify-end gap-1">
+                    {hasPermission('categories.edit') && (
+                        <Button variant="ghost" onClick={() => openEditModal(category)} className="!p-1.5 h-8 w-8 text-emerald-600">
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('categories.delete') && (
+                        <Button variant="ghost" onClick={() => handleDelete(category)} className="!p-1.5 h-8 w-8 text-red-600">
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </Button>
+                    )}
+                </div>
+            )
+        }
+    ];
+
+    const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
     return (
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                        Categories
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage medicine categories and subcategories.
-                    </p>
-                </div>
-                {hasPermission('categories.create') && (
-                    <button
-                        onClick={openCreateModal}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">add</span>
-                        Add Category
-                    </button>
-                )}
-            </div>
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Categories"
+                subtitle="Manage medicine categories and subcategories."
+                actions={
+                    hasPermission('categories.create') && (
+                        <Button
+                            variant="primary"
+                            onClick={openCreateModal}
+                            className="bg-gradient-to-r from-emerald-600 to-teal-600"
+                            icon="add"
+                        >
+                            Add Category
+                        </Button>
+                    )
+                }
+            />
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-emerald-600">category</span>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{categories.length}</p>
-                            <p className="text-xs text-slate-500">Total Categories</p>
-                        </div>
+            <UniversalListPage.KPICards>
+                <StatCard title="Total Categories" value={stats.total} icon="category" isActive={true} />
+                <StatCard title="Active" value={stats.active} icon="check_circle" trend="neutral" />
+                <StatCard title="Subcategories" value={stats.subcategories} icon="account_tree" trend="neutral" />
+            </UniversalListPage.KPICards>
+
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={paginatedData}
+                loading={loading}
+                emptyMessage="No categories found."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(filtered.length / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: filtered.length,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Category List"
+                        count={filtered.length}
+                        searchProps={{
+                            value: searchTerm,
+                            onChange: (val) => { setSearchTerm(val); setCurrentPage(1); },
+                            placeholder: "Search categories..."
+                        }}
+                        embedded={true}
+                    />
+                }
+            />
+
+            <Modal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={editingCategory ? 'Edit Category' : 'Add Category'}
+                size="md"
+            >
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+
+                    <Input label="Category Name *" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Antibiotics" required />
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Parent Category</label>
+                        <select
+                            value={formData.parent_id}
+                            onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                            <option value="">None (Top Level)</option>
+                            {categories
+                                .filter(c => c.id !== editingCategory?.id && !c.parent_id)
+                                .map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))
+                            }
+                        </select>
                     </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-green-200 dark:border-green-800 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-green-600">check_circle</span>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-green-600">{categories.filter(c => c.is_active).length}</p>
-                            <p className="text-xs text-slate-500">Active</p>
-                        </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+                        <textarea
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            placeholder="Brief description..."
+                            rows={3}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
                     </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-amber-200 dark:border-amber-800 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-amber-600">account_tree</span>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-amber-600">{categories.filter(c => c.parent_id).length}</p>
-                            <p className="text-xs text-slate-500">Subcategories</p>
-                        </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
+                        <Button variant="primary" type="submit" loading={saving} className="bg-gradient-to-r from-emerald-600 to-teal-600">{saving ? 'Saving...' : 'Save'}</Button>
                     </div>
-                </div>
-            </div>
-
-            {/* Search */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-                <div className="flex gap-4 items-center">
-                    <div className="flex-1">
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <span className="material-symbols-outlined text-[20px]">search</span>
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search categories..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
-                            />
-                        </div>
-                    </div>
-                    <button
-                        onClick={loadData}
-                        className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                        title="Refresh"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">refresh</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Categories Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
-                    </div>
-                ) : filteredCategories.length === 0 ? (
-                    <div className="py-16 text-center">
-                        <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">category</span>
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">No categories found</h3>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">Create your first category to organize medicines</p>
-                    </div>
-                ) : (
-                    <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-900/50">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Category</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Parent</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Status</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Created</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                            {filteredCategories.map((category, index) => (
-                                <tr
-                                    key={category.id}
-                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors animate-fadeIn"
-                                    style={{ animationDelay: `${index * 20}ms` }}
-                                >
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                                <span className="material-symbols-outlined text-emerald-600 text-[18px]">folder</span>
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-slate-900 dark:text-white">{category.name}</p>
-                                                {category.description && (
-                                                    <p className="text-xs text-slate-500 line-clamp-1">{category.description}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {getParentName(category.parent_id) ? (
-                                            <span className="text-sm text-slate-600 dark:text-slate-400">{getParentName(category.parent_id)}</span>
-                                        ) : (
-                                            <span className="text-sm text-slate-400">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${category.is_active
-                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                            }`}>
-                                            {category.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-sm text-slate-600 dark:text-slate-400">
-                                            {new Date(category.created_at).toLocaleDateString()}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center gap-1">
-                                            {hasPermission('categories.edit') && (
-                                                <button
-                                                    onClick={() => openEditModal(category)}
-                                                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                </button>
-                                            )}
-                                            {hasPermission('categories.delete') && (
-                                                <button
-                                                    onClick={() => handleDelete(category)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-
-            {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg animate-scaleIn">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                {editingCategory ? 'Edit Category' : 'Add Category'}
-                            </h2>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            {error && (
-                                <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
-                                    {error}
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    Category Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="e.g., Antibiotics"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    Parent Category
-                                </label>
-                                <select
-                                    value={formData.parent_id}
-                                    onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
-                                >
-                                    <option value="">None (Top Level)</option>
-                                    {categories
-                                        .filter(c => c.id !== editingCategory?.id && !c.parent_id)
-                                        .map(cat => (
-                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                        ))
-                                    }
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                    Description
-                                </label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    placeholder="Brief description..."
-                                    rows={3}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 resize-none"
-                                />
-                            </div>
-                        </form>
-
-                        <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setShowModal(false)}
-                                className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl font-medium transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={saving}
-                                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                {saving ? 'Saving...' : editingCategory ? 'Update' : 'Create'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                </form>
+            </Modal>
+        </UniversalListPage>
     );
 }

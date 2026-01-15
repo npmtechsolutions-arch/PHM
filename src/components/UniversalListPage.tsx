@@ -1,6 +1,6 @@
 import React from 'react';
 import ListHeaderBar from './ListHeaderBar';
-import Table, { type Column } from './Table';
+import Table from './Table';
 
 // ----------------------------------------------------------------------
 // Sub-Components

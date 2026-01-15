@@ -1,16 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { employeesApi } from '../../services/api';
 import SearchBar from '../../components/SearchBar';
-import './AttendanceMarker.css';
 
-interface Employee {
-    id: string;
-    employee_code: string;
-    name: string;
-    designation: string;
-    department: string;
-}
+import './AttendanceMarker.css';
 
 interface AttendanceRecord {
     employee_id: string;

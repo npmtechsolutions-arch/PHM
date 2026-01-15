@@ -103,10 +103,6 @@ export default function WarehouseShopMapping() {
         <PageLayout
             title="Warehouse ↔ Shop Mapping"
             description="Assign medical shops to warehouses"
-            breadcrumbs={[
-                { label: 'Warehouses', path: '/warehouses' },
-                { label: 'Shop Mapping', path: undefined }
-            ]}
         >
             <div className="space-y-6">
                 {/* Stats */}
@@ -151,8 +147,8 @@ export default function WarehouseShopMapping() {
                                     key={warehouse.id}
                                     onClick={() => setSelectedWarehouse(warehouse)}
                                     className={`w-full p-4 text-left transition-colors ${selectedWarehouse?.id === warehouse.id
-                                            ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-primary'
-                                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-l-4 border-transparent'
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-primary'
+                                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-l-4 border-transparent'
                                         }`}
                                 >
                                     <div className="flex items-center justify-between">

@@ -53,7 +53,7 @@ class PurchaseRequestCreate(PurchaseRequestBase):
 
 
 class PurchaseRequestApproval(BaseModel):
-    items: list[dict]  # [{"item_id": "xxx", "quantity_approved": 10}]
+    items: list[dict] = []  # [{"item_id": "xxx", "quantity_approved": 10}]
     notes: Optional[str] = None
 
 

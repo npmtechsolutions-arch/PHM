@@ -48,10 +48,6 @@ export default function WarehouseAdd() {
         <PageLayout
             title="Add New Warehouse"
             description="Create a new distribution center"
-            breadcrumbs={[
-                { label: 'Warehouses', path: '/warehouses' },
-                { label: 'Add New', path: undefined }
-            ]}
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>

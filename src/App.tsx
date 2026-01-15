@@ -171,6 +171,7 @@ function App() {
                   <Route path="reports/sales" element={<SalesReports />} />
                   <Route path="reports/expiry" element={<ExpiryLossReport />} />
                   <Route path="reports/tax" element={<TaxReports />} />
+                  <Route path="reports/inventory" element={<InventoryPage />} />
                   <Route path="reports/inventory-aging" element={<InventoryPage />} /> {/* Placeholder */}
                   <Route path="reports/compliance" element={<SalesReports />} /> {/* Placeholder */}
 

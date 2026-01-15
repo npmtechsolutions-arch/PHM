@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import { getRoleName } from '../utils/rbac';
+
 
 interface SubItem {
     path: string;
@@ -217,18 +217,6 @@ const superAdminItems: NavItemType[] = [
     },
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 9️⃣ NOTIFICATIONS - Awareness only
-    // Low stock alerts, Expiry alerts, System alerts
-    // 🚫 No actions here
-    // ─────────────────────────────────────────────────────────────────────────
-    {
-        path: '/notifications',
-        label: 'Notifications',
-        icon: 'notifications',
-        permissions: ['notifications.view']
-    },
-
-    // ─────────────────────────────────────────────────────────────────────────
     // 🔟 SYSTEM - Integrity & audit
     // Audit logs, Error logs, Activity history, Backup/restore
     // 🚫 Read-only, 🚫 Super Admin only
@@ -249,7 +237,7 @@ const superAdminItems: NavItemType[] = [
 // OPERATIONAL ITEMS - For Warehouse Admin, Pharmacy Admin ONLY
 // Super Admin does NOT see these - they are excluded
 // Warehouse Admin: Dashboard, Warehouses, Master Data, Medicine Master, 
-// Inventory Oversight, Reports, Notifications, Stock Entry, Inventory, 
+// Inventory Oversight, Reports, Stock Entry, Inventory, 
 // Stock Adjustment, Dispatches, Purchase Requests, Employees, Attendance, Salary
 // ============================================================================
 const operationalItems: NavItemType[] = [
@@ -264,8 +252,6 @@ const operationalItems: NavItemType[] = [
     // 5. Inventory Oversight (shared with Super Admin items)
 
     // 6. Reports (shared with Super Admin items)
-
-    // 7. Notifications (shared with Super Admin items)
 
     // 8. Stock Entry - Warehouse operational
     {
@@ -390,7 +376,7 @@ const operationalItems: NavItemType[] = [
 ];
 
 export default function Sidebar() {
-    const navigate = useNavigate();
+
     const location = useLocation();
     const { user } = useUser();
     const { hasAnyPermission } = usePermissions();
@@ -461,13 +447,6 @@ export default function Sidebar() {
                 ? prev.filter(p => p !== path)
                 : [...prev, path]
         );
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_role');
-        navigate('/login');
     };
 
     const isGroupActive = (item: NavItemType) => {

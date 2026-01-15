@@ -113,10 +113,7 @@ export default function MedicineEdit() {
         <PageLayout
             title="Edit Medicine"
             description={`Update information for ${formData.name}`}
-            breadcrumbs={[
-                { label: 'Medicines', path: '/medicines' },
-                { label: 'Edit', path: undefined }
-            ]}
+
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>

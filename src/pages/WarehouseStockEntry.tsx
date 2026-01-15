@@ -177,10 +177,6 @@ export default function WarehouseStockEntry() {
         <PageLayout
             title="Warehouse Stock Entry"
             description="Add new inventory items to your warehouse"
-            breadcrumbs={[
-                { label: 'Warehouses', path: '/warehouses' },
-                { label: 'Stock Entry', path: undefined }
-            ]}
         >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card title="Add Stock" icon="add_circle">

@@ -1,25 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '../contexts/UserContext';
-import { getRoleName } from '../utils/rbac';
 
 export default function Header() {
-    const [searchQuery, setSearchQuery] = useState('');
     const [darkMode, setDarkMode] = useState(() => {
         if (typeof window !== 'undefined') {
             return document.documentElement.classList.contains('dark');
         }
         return false;
     });
-    const [showUserMenu, setShowUserMenu] = useState(false);
     const navigate = useNavigate();
-    const { user } = useUser();
-
-    // Default fallback user data
-    const userName = user?.full_name || 'User';
-    const userEmail = user?.email || 'user@example.com';
-    const userRole = getRoleName(user?.role || 'user');
-    const userInitials = userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 
     useEffect(() => {
         if (darkMode) {
@@ -33,12 +22,6 @@ export default function Header() {
 
     const toggleTheme = () => {
         setDarkMode(!darkMode);
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        navigate('/login');
     };
 
 

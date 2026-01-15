@@ -66,10 +66,6 @@ export default function MedicineDetails() {
         <PageLayout
             title={medicine.name}
             description={`${medicine.generic_name} • ${medicine.manufacturer}`}
-            breadcrumbs={[
-                { label: 'Medicines', path: '/medicines' },
-                { label: medicine.name, path: undefined }
-            ]}
             actions={
                 <div className="flex gap-3">
                     <Button variant="secondary" onClick={() => navigate(`/medicines/${medicine.id}/edit`)}>

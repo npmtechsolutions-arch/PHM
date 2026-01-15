@@ -33,13 +33,6 @@ export default function AttendanceReport() {
         leave: attendance.filter(a => a.status === 'leave').length
     };
 
-    const calculateWorkingHours = (check_in?: string, check_out?: string) => {
-        if (!check_in || !check_out) return 0;
-        const inTime = new Date(check_in);
-        const outTime = new Date(check_out);
-        return ((outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60)).toFixed(1);
-    };
-
     return (
         <div className="attendance-marker" style={{ padding: '24px' }}>
             <div className="header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>

@@ -86,10 +86,6 @@ export default function EditMedicalShop() {
         <PageLayout
             title="Edit Medical Shop"
             description={`Update information for ${shop.name}`}
-            breadcrumbs={[
-                { label: 'Medical Shops', path: '/shops' },
-                { label: 'Edit', path: undefined }
-            ]}
         >
             <form onSubmit={handleSave}>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

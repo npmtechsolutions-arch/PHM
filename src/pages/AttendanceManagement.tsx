@@ -333,35 +333,72 @@ export default function AttendanceManagement() {
                 <StatCard title="On Leave" value={stats.leave} icon="flight_takeoff" changeType="neutral" isActive={false} />
             </UniversalListPage.KPICards>
 
-            <UniversalListPage.ListControls
-                title={viewMode === 'mark' ? "Daily Attendance" : "Attendance Report"}
-                count={viewMode === 'mark' ? filteredEmployees.length : summaryData.length}
-                searchProps={{
-                    value: search,
-                    onChange: setSearch,
-                    placeholder: "Search employees..."
-                }}
-                actions={
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
-                            <span className="text-sm font-medium text-slate-500">Date:</span>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent border-none p-0 text-sm font-medium text-slate-900 dark:text-white focus:ring-0"
-                            />
-                        </div>
-                    </div>
-                }
-            />
-
-            <UniversalListPage.DataTable
-                columns={viewMode === 'mark' ? markColumns : summaryColumns}
-                data={viewMode === 'mark' ? filteredEmployees : summaryData}
-                loading={loading}
-                emptyMessage="No employees found."
-            />
+            {/* Zone 3 & 4 Merged: Controls Embedded in Table */}
+            {viewMode === 'mark' ? (
+                <UniversalListPage.DataTable
+                    columns={markColumns}
+                    data={filteredEmployees}
+                    loading={loading}
+                    emptyMessage="No employees found."
+                    headerSlot={
+                        <UniversalListPage.ListControls
+                            title="Daily Attendance"
+                            count={filteredEmployees.length}
+                            searchProps={{
+                                value: search,
+                                onChange: setSearch,
+                                placeholder: "Search employees..."
+                            }}
+                            actions={
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
+                                        <span className="text-sm font-medium text-slate-500">Date:</span>
+                                        <input
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            className="bg-transparent border-none p-0 text-sm font-medium text-slate-900 dark:text-white focus:ring-0 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            }
+                            embedded={true}
+                        />
+                    }
+                />
+            ) : (
+                <UniversalListPage.DataTable
+                    columns={summaryColumns}
+                    data={summaryData}
+                    loading={loading}
+                    emptyMessage="No attendance records found."
+                    headerSlot={
+                        <UniversalListPage.ListControls
+                            title="Attendance Report"
+                            count={summaryData.length}
+                            searchProps={{
+                                value: search,
+                                onChange: setSearch,
+                                placeholder: "Search employees..."
+                            }}
+                            actions={
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
+                                        <span className="text-sm font-medium text-slate-500">Date:</span>
+                                        <input
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            className="bg-transparent border-none p-0 text-sm font-medium text-slate-900 dark:text-white focus:ring-0 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            }
+                            embedded={true}
+                        />
+                    }
+                />
+            )}
 
             {viewMode === 'mark' && !loading && (
                 <div className="flex justify-end pt-4 pb-8 animate-fadeIn">

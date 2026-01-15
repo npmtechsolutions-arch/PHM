@@ -35,10 +35,88 @@ async def get_stock_movements(
     current_user: dict = Depends(get_current_user)
 ):
     """Get stock movements history"""
-    # For now, return empty since we don't have a movements table yet
+    from app.db.models import StockMovement, Medicine, User, Warehouse, MedicalShop
+
+    query = db.query(StockMovement)
+
+    # Filter by location type and ID
+    if location_type == "warehouse" and location_id:
+        # Movements involving this warehouse (either as source or destination)
+        query = query.filter(
+            ((StockMovement.source_type == "warehouse") & (StockMovement.source_id == location_id)) |
+            ((StockMovement.destination_type == "warehouse") & (StockMovement.destination_id == location_id))
+        )
+    elif location_type == "shop" and location_id:
+        # Movements involving this shop
+        query = query.filter(
+            ((StockMovement.source_type == "shop") & (StockMovement.source_id == location_id)) |
+            ((StockMovement.destination_type == "shop") & (StockMovement.destination_id == location_id))
+        )
+    
+    # Filter by permission scope if no specific location requested
+    # (e.g. Warehouse Admin seeing all their warehouse moves)
+    if current_user["role"] == "warehouse_admin" and current_user.get("warehouse_id"):
+        wh_id = current_user["warehouse_id"]
+        query = query.filter(
+            ((StockMovement.source_type == "warehouse") & (StockMovement.source_id == wh_id)) |
+            ((StockMovement.destination_type == "warehouse") & (StockMovement.destination_id == wh_id))
+        )
+
+    if movement_type:
+        query = query.filter(StockMovement.movement_type == movement_type)
+
+    # Order by newest first
+    query = query.order_by(StockMovement.created_at.desc())
+    
+    total = query.count()
+    movements = query.offset((page - 1) * size).limit(size).all()
+    
+    result = []
+    for move in movements:
+        # Fetch related data names manually or via relationships if eager loaded
+        # Optimization: Could use joinedload in query, but simple lookup is fine for now
+        medicine_name = db.query(Medicine.name).filter(Medicine.id == move.medicine_id).scalar() or "Unknown"
+        
+        # Determine location name based on context (source/dest)
+        # Simplified for list view: showing the "other" side or just the relevant location
+        
+        # Get performer name
+        performed_by = "System"
+        if move.created_by:
+            user = db.query(User).filter(User.id == move.created_by).first()
+            if user:
+                performed_by = user.full_name
+
+        # Resolve warehouse/shop names (optional optimization: cache or map)
+        wh_name = None
+        shop_name = None
+        
+        if move.source_type == "warehouse":
+             wh_name = db.query(Warehouse.name).filter(Warehouse.id == move.source_id).scalar()
+        elif move.destination_type == "warehouse":
+             wh_name = db.query(Warehouse.name).filter(Warehouse.id == move.destination_id).scalar()
+             
+        if move.source_type == "shop":
+             shop_name = db.query(MedicalShop.name).filter(MedicalShop.id == move.source_id).scalar()
+        elif move.destination_type == "shop":
+             shop_name = db.query(MedicalShop.name).filter(MedicalShop.id == move.destination_id).scalar()
+
+        result.append({
+            "id": move.id,
+            "medicine_name": medicine_name,
+            "batch_number": "N/A", # Batch number would need a join with Batch table or stored on movement
+            "quantity": move.quantity,
+            "movement_type": move.movement_type,
+            "reference_type": move.reference_type or "manual",
+            "created_at": move.created_at.isoformat(),
+            "performed_by": performed_by,
+            "warehouse_name": wh_name,
+            "shop_name": shop_name
+        })
+
     return {
-        "movements": [],
-        "total": 0,
+        "items": result,
+        "total": total,
         "page": page,
         "size": size
     }

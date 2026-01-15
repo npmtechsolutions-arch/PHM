@@ -86,10 +86,7 @@ export default function WarehouseEdit() {
         <PageLayout
             title="Edit Warehouse"
             description="Update warehouse information"
-            breadcrumbs={[
-                { label: 'Warehouses', path: '/warehouses' },
-                { label: 'Edit', path: undefined }
-            ]}
+
         >
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit}>

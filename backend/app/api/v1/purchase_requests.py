@@ -12,7 +12,7 @@ from app.models.order import (
     PurchaseRequestApproval, PurchaseRequestStatus
 )
 from app.models.common import APIResponse
-from app.core.security import get_current_user, require_role
+from app.core.security import get_current_user, require_role, AuthContext
 from app.db.database import get_db
 from app.db.models import (
     PurchaseRequest, PurchaseRequestItem, Medicine, MedicalShop, Warehouse,
@@ -82,7 +82,7 @@ async def list_purchase_requests(
 async def create_purchase_request(
     request_data: PurchaseRequestCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["shop_owner", "pharmacist", "super_admin", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["shop_owner", "pharmacist", "super_admin", "warehouse_admin"]))
 ):
     """Create a new purchase request"""
     # Validate shop and warehouse
@@ -104,7 +104,7 @@ async def create_purchase_request(
         urgency=request_data.urgency or "normal",
         notes=request_data.notes,
         status=PRStatus.PENDING,
-        requested_by=current_user.get("user_id")
+        requested_by=auth.user_id
     )
     db.add(pr)
     db.flush()
@@ -186,7 +186,7 @@ async def approve_purchase_request(
     request_id: str,
     approval: PurchaseRequestApproval,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
     """Approve purchase request"""
     pr = db.query(PurchaseRequest).filter(PurchaseRequest.id == request_id).first()
@@ -197,15 +197,24 @@ async def approve_purchase_request(
         raise HTTPException(status_code=400, detail="Request already processed")
     
     # Update item quantities
-    for item_approval in approval.items:
-        item = db.query(PurchaseRequestItem).filter(
-            PurchaseRequestItem.id == item_approval.get("item_id")
-        ).first()
-        if item:
-            item.quantity_approved = item_approval.get("quantity_approved", 0)
+    if not approval.items:
+        # Quick Approve: Approve all items with requested quantity
+        items = db.query(PurchaseRequestItem).filter(
+            PurchaseRequestItem.purchase_request_id == request_id
+        ).all()
+        for item in items:
+            item.quantity_approved = item.quantity_requested
+    else:
+        # Partial/Specific Approve
+        for item_approval in approval.items:
+            item = db.query(PurchaseRequestItem).filter(
+                PurchaseRequestItem.id == item_approval.get("item_id")
+            ).first()
+            if item:
+                item.quantity_approved = item_approval.get("quantity_approved", 0)
     
     pr.status = PRStatus.APPROVED
-    pr.approved_by = current_user.get("user_id")
+    pr.approved_by = auth.user_id
     pr.approval_notes = approval.notes
     
     db.commit()
@@ -217,7 +226,7 @@ async def approve_purchase_request(
 async def reject_purchase_request(
     request_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
     """Reject purchase request"""
     pr = db.query(PurchaseRequest).filter(PurchaseRequest.id == request_id).first()

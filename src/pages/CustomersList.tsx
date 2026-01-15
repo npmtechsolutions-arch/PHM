@@ -48,10 +48,7 @@ export default function CustomersList() {
         }
     };
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        fetchCustomers();
-    };
+
 
     const openCreateModal = () => {
         setEditingCustomer(null);

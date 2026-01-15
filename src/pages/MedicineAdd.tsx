@@ -80,10 +80,7 @@ export default function MedicineAdd() {
         <PageLayout
             title="Add New Medicine"
             description="Create a new medicine in your catalog"
-            breadcrumbs={[
-                { label: 'Medicines', path: '/medicines' },
-                { label: 'Add New', path: undefined }
-            ]}
+
         >
             <div className="max-w-4xl mx-auto">
                 {/* Prerequisite Warning */}

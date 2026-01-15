@@ -75,8 +75,13 @@ export default function PurchaseRequestsList() {
             await purchaseRequestsApi.create({
                 shop_id: newRequest.shop_id,
                 warehouse_id: newRequest.warehouse_id,
-                priority: newRequest.priority,
-                items: newRequest.items.filter(i => i.medicine_id && i.quantity > 0)
+                urgency: newRequest.priority,
+                items: newRequest.items
+                    .filter(i => i.medicine_id && i.quantity > 0)
+                    .map(i => ({
+                        medicine_id: i.medicine_id,
+                        quantity_requested: i.quantity
+                    }))
             });
             setShowCreateModal(false);
             setNewRequest({ shop_id: '', warehouse_id: '', priority: 'normal', items: [{ medicine_id: '', quantity: 1 }] });
@@ -111,13 +116,6 @@ export default function PurchaseRequestsList() {
             case 'dispatched': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
             default: return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
         }
-    };
-
-    const stats = {
-        total: requests.length,
-        pending: requests.filter(r => r.status === 'pending').length,
-        approved: requests.filter(r => r.status === 'approved').length,
-        rejected: requests.filter(r => r.status === 'rejected').length,
     };
 
     return (

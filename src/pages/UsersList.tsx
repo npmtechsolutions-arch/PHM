@@ -283,21 +283,24 @@ export default function UsersList() {
                 />
             </UniversalListPage.KPICards>
 
-            <UniversalListPage.ListControls
-                title="User List"
-                count={users.length}
-                searchProps={{
-                    value: search,
-                    onChange: (val) => { setSearch(val); fetchUsers(); } // Live search might be too aggressive, but good for demo
-                }}
-                onFilterClick={fetchUsers} // Simple refresh for now
-            />
-
+            {/* Zone 3 & 4 Merged: List Controls Embedded in Table */}
             <UniversalListPage.DataTable
                 columns={columns}
                 data={users}
                 loading={loading}
                 emptyMessage="No users found matching your criteria."
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="User List"
+                        count={users.length}
+                        searchProps={{
+                            value: search,
+                            onChange: (val) => { setSearch(val); fetchUsers(); }
+                        }}
+                        onFilterClick={fetchUsers}
+                        embedded={true}
+                    />
+                }
             />
 
             {/* Modal - keeping existing inline style for now, but wrapped in container */}

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { inventoryApi } from '../services/api';
 import { useOperationalContext } from '../contexts/OperationalContext';
-import { WarehouseSelect } from '../components/MasterSelect';
+import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
+import { type Column } from '../components/Table';
+import Badge from '../components/Badge';
 
 interface StockMovement {
     id: string;
@@ -78,11 +80,11 @@ export default function InventoryPage() {
 
     const getMovementColor = (type: string) => {
         switch (type) {
-            case 'in': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-            case 'out': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-            case 'transfer': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
-            case 'adjustment': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400';
-            default: return 'text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-400';
+            case 'in': return 'success';
+            case 'out': return 'error';
+            case 'transfer': return 'info';
+            case 'adjustment': return 'warning';
+            default: return 'secondary';
         }
     };
 
@@ -104,183 +106,130 @@ export default function InventoryPage() {
         transfers: movements.filter(m => m.movement_type === 'transfer').length
     };
 
-    const totalPages = Math.ceil(totalItems / pageSize);
+    const columns: Column<StockMovement>[] = [
+        {
+            header: 'Details',
+            key: 'id',
+            render: (move) => (
+                <div className="flex flex-col">
+                    <span className="text-[11px] font-mono text-slate-500">{move.reference_type.toUpperCase()}</span>
+                    <span className="text-[11px] text-slate-400">By: {move.performed_by || 'System'}</span>
+                </div>
+            )
+        },
+        {
+            header: 'Product',
+            key: 'medicine_name',
+            render: (move) => (
+                <div>
+                    <p className="font-medium text-sm text-slate-900 dark:text-white">{move.medicine_name}</p>
+                    <p className="text-[11px] text-slate-500">Batch: {move.batch_number}</p>
+                </div>
+            )
+        },
+        {
+            header: 'Type',
+            key: 'movement_type',
+            render: (move) => (
+                <Badge variant={getMovementColor(move.movement_type) as any} className="inline-flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">{getMovementIcon(move.movement_type)}</span>
+                    <span className="capitalize">{move.movement_type}</span>
+                </Badge>
+            )
+        },
+        {
+            header: 'Qty',
+            key: 'quantity',
+            align: 'right',
+            render: (move) => (
+                <span className={`font-mono text-sm font-medium ${move.movement_type === 'out' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {move.movement_type === 'out' ? '-' : '+'}{Math.abs(move.quantity)}
+                </span>
+            )
+        },
+        {
+            header: 'Location',
+            key: 'warehouse_name',
+            render: (move) => (
+                <span className="text-xs text-slate-600 dark:text-slate-400">
+                    {move.warehouse_name || move.shop_name || '-'}
+                </span>
+            )
+        },
+        {
+            header: 'Date',
+            key: 'created_at',
+            align: 'right',
+            render: (move) => (
+                <div className="text-right">
+                    <div className="text-xs text-slate-600 dark:text-slate-400">{new Date(move.created_at).toLocaleDateString()}</div>
+                    <div className="text-[10px] text-slate-400">{new Date(move.created_at).toLocaleTimeString()}</div>
+                </div>
+            )
+        }
+    ];
 
     return (
-        <div className="space-y-6">
-            {/* 1. PAGE HEADER */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Inventory Movements</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    Track stock changes {scope === 'global' ? 'across all locations' : activeEntity?.name ? `for ${activeEntity.name}` : ''}
-                </p>
-            </div>
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Inventory Movements"
+                subtitle={`Track stock changes ${scope === 'global' ? 'across all locations' : activeEntity?.name ? `for ${activeEntity.name}` : ''}`}
+            />
 
-            {/* 2. KPI / SUMMARY STRIP */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    title="Total Movements"
-                    value={stats.total}
-                    icon="history"
-                />
-                <StatCard
-                    title="Stock In"
-                    value={stats.stockIn}
-                    icon="login"
-                />
-                <StatCard
-                    title="Stock Out"
-                    value={stats.stockOut}
-                    icon="logout"
-                />
-                <StatCard
-                    title="Transfers"
-                    value={stats.transfers}
-                    icon="swap_horiz"
-                />
-            </div>
+            <UniversalListPage.KPICards>
+                <StatCard title="Total Movements" value={stats.total} icon="history" onClick={() => setMovementType('')} isActive={movementType === ''} />
+                <StatCard title="Stock In" value={stats.stockIn} icon="login" trend="neutral" />
+                <StatCard title="Stock Out" value={stats.stockOut} icon="logout" trend="neutral" />
+                <StatCard title="Transfers" value={stats.transfers} icon="swap_horiz" trend="neutral" />
+            </UniversalListPage.KPICards>
 
-            {/* 3. LIST CONTROLS STRIP */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
-                <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                        Movement List
-                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full">
-                            {totalItems}
-                        </span>
-                    </h2>
-                    <div className="flex items-center gap-2">
-                        {/* Warehouse Selector - ONLY visible to Super Admin in GLOBAL scope */}
-                        {scope === 'global' && (
-                            <select
-                                value={selectedWarehouseId}
-                                onChange={(e) => { setSelectedWarehouseId(e.target.value); setCurrentPage(1); }}
-                                className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                            >
-                                <option value="">All Warehouses</option>
-                            </select>
-                        )}
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={movements}
+                loading={loading}
+                emptyMessage="No stock movements found."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(totalItems / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: totalItems,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Movement List"
+                        count={totalItems}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                {/* Warehouse Selector - ONLY visible to Super Admin in GLOBAL scope */}
+                                {scope === 'global' && (
+                                    <select
+                                        value={selectedWarehouseId}
+                                        onChange={(e) => { setSelectedWarehouseId(e.target.value); setCurrentPage(1); }}
+                                        className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">All Warehouses</option>
+                                        <option value="WH001">Central Warehouse</option>
+                                    </select>
+                                )}
 
-                        {/* Explicit indicator of current scope if not global */}
-                        {scope !== 'global' && activeEntity && (
-                            <span className="px-3 py-2 text-sm rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-[16px]">
-                                    {activeEntity.type === 'warehouse' ? 'warehouse' : 'store'}
-                                </span>
-                                {activeEntity.name}
-                            </span>
-                        )}
-
-                        <button className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700">
-                            <span className="material-symbols-outlined text-[18px] text-slate-500">filter_list</span>
-                        </button>
-
-                        <select
-                            value={movementType}
-                            onChange={(e) => { setMovementType(e.target.value); setCurrentPage(1); }}
-                            className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                        >
-                            <option value="">All Types</option>
-                            <option value="in">Stock In</option>
-                            <option value="out">Stock Out</option>
-                            <option value="transfer">Transfer</option>
-                            <option value="adjustment">Adjustment</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* 4. ENTITY TABLE */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-                    </div>
-                ) : movements.length === 0 ? (
-                    <div className="py-16 text-center">
-                        <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">history_toggle_off</span>
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">No movements found</h3>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">Adjust filters to see stock history</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50 dark:bg-slate-900/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Details</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Product</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Type</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Qty</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Location</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Date</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                {movements.map((move, index) => (
-                                    <tr key={move.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                        <td className="px-4 py-2.5">
-                                            <div className="flex flex-col">
-                                                <span className="text-[11px] font-mono text-slate-500">{move.reference_type.toUpperCase()}</span>
-                                                <span className="text-[11px] text-slate-400">By: {move.performed_by || 'System'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-2.5">
-                                            <div>
-                                                <p className="font-medium text-sm text-slate-900 dark:text-white">{move.medicine_name}</p>
-                                                <p className="text-[11px] text-slate-500">Batch: {move.batch_number}</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-2.5">
-                                            <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${getMovementColor(move.movement_type)}`}>
-                                                <span className="material-symbols-outlined text-[12px]">{getMovementIcon(move.movement_type)}</span>
-                                                <span className="capitalize">{move.movement_type}</span>
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right">
-                                            <span className={`font-mono text-sm font-medium ${move.movement_type === 'out' ? 'text-red-600' : 'text-green-600'}`}>
-                                                {move.movement_type === 'out' ? '-' : '+'}{Math.abs(move.quantity)}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-400">
-                                            {move.warehouse_name || move.shop_name || '-'}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right text-xs text-slate-500 dark:text-slate-400">
-                                            {new Date(move.created_at).toLocaleDateString()}
-                                            <div className="text-[10px]">{new Date(move.created_at).toLocaleTimeString()}</div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <p className="text-sm text-slate-500">
-                            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems}
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                            </button>
-                            <span className="px-4 py-2 text-sm font-medium">Page {currentPage} of {totalPages}</span>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+                                <select
+                                    value={movementType}
+                                    onChange={(e) => { setMovementType(e.target.value); setCurrentPage(1); }}
+                                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">All Types</option>
+                                    <option value="in">Stock In</option>
+                                    <option value="out">Stock Out</option>
+                                    <option value="transfer">Transfer</option>
+                                    <option value="adjustment">Adjustment</option>
+                                </select>
+                            </div>
+                        }
+                        embedded={true}
+                    />
+                }
+            />
+        </UniversalListPage>
     );
 }

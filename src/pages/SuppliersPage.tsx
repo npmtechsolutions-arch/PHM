@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import PageLayout from '../components/PageLayout';
-import Card from '../components/Card';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
+import Badge from '../components/Badge';
+import { type Column } from '../components/Table';
 
 interface Supplier {
     id: string;
@@ -47,7 +49,9 @@ export default function SuppliersPage() {
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [search, setSearch] = useState('');
+    const pageSize = 15;
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (user && !hasPermission('suppliers.view')) {
@@ -128,99 +132,141 @@ export default function SuppliersPage() {
         }
     };
 
+    // Filter logic
     const filtered = suppliers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.code.toLowerCase().includes(searchTerm.toLowerCase())
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.code.toLowerCase().includes(search.toLowerCase())
     );
 
-    return (
-        <PageLayout
-            title="Suppliers"
-            description="Manage suppliers for stock entry and purchase orders"
-            icon="local_shipping"
-            actions={
-                hasPermission('suppliers.create') && (
-                    <Button variant="primary" onClick={openCreateModal}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        Add Supplier
-                    </Button>
-                )
-            }
-        >
-            <Card className="space-y-6">
-                {/* Search */}
-                <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                        <span className="material-symbols-outlined text-[20px]">search</span>
-                    </span>
-                    <input
-                        type="text"
-                        placeholder="Search suppliers..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
-                    />
-                </div>
+    // Stats
+    const stats = {
+        total: suppliers.length,
+        active: suppliers.filter(s => s.is_active).length,
+        inactive: suppliers.filter(s => !s.is_active).length,
+        cities: new Set(suppliers.map(s => s.city).filter(Boolean)).size
+    };
 
-                {/* Table */}
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-                    </div>
-                ) : filtered.length === 0 ? (
-                    <div className="py-16 text-center">
-                        <span className="material-symbols-outlined text-5xl text-slate-300 mb-3">local_shipping</span>
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">No suppliers found</h3>
-                        <p className="text-slate-500 mt-1">Add suppliers to enable stock entry</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full table-zebra">
-                            <thead className="bg-slate-50 dark:bg-slate-900/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Code</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Contact</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">GST Number</th>
-                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Status</th>
-                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {filtered.map((item) => (
-                                    <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                        <td className="px-4 py-3 font-mono text-sm">{item.code}</td>
-                                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.name}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                                            {item.contact_person || item.phone || '-'}
-                                        </td>
-                                        <td className="px-4 py-3 font-mono text-sm">{item.gst_number || '-'}</td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                                                {item.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex justify-center gap-1">
-                                                {hasPermission('suppliers.edit') && (
-                                                    <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
-                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                    </button>
-                                                )}
-                                                {hasPermission('suppliers.delete') && (
-                                                    <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
+    const columns: Column<Supplier>[] = [
+        {
+            header: 'Code',
+            key: 'code',
+            render: (item) => <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{item.code}</span>
+        },
+        {
+            header: 'Supplier',
+            key: 'name',
+            render: (item) => (
+                <div>
+                    <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                    <div className="text-xs text-slate-500">{item.city || 'No Location'}</div>
+                </div>
+            )
+        },
+        {
+            header: 'Contact',
+            key: 'contact_person',
+            render: (item) => (
+                <div className="text-sm">
+                    <div className="text-slate-900 dark:text-white">{item.contact_person}</div>
+                    <div className="text-xs text-slate-500">{item.phone}</div>
+                </div>
+            )
+        },
+        {
+            header: 'GST Number',
+            key: 'gst_number',
+            render: (item) => <span className="font-mono text-xs">{item.gst_number || '-'}</span>,
+            className: 'hidden md:table-cell'
+        },
+        {
+            header: 'Status',
+            key: 'is_active',
+            render: (item) => (
+                <Badge variant={item.is_active ? 'success' : 'secondary'}>
+                    {item.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            ),
+            align: 'center'
+        },
+        {
+            header: 'Actions',
+            key: 'id',
+            render: (item) => (
+                <div className="flex justify-end gap-1">
+                    {hasPermission('suppliers.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => openEditModal(item)}
+                            className="!p-1.5 h-8 w-8 text-blue-600"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('suppliers.delete') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleDelete(item)}
+                            className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </Button>
+                    )}
+                </div>
+            ),
+            align: 'right'
+        }
+    ];
+
+    // Pagination slice
+    const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    return (
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Suppliers"
+                subtitle="Manage suppliers for stock entry and purchase orders"
+                actions={
+                    hasPermission('suppliers.create') && (
+                        <Button variant="primary" onClick={openCreateModal}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            Add Supplier
+                        </Button>
+                    )
+                }
+            />
+
+            <UniversalListPage.KPICards>
+                <StatCard title="Total Suppliers" value={stats.total} icon="local_shipping" isActive={true} />
+                <StatCard title="Active" value={stats.active} icon="check_circle" trend="neutral" />
+                <StatCard title="Inactive" value={stats.inactive} icon="cancel" trend="neutral" />
+                <StatCard title="Cities" value={stats.cities} icon="location_city" trend="neutral" />
+            </UniversalListPage.KPICards>
+
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={paginatedData} // Client-side pagination for now as API seems to return all
+                loading={loading}
+                emptyMessage="No suppliers found."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(filtered.length / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: filtered.length,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Supplier List"
+                        count={filtered.length}
+                        searchProps={{
+                            value: search,
+                            onChange: (val) => { setSearch(val); setCurrentPage(1); },
+                            placeholder: "Search suppliers..."
+                        }}
+                        embedded={true}
+                    />
+                }
+            />
 
             {/* Modal */}
             <Modal
@@ -261,6 +307,6 @@ export default function SuppliersPage() {
                     </div>
                 </form>
             </Modal>
-        </PageLayout>
+        </UniversalListPage>
     );
 }

@@ -4,9 +4,9 @@ interface SearchBarProps {
     placeholder?: string;
 }
 
-export default function SearchBar({ value, onChange, placeholder = "Search..." }: SearchBarProps) {
+export default function SearchBar({ value, onChange, placeholder = "Search...", className = "" }: SearchBarProps & { className?: string }) {
     return (
-        <div className="search-bar">
+        <div className={`search-bar ${className}`}>
             <span className="material-symbols-outlined search-icon">search</span>
             <input
                 type="text"

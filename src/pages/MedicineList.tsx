@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { CategorySelect } from '../components/MasterSelect';
+import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
-import SearchBar from '../components/SearchBar';
+import Badge from '../components/Badge';
+import Button from '../components/Button';
+import { type Column } from '../components/Table';
 
 interface Medicine {
     id: string;
@@ -81,207 +84,147 @@ export default function MedicineList() {
         total: totalItems,
         active: medicines.filter(m => m.is_active).length,
         lowStock: medicines.filter(m => m.total_stock < 50).length,
-        categories: new Set(medicines.map(m => m.category).filter(Boolean)).size
+        categories: new Set(medicines.map(m => m.category).filter(Boolean)).size || 0
     };
 
-    const totalPages = Math.ceil(totalItems / pageSize);
+    const columns: Column<Medicine>[] = [
+        {
+            header: 'Medicine',
+            key: 'name',
+            render: (medicine) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        <span className="material-symbols-outlined text-[20px]">medication</span>
+                    </div>
+                    <div>
+                        <div className="font-medium text-slate-900 dark:text-white">{medicine.name}</div>
+                        <div className="text-xs text-slate-500">{medicine.generic_name}</div>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: 'Manufacturer',
+            key: 'manufacturer',
+            className: 'hidden md:table-cell',
+            render: (m) => <span className="text-slate-600 dark:text-slate-400 text-sm">{m.manufacturer}</span>
+        },
+        {
+            header: 'Type',
+            key: 'medicine_type',
+            className: 'hidden sm:table-cell',
+            render: (m) => <Badge variant="secondary" className="capitalize">{m.medicine_type}</Badge>
+        },
+        {
+            header: 'MRP',
+            key: 'mrp',
+            align: 'right',
+            render: (m) => <span className="font-medium text-slate-700 dark:text-slate-300">₹{m.mrp.toFixed(2)}</span>
+        },
+        {
+            header: 'Stock',
+            key: 'total_stock',
+            align: 'right',
+            render: (m) => (
+                <span className={`font-medium ${m.total_stock < 50 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                    {m.total_stock.toLocaleString()}
+                </span>
+            )
+        },
+        {
+            header: 'Status',
+            key: 'is_active',
+            align: 'center',
+            render: (m) => (
+                <Badge variant={m.is_active ? 'success' : 'secondary'}>
+                    {m.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            )
+        },
+        {
+            header: 'Actions',
+            key: 'id',
+            align: 'right',
+            render: (medicine) => (
+                <div className="flex justify-end gap-1">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate(`/medicines/${medicine.id}/edit`)}
+                        className="!p-1.5 h-8 w-8 text-blue-600"
+                        title="Edit Medicine"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </Button>
+                    {canDelete && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleDelete(medicine)}
+                            className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50"
+                            title="Delete Medicine"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </Button>
+                    )}
+                </div>
+            )
+        }
+    ];
 
     return (
-        <div className="space-y-6">
-            {/* 1. PAGE HEADER */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Medicines</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your medicine catalog</p>
-                </div>
-                <button
-                    onClick={() => navigate('/medicines/add')}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add Medicine
-                </button>
-            </div>
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Medicines"
+                subtitle="Manage your medicine catalog"
+                actions={
+                    <Button variant="primary" onClick={() => navigate('/medicines/add')}>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        Add Medicine
+                    </Button>
+                }
+            />
 
-            {/* 2. KPI / SUMMARY STRIP */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    title="Total Medicines"
-                    value={stats.total}
-                    icon="medication"
-                />
-                <StatCard
-                    title="Active"
-                    value={stats.active}
-                    icon="check_circle"
-                />
-                <StatCard
-                    title="Low Stock"
-                    value={stats.lowStock}
-                    icon="warning"
-                />
-                <StatCard
-                    title="Categories"
-                    value={stats.categories}
-                    icon="category"
-                />
-            </div>
+            <UniversalListPage.KPICards>
+                <StatCard title="Total Medicines" value={stats.total} icon="medication" onClick={() => setCategoryFilter('')} isActive={categoryFilter === ''} />
+                <StatCard title="Active" value={stats.active} icon="check_circle" trend="neutral" />
+                <StatCard title="Low Stock" value={stats.lowStock} icon="warning" trend="down" changeType="down" />
+                <StatCard title="Categories" value={stats.categories} icon="category" trend="neutral" />
+            </UniversalListPage.KPICards>
 
-            {/* 3. LIST CONTROLS STRIP */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
-                <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                        Medicine List
-                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full">
-                            {totalItems}
-                        </span>
-                    </h2>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <span className="material-symbols-outlined text-[18px]">search</span>
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                value={search}
-                                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                                className="w-44 pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500"
-                            />
-                        </div>
-                        <button className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700">
-                            <span className="material-symbols-outlined text-[18px] text-slate-500">filter_list</span>
-                        </button>
-                        <select
-                            value={categoryFilter}
-                            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-                            className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                        >
-                            <option value="">All Categories</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* 4. ENTITY TABLE */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {loading ? (
-                    <div className="flex justify-center py-16">
-                        <div className="animate-spin h-10 w-10 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                    </div>
-                ) : medicines.length === 0 ? (
-                    <div className="py-16 text-center">
-                        <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">medication</span>
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">No medicines found</h3>
-                        <p className="text-slate-500 mt-1">Add items to your catalog to get started</p>
-                        <button
-                            onClick={() => navigate('/medicines/add')}
-                            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-700"
-                        >
-                            Add Medicine
-                        </button>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50 dark:bg-slate-900/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Medicine</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase hidden md:table-cell">Manufacturer</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase hidden sm:table-cell">Type</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">MRP</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Stock</th>
-                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Status</th>
-                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                {medicines.map((medicine) => (
-                                    <tr key={medicine.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
-                                        <td className="px-4 py-2.5">
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm">
-                                                    <span className="material-symbols-outlined text-[16px]">medication</span>
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm text-slate-900 dark:text-white">{medicine.name}</p>
-                                                    <p className="text-xs text-slate-500">{medicine.generic_name}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hidden md:table-cell">{medicine.manufacturer}</td>
-                                        <td className="px-4 py-2.5 hidden sm:table-cell">
-                                            <span className="capitalize text-sm text-slate-600 dark:text-slate-400">{medicine.medicine_type}</span>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right text-sm font-medium text-slate-900 dark:text-white">
-                                            ₹{medicine.mrp.toFixed(2)}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right">
-                                            <span className={`text-sm font-medium ${medicine.total_stock < 50 ? 'text-red-600' : 'text-slate-600 dark:text-slate-400'}`}>
-                                                {medicine.total_stock.toLocaleString()}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-center">
-                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${medicine.is_active
-                                                ? 'bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                                }`}>
-                                                {medicine.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2.5">
-                                            <div className="flex items-center justify-center gap-0.5 opacity-60 group-hover:opacity-100">
-                                                <button
-                                                    onClick={() => navigate(`/medicines/${medicine.id}/edit`)}
-                                                    className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
-                                                    title="Edit"
-                                                >
-                                                    <span className="material-symbols-outlined text-slate-400 text-[18px]">edit</span>
-                                                </button>
-                                                {canDelete && (
-                                                    <button
-                                                        onClick={() => handleDelete(medicine)}
-                                                        className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                        title="Delete"
-                                                    >
-                                                        <span className="material-symbols-outlined text-slate-400 hover:text-red-500 text-[18px]">delete</span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <p className="text-sm text-slate-500">
-                            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems}
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                            </button>
-                            <span className="px-4 py-2 text-sm font-medium">Page {currentPage} of {totalPages}</span>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-600 disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+            {/* Zero-Gap Integration */}
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={medicines}
+                loading={loading}
+                emptyMessage="No medicines found. Add items to your catalog."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(totalItems / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: totalItems,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Medicine List"
+                        count={totalItems}
+                        searchProps={{
+                            value: search,
+                            onChange: (val) => { setSearch(val); setCurrentPage(1); },
+                            placeholder: "Search medicines..."
+                        }}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <CategorySelect
+                                    value={categoryFilter}
+                                    onChange={(val) => { setCategoryFilter(val); setCurrentPage(1); }}
+                                    className="!w-48 !py-1.5 !text-sm !rounded-lg"
+                                />
+                            </div>
+                        }
+                        embedded={true}
+                    />
+                }
+            />
+        </UniversalListPage>
     );
 }

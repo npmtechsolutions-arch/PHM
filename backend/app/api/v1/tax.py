@@ -9,6 +9,7 @@ from datetime import datetime, date
 from pydantic import BaseModel
 
 from app.db.database import get_db
+from app.core.security import get_current_user
 from app.db.models import Invoice, InvoiceItem, Setting
 
 router = APIRouter()
@@ -60,7 +61,8 @@ async def get_tax_summary(
     shop_id: Optional[str] = None,
     month: Optional[int] = Query(None, ge=1, le=12),
     year: Optional[int] = Query(None, ge=2000, le=2100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get tax summary for a period"""
     query = db.query(Invoice).filter(Invoice.status == "completed")
@@ -82,9 +84,10 @@ async def get_tax_summary(
     total_tax = sum(inv.tax_amount for inv in invoices)
     net_taxable = sum(inv.subtotal for inv in invoices)
     
-    # Default GST split (simplified - actual would need proper calculation)
-    gst_amount = total_tax * 0.9  # Assuming 90% is GST
-    vat_amount = total_tax * 0.1  # Assuming 10% is VAT
+    # Calculate tax components based on real data
+    # Currently assuming all tax is GST (CGST + SGST) as VAT is legacy/specific
+    gst_amount = total_tax 
+    vat_amount = 0.0
     
     period_start = None
     period_end = None
@@ -111,7 +114,8 @@ async def get_gst_report(
     shop_id: Optional[str] = None,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2000, le=2100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get GST report for a specific month"""
     query = db.query(Invoice).filter(
@@ -150,7 +154,8 @@ async def get_vat_report(
     shop_id: Optional[str] = None,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2000, le=2100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get VAT report for a specific month"""
     query = db.query(Invoice).filter(
@@ -182,7 +187,8 @@ async def get_period_tax_report(
     year: int,
     month: int,
     shop_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get detailed tax report for a specific period"""
     # Get summary
@@ -220,7 +226,10 @@ async def get_period_tax_report(
 
 
 @router.get("/settings")
-async def get_tax_settings(db: Session = Depends(get_db)):
+async def get_tax_settings(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """Get tax configuration settings"""
     settings = db.query(Setting).filter(
         Setting.category == "tax"
@@ -249,7 +258,8 @@ async def get_tax_settings(db: Session = Depends(get_db)):
 @router.put("/settings")
 async def update_tax_settings(
     settings: dict,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Update tax configuration settings"""
     for key, value in settings.items():

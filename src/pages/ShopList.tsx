@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { StatusSelect } from '../components/MasterSelect';
-import PageLayout from '../components/PageLayout';
-import Table, { type Column } from '../components/Table';
-import Button from '../components/Button';
-import SearchBar from '../components/SearchBar';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
+import Button from '../components/Button';
+import { type Column } from '../components/Table';
 
 interface Shop {
     id: string;
@@ -75,14 +75,22 @@ export default function ShopList() {
         }
     };
 
+    // Calculate stats
+    const stats = {
+        total: totalItems,
+        active: shops.filter(s => s.status === 'active').length,
+        retail: shops.filter(s => s.shop_type === 'retail').length,
+        hospital: shops.filter(s => s.shop_type === 'hospital').length
+    };
+
     const columns: Column<Shop>[] = [
         {
             header: 'Shop',
             key: 'name',
             render: (shop) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                        <span className="material-symbols-outlined">storefront</span>
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm">
+                        <span className="material-symbols-outlined text-[20px]">storefront</span>
                     </div>
                     <div>
                         <div className="font-medium text-slate-900 dark:text-white">{shop.name}</div>
@@ -94,30 +102,38 @@ export default function ShopList() {
         {
             header: 'Code',
             key: 'code',
-            render: (shop) => <span className="font-mono text-xs">{shop.code}</span>
+            render: (shop) => <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{shop.code}</span>
         },
         {
             header: 'Type',
             key: 'shop_type',
-            render: (shop) => <span className="capitalize">{shop.shop_type}</span>,
+            render: (shop) => <Badge variant="secondary" className="capitalize">{shop.shop_type}</Badge>,
             className: 'hidden md:table-cell'
         },
         {
             header: 'Location',
             key: 'city',
-            render: (shop) => `${shop.city}, ${shop.state}`,
+            render: (shop) => (
+                <div className="flex flex-col">
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{shop.city}</span>
+                    <span className="text-xs text-slate-500">{shop.state}</span>
+                </div>
+            ),
             className: 'hidden sm:table-cell'
         },
         {
             header: 'Warehouse',
             key: 'warehouse_name',
             render: (shop) => shop.warehouse_name ? (
-                <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">warehouse</span>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <span className="material-symbols-outlined text-[16px]">warehouse</span>
                     <span>{shop.warehouse_name}</span>
                 </div>
             ) : (
-                <span className="text-slate-400 italic">Unassigned</span>
+                <span className="text-xs text-slate-400 italic flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">link_off</span>
+                    Unassigned
+                </span>
             ),
             className: 'hidden lg:table-cell'
         },
@@ -135,12 +151,22 @@ export default function ShopList() {
             header: 'Actions',
             key: 'id',
             render: (shop) => (
-                <div className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => navigate(`/shops/${shop.id}/edit`)} className="!p-1.5 h-8 w-8 justify-center">
+                <div className="flex justify-end gap-1">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate(`/shops/${shop.id}/edit`)}
+                        className="!p-1.5 h-8 w-8 text-blue-600"
+                        title="Edit Shop"
+                    >
                         <span className="material-symbols-outlined text-[18px]">edit</span>
                     </Button>
                     {canDelete && (
-                        <Button variant="secondary" onClick={() => handleDelete(shop)} className="!p-1.5 h-8 w-8 justify-center text-red-600 hover:bg-red-50 hover:text-red-700">
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleDelete(shop)}
+                            className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50"
+                            title="Delete Shop"
+                        >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
                     )}
@@ -151,70 +177,61 @@ export default function ShopList() {
     ];
 
     return (
-        <PageLayout
-            title="Medical Shops"
-            description={`Manage ${totalItems} retail pharmacy locations`}
-            icon="storefront"
-            actions={
-                <div className="flex items-center gap-3 flex-wrap">
-                    <div className="min-w-[250px]">
-                        <SearchBar
-                            placeholder="Search shops..."
-                            value={search}
-                            onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                        />
-                    </div>
-                    <StatusSelect
-                        entityType="shop"
-                        value={statusFilter}
-                        onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
-                        placeholder="All Status"
-                    />
-                    <Button variant="secondary" onClick={fetchShops}>
-                        <span className="material-symbols-outlined">refresh</span>
-                    </Button>
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Medical Shops"
+                subtitle={`Manage ${totalItems} retail pharmacy locations`}
+                actions={
                     <Button variant="primary" onClick={() => navigate('/shops/add')}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                        <span className="material-symbols-outlined text-[20px] mr-2">add_business</span>
                         Add Shop
                     </Button>
-                </div>
-            }
-        >
-            <div className="space-y-6">
+                }
+            />
 
-                <Table
-                    columns={columns}
-                    data={shops}
-                    loading={loading}
-                    emptyMessage="No shops found. Add your first shop."
-                />
+            <UniversalListPage.KPICards>
+                <StatCard title="Total Shops" value={totalItems} icon="storefront" onClick={() => setStatusFilter('all')} isActive={statusFilter === 'all'} />
+                <StatCard title="Active" value={stats.active} icon="check_circle" trend="up" change="+2 this month" />
+                <StatCard title="Retail" value={stats.retail} icon="shopping_bag" trend="neutral" />
+                <StatCard title="Hospital" value={stats.hospital} icon="local_hospital" trend="neutral" />
+            </UniversalListPage.KPICards>
 
-                {Boolean(totalItems > pageSize) && (
-                    <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-500">
-                            Page {currentPage} of {Math.ceil(totalItems / pageSize)}
-                        </p>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="!px-3 !py-1"
-                            >
-                                Prev
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalItems / pageSize), p + 1))}
-                                disabled={currentPage === Math.ceil(totalItems / pageSize)}
-                                className="!px-3 !py-1"
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </PageLayout>
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={shops}
+                loading={loading}
+                emptyMessage="No medical shops found in the system."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(totalItems / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: totalItems,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Shop List"
+                        count={totalItems}
+                        searchProps={{
+                            value: search,
+                            onChange: (val) => { setSearch(val); setCurrentPage(1); },
+                            placeholder: "Search shops..."
+                        }}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <StatusSelect
+                                    entityType="shop"
+                                    value={statusFilter}
+                                    onChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                                    placeholder="All Status"
+                                    className="!w-40 !py-1.5 !text-sm !rounded-lg"
+                                />
+                            </div>
+                        }
+                        embedded={true}
+                    />
+                }
+            />
+        </UniversalListPage>
     );
 }
