@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
-import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
-import { MasterDataWarning } from '../components/MasterDataWarning';
 import { CategorySelect, MedicineTypeSelect, UnitSelect, GSTSlabSelect, BrandSelect, ManufacturerSelect, HSNSelect } from '../components/MasterSelect';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -13,7 +11,6 @@ import Button from '../components/Button';
 export default function MedicineAdd() {
     const navigate = useNavigate();
     const { isLoading: mastersLoading } = useMasterData();
-    const { canCreate, missingPrerequisites, warnings } = useMasterDataPrerequisites('medicines');
 
     const [formData, setFormData] = useState({
         name: '',
@@ -83,13 +80,6 @@ export default function MedicineAdd() {
 
         >
             <div className="max-w-4xl mx-auto">
-                {/* Prerequisite Warning */}
-                <MasterDataWarning
-                    masterType="Medicines"
-                    missingPrerequisites={missingPrerequisites}
-                    warnings={warnings}
-                />
-
                 <form onSubmit={handleSubmit}>
                     <Card className="space-y-6">
                         {error && (
@@ -291,7 +281,7 @@ export default function MedicineAdd() {
                             <Button variant="secondary" onClick={() => navigate('/medicines')} type="button">
                                 Cancel
                             </Button>
-                            <Button variant="primary" type="submit" loading={saving} disabled={!canCreate}>
+                            <Button variant="primary" type="submit" loading={saving}>
                                 {saving ? 'Creating...' : 'Create Medicine'}
                             </Button>
                         </div>

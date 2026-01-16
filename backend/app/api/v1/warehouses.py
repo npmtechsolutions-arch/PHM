@@ -10,7 +10,7 @@ from app.models.common import APIResponse
 from app.models.warehouse import WarehouseCreate, WarehouseUpdate, WarehouseResponse
 from app.core.security import get_current_user, require_role
 from app.db.database import get_db
-from app.db.models import Warehouse, MedicalShop, WarehouseStatus
+from app.db.models import Warehouse, MedicalShop, WarehouseStatus, WarehouseStock, Rack
 
 router = APIRouter()
 
@@ -163,9 +163,42 @@ async def delete_warehouse(
         raise HTTPException(status_code=404, detail="Warehouse not found")
     
     # Check if warehouse has shops
-    shop_count = db.query(func.count(MedicalShop.id)).filter(MedicalShop.warehouse_id == warehouse_id).scalar()
-    if shop_count > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete warehouse with associated shops")
+    # CASCADE DELETE LOGIC
+    # 1. Delete all stock associated with this warehouse
+    db.query(WarehouseStock).filter(WarehouseStock.warehouse_id == warehouse_id).delete()
+    
+    # 1.2 Delete Racks
+    db.query(Rack).filter(Rack.warehouse_id == warehouse_id).delete()
+    
+    # 1.1 Delete Dispatches and Purchase Requests (Non-nullable FKs)
+    from app.db.models import Dispatch, PurchaseRequest, DispatchItem, PurchaseRequestItem
+    
+    # Needs to delete items first if cascade not set in DB
+    # Deleting Dispatches
+    db.query(Dispatch).filter(Dispatch.warehouse_id == warehouse_id).delete()
+    
+    # Deleting Purchase Requests
+    db.query(PurchaseRequest).filter(PurchaseRequest.warehouse_id == warehouse_id).delete()
+    
+    # 2. Unlink all shops (set warehouse_id = null)
+    shops = db.query(MedicalShop).filter(MedicalShop.warehouse_id == warehouse_id).all()
+    for shop in shops:
+        shop.warehouse_id = None
+        
+    # 3. Unlink all users (set assigned_warehouse_id = null)
+    # Note: We need to import User model inside function or at top to avoid circular deps if any
+    from app.db.models import User, Employee
+    
+    users = db.query(User).filter(User.assigned_warehouse_id == warehouse_id).all()
+    for user in users:
+        user.assigned_warehouse_id = None
+        
+    # 4. Unlink all employees
+    employees = db.query(Employee).filter(Employee.warehouse_id == warehouse_id).all()
+    for emp in employees:
+        emp.warehouse_id = None
+    
+    db.flush() # Appply updates before deleting parent
     
     db.delete(warehouse)
     db.commit()

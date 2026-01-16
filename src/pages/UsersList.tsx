@@ -19,7 +19,12 @@ interface User {
     assigned_shop_id?: string;
 }
 
+import { useUser } from '../contexts/UserContext';
+
 export default function UsersList() {
+    const { user: currentUser } = useUser();
+    const userRole = currentUser?.role || '';
+
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -223,14 +228,16 @@ export default function UsersList() {
                     >
                         <span className="material-symbols-outlined text-[18px]">edit</span>
                     </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={() => handleDelete(user.id)}
-                        className="!p-1.5 h-8 w-8 justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
-                        title="Delete User"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                    </Button>
+                    {(userRole === 'super_admin') && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => handleDelete(user.id)}
+                            className="!p-1.5 h-8 w-8 justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
+                            title="Delete User"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </Button>
+                    )}
                 </div>
             )
         }

@@ -4,8 +4,6 @@ import { taxApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
-import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
-import { MasterDataWarning } from '../components/MasterDataWarning';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -29,9 +27,6 @@ export default function GSTVATPage() {
     const navigate = useNavigate();
     const { getMaster } = useMasterData();
     const gstSlabs = getMaster('gst_slabs');
-
-    // Gating: Check if GST slabs exist before allowing configuration
-    const { canCreate, missingPrerequisites } = useMasterDataPrerequisites('gst_configuration');
 
     const [settings, setSettings] = useState<TaxSettings>({
         enable_gst: true, default_gst_rate: 12, enable_vat: false, default_vat_rate: 5,
@@ -62,7 +57,6 @@ export default function GSTVATPage() {
     };
 
     const handleSave = async () => {
-        if (!canCreate) return; // Prevent save if prerequisites missing
         setSaving(true);
         try {
             await taxApi.updateSettings(settings);
@@ -99,11 +93,6 @@ export default function GSTVATPage() {
             }
         >
             <div className="max-w-4xl mx-auto space-y-6">
-                {/* Prerequisite Warning - BLOCKING */}
-                <MasterDataWarning
-                    masterType="GST Configuration"
-                    missingPrerequisites={missingPrerequisites}
-                />
                 {/* GST Settings */}
                 <Card title="GST Configuration" icon="receipt_long">
                     <div className="space-y-6">
@@ -234,7 +223,7 @@ export default function GSTVATPage() {
                 {/* Save Button */}
                 <div className="flex justify-end">
                     {hasPermission('gst.edit') && (
-                        <Button variant="primary" onClick={handleSave} loading={saving} disabled={!canCreate}>
+                        <Button variant="primary" onClick={handleSave} loading={saving}>
                             <span className="material-symbols-outlined text-[20px] mr-2">save</span>
                             {saving ? 'Saving...' : 'Save Settings'}
                         </Button>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { useOperationalContext } from '../contexts/OperationalContext';
-import { warehousesApi, shopsApi, reportsApi, inventoryApi, medicinesApi, invoicesApi, customersApi, employeesApi } from '../services/api';
+import { warehousesApi, shopsApi, reportsApi, inventoryApi, medicinesApi, invoicesApi, customersApi, employeesApi, purchaseRequestsApi, dispatchesApi } from '../services/api';
 
 interface DashboardStats {
     warehouses: number;
@@ -14,6 +14,8 @@ interface DashboardStats {
     revenue: number;
     lowStockItems: number;
     expiringItems: number;
+    pendingRequests: number;
+    dispatchedToday: number;
 }
 
 interface Alert {
@@ -46,7 +48,8 @@ export default function Dashboard() {
 
     const [stats, setStats] = useState<DashboardStats>({
         warehouses: 0, shops: 0, medicines: 0, invoices: 0,
-        customers: 0, employees: 0, revenue: 0, lowStockItems: 0, expiringItems: 0
+        customers: 0, employees: 0, revenue: 0, lowStockItems: 0, expiringItems: 0,
+        pendingRequests: 0, dispatchedToday: 0
     });
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [monthlySales, setMonthlySales] = useState<MonthlySale[]>([]);
@@ -79,7 +82,8 @@ export default function Dashboard() {
                 // Using employees field to show users count for now as dashboard stats interface has employees
                 employees: uRes.data?.total || 0,
                 medicines: mRes.data?.total || 0,
-                invoices: 0, customers: 0, revenue: 0, lowStockItems: 0, expiringItems: 0
+                invoices: 0, customers: 0, revenue: 0, lowStockItems: 0, expiringItems: 0,
+                pendingRequests: 0, dispatchedToday: 0
             });
             setLoading(false);
         } catch (err) {
@@ -98,7 +102,7 @@ export default function Dashboard() {
             if (activeEntity?.type === 'warehouse') params['warehouse_id'] = activeEntity.id;
             if (activeEntity?.type === 'shop') params['shop_id'] = activeEntity.id;
 
-            const [warehousesRes, shopsRes, medicinesRes, invoicesRes, customersRes, employeesRes, salesRes, alertsRes] = await Promise.allSettled([
+            const [warehousesRes, shopsRes, medicinesRes, invoicesRes, customersRes, employeesRes, salesRes, alertsRes, prRes, dispRes] = await Promise.allSettled([
                 warehousesApi.list({ page: 1, size: 1 }),
                 shopsApi.list({ page: 1, size: 1 }),
                 medicinesApi.list({ page: 1, size: 1 }),
@@ -107,6 +111,8 @@ export default function Dashboard() {
                 employeesApi.list({ page: 1, size: 1, ...params }),
                 reportsApi.getSales(),
                 inventoryApi.getAlerts(),
+                purchaseRequestsApi.list({ status: 'pending', size: 1, ...params }),
+                dispatchesApi.list({ size: 100, ...params }) // Fetch recent dispatches for daily count
             ]);
 
             const getVal = (res: PromiseSettledResult<any>, key: string) =>
@@ -115,6 +121,13 @@ export default function Dashboard() {
             const stockAlerts = alertsRes.status === 'fulfilled' ? (alertsRes.value.data?.alerts || []) : [];
             const lowStock = stockAlerts.filter((a: any) => a.type === 'low_stock').length;
             const expiring = stockAlerts.filter((a: any) => a.type === 'expiring' || a.type === 'expired').length;
+
+            const pendingRequests = prRes.status === 'fulfilled' ? (prRes.value.data?.total || 0) : 0;
+
+            // Calculate today's dispatches
+            const today = new Date().toISOString().split('T')[0];
+            const dispatches = dispRes.status === 'fulfilled' ? (dispRes.value.data?.items || dispRes.value.data || []) : [];
+            const dispatchedToday = dispatches.filter((d: any) => d.dispatch_date && d.dispatch_date.startsWith(today)).length;
 
             setStats({
                 warehouses: getVal(warehousesRes, 'total'),
@@ -126,6 +139,8 @@ export default function Dashboard() {
                 revenue: salesRes.status === 'fulfilled' ? (salesRes.value.data?.total_sales || 0) : 0,
                 lowStockItems: lowStock,
                 expiringItems: expiring,
+                pendingRequests: pendingRequests,
+                dispatchedToday: dispatchedToday
             });
 
             if (invoicesRes.status === 'fulfilled') {
@@ -143,20 +158,9 @@ export default function Dashboard() {
                 type: a.type,
             })));
 
-            // Generate monthly sales for chart
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-            setMonthlySales(months.map((month) => ({
-                month,
-                amount: Math.floor(Math.random() * 500000) + 100000
-            })));
-
-            // Generate top selling medicines
-            setTopMedicines([
-                { name: 'Dolo 650', sales: 54647, quantity: 650, color: 'bg-blue-500' },
-                { name: 'Paracetamol', sales: 32345, quantity: 480, color: 'bg-purple-500' },
-                { name: 'Amoxicillin', sales: 16567, quantity: 320, color: 'bg-orange-500' },
-                { name: 'Cetirizine', sales: 10412, quantity: 250, color: 'bg-green-500' },
-            ]);
+            // Charts data - Set to empty or real data only (no demo data)
+            setMonthlySales([]);
+            setTopMedicines([]);
 
         } catch (err) {
             console.error('Dashboard fetch error:', err);
@@ -233,7 +237,7 @@ export default function Dashboard() {
         },
         {
             title: 'Pending Requests',
-            value: '5',
+            value: stats.pendingRequests.toString(),
             icon: 'assignment',
             color: 'amber',
             badge: 'Pending',
@@ -242,10 +246,10 @@ export default function Dashboard() {
         },
         {
             title: 'Dispatched Today',
-            value: '12',
+            value: stats.dispatchedToday.toString(),
             icon: 'local_shipping',
             color: 'teal',
-            trend: '+8%',
+            trend: '',
             trendUp: true,
             subtitle: 'Successfully shipped'
         },
@@ -357,17 +361,17 @@ export default function Dashboard() {
                     >
                         {/* Gradient Background */}
                         <div className={`absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity ${card.color === 'emerald' ? 'from-emerald-400 to-emerald-600' :
-                                card.color === 'blue' ? 'from-blue-400 to-blue-600' :
-                                    card.color === 'purple' ? 'from-purple-400 to-purple-600' :
-                                        'from-cyan-400 to-cyan-600'
+                            card.color === 'blue' ? 'from-blue-400 to-blue-600' :
+                                card.color === 'purple' ? 'from-purple-400 to-purple-600' :
+                                    'from-cyan-400 to-cyan-600'
                             }`}></div>
 
                         {/* Icon with gradient background */}
                         <div className="flex items-start justify-between mb-4 relative">
                             <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br ${card.color === 'emerald' ? 'from-emerald-400 to-emerald-600' :
-                                    card.color === 'blue' ? 'from-blue-400 to-blue-600' :
-                                        card.color === 'purple' ? 'from-purple-400 to-purple-600' :
-                                            'from-cyan-400 to-cyan-600'
+                                card.color === 'blue' ? 'from-blue-400 to-blue-600' :
+                                    card.color === 'purple' ? 'from-purple-400 to-purple-600' :
+                                        'from-cyan-400 to-cyan-600'
                                 } group-hover:scale-110 transition-transform duration-300`}>
                                 <span className="material-symbols-outlined text-white" style={{ fontSize: 28 }}>
                                     {card.icon}
@@ -395,9 +399,9 @@ export default function Dashboard() {
 
                         {/* Decorative element */}
                         <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 blur-2xl bg-gradient-to-br ${card.color === 'emerald' ? 'from-emerald-400 to-emerald-600' :
-                                card.color === 'blue' ? 'from-blue-400 to-blue-600' :
-                                    card.color === 'purple' ? 'from-purple-400 to-purple-600' :
-                                        'from-cyan-400 to-cyan-600'
+                            card.color === 'blue' ? 'from-blue-400 to-blue-600' :
+                                card.color === 'purple' ? 'from-purple-400 to-purple-600' :
+                                    'from-cyan-400 to-cyan-600'
                             }`}></div>
                     </div>
                 ))}

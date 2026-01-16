@@ -59,15 +59,6 @@ export default function InventoryOversight() {
     const loadStockData = async () => {
         setLoading(true);
         try {
-            // In a real implementation, we would pass selectedWarehouse or selectedShop to the API
-            // const params = {
-            //    warehouse_id: activeTab === 'warehouse' ? selectedWarehouse : undefined,
-            //    shop_id: activeTab === 'shop' ? selectedShop : undefined
-            // };
-            // const alerts = await inventoryApi.getAlerts(params); 
-            // Current API just gets all alerts or filters by type, so we stick to existing behavior for now
-            // knowing that filtering happens via params usually.
-
             const alerts = await inventoryApi.getAlerts();
             const alertData = alerts.data?.alerts || [];
 
@@ -83,7 +74,6 @@ export default function InventoryOversight() {
                 days_to_expiry: alert.days_to_expiry || 0,
                 last_movement: alert.last_movement_date
             }));
-
 
             setStockData(items);
         } catch (err) {

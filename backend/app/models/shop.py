@@ -55,6 +55,7 @@ class MedicalShopUpdate(BaseModel):
     email: Optional[EmailStr] = None
     owner_id: Optional[str] = None
     manager_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     status: Optional[ShopStatus] = None
 
 

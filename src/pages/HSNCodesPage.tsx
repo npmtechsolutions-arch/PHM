@@ -4,8 +4,6 @@ import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
-import { useMasterDataPrerequisites } from '../hooks/useMasterDataPrerequisites';
-import { MasterDataWarning } from '../components/MasterDataWarning';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
@@ -32,7 +30,6 @@ export default function HSNCodesPage() {
     const { hasPermission } = usePermissions();
     const navigate = useNavigate();
     const { getMaster } = useMasterData();
-    const { canCreate, missingPrerequisites } = useMasterDataPrerequisites('hsn_codes');
     const gstSlabs = getMaster('gst_slabs');
 
     const [hsnCodes, setHsnCodes] = useState<HSN[]>([]);
@@ -209,8 +206,6 @@ export default function HSNCodesPage() {
 
     return (
         <UniversalListPage>
-            <MasterDataWarning masterType="HSN Codes" missingPrerequisites={missingPrerequisites} />
-
             <UniversalListPage.Header
                 title="HSN Codes"
                 subtitle="Manage HSN codes with GST rates."
@@ -219,8 +214,7 @@ export default function HSNCodesPage() {
                         <Button
                             variant="primary"
                             onClick={openCreateModal}
-                            disabled={!canCreate}
-                            className={!canCreate ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-gradient-to-r from-amber-600 to-orange-600'}
+                            className="bg-gradient-to-r from-amber-600 to-orange-600"
                             icon="add"
                         >
                             Add HSN Code

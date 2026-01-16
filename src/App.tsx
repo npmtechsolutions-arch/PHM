@@ -72,6 +72,8 @@ function RoleBasedHome() {
   return <Dashboard />;
 }
 
+import SessionExpiredModal from './components/SessionExpiredModal';
+
 function App() {
   return (
     <UserProvider>
@@ -190,6 +192,8 @@ function App() {
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+
+              <SessionExpiredModal />
             </Router>
           </OperationalProvider>
         </MasterDataProvider>

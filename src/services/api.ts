@@ -13,6 +13,26 @@ const api = axios.create({
     },
 });
 
+// Queue to hold requests that failed due to 401
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: any) => void }> = [];
+let isSessionExpired = false;
+
+const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token!);
+        }
+    });
+    failedQueue = [];
+};
+
+export const onLoginSuccess = (token: string) => {
+    isSessionExpired = false;
+    processQueue(null, token);
+};
+
 // Request interceptor - add auth token
 api.interceptors.request.use(
     (config) => {
@@ -33,6 +53,15 @@ api.interceptors.response.use(
 
         // Handle 401 - token expired
         if (error.response?.status === 401 && !originalRequest._retry) {
+            if (isSessionExpired) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then((token) => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                    return api(originalRequest);
+                });
+            }
+
             originalRequest._retry = true;
 
             try {
@@ -49,11 +78,20 @@ api.interceptors.response.use(
                     return api(originalRequest);
                 }
             } catch (refreshError) {
-                // Refresh failed - logout user
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
+                // Refresh failed - proceed to session expired handling
             }
+
+            // If we are here, refresh failed or no refresh token.
+            // Dispatch event for UI to show modal
+            isSessionExpired = true;
+            window.dispatchEvent(new Event('auth:session-expired'));
+
+            return new Promise((resolve, reject) => {
+                failedQueue.push({ resolve, reject });
+            }).then((token) => {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                return api(originalRequest);
+            });
         }
 
         return Promise.reject(error);

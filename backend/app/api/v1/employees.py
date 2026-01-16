@@ -417,8 +417,10 @@ async def process_salary(
         hra = basic * 0.4
         allowances = basic * 0.2
         pf = basic * 0.12
+        esi = basic * 0.0075 if basic < 21000 else 0
         gross = basic + hra + allowances
-        net = gross - pf
+        total_deductions = pf + esi
+        net = gross - total_deductions
         
         salary = SalaryRecord(
             employee_id=employee.id,
@@ -428,6 +430,8 @@ async def process_salary(
             hra=hra,
             allowances=allowances,
             pf_deduction=pf,
+            esi_deduction=esi,
+            deductions=total_deductions,
             gross_salary=gross,
             net_salary=net
         )
@@ -467,7 +471,7 @@ async def get_employee_performance(
 @router.get("")
 async def list_employees(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=1000),
     search: Optional[str] = None,
     department: Optional[str] = None,
     shop_id: Optional[str] = None,

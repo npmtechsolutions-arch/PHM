@@ -167,14 +167,22 @@ export default function AdjustmentReasonsPage() {
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center gap-1">
                                                 {hasPermission('adjustment_reasons.edit') && (
-                                                    <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
+                                                    <Button
+                                                        variant="ghost"
+                                                        onClick={() => openEditModal(item)}
+                                                        className="!p-1.5 h-8 w-8 text-blue-600"
+                                                    >
                                                         <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                    </button>
+                                                    </Button>
                                                 )}
                                                 {hasPermission('adjustment_reasons.delete') && (
-                                                    <button onClick={() => handleDelete(item)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
+                                                    <Button
+                                                        variant="ghost"
+                                                        onClick={() => handleDelete(item)}
+                                                        className="!p-1.5 h-8 w-8 text-red-600"
+                                                    >
                                                         <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
+                                                    </Button>
                                                 )}
                                             </div>
                                         </td>

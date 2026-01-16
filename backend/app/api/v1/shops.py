@@ -59,6 +59,7 @@ async def list_shops(
             "email": shop.email,
             "status": shop.status.value if shop.status else "active",
             "warehouse_id": shop.warehouse_id,
+            "warehouse_name": shop.warehouse.name if shop.warehouse else None,
             "created_at": shop.created_at
         }
         for shop in shops
@@ -156,6 +157,17 @@ async def update_shop(
         raise HTTPException(status_code=404, detail="Shop not found")
     
     update_data = shop_data.model_dump(exclude_unset=True)
+    
+    # Handle empty string as None (unassign)
+    if "warehouse_id" in update_data and update_data["warehouse_id"] == "":
+        update_data["warehouse_id"] = None
+    
+    # Verify warehouse exists if provided in update and not None
+    if "warehouse_id" in update_data and update_data["warehouse_id"] is not None:
+        warehouse = db.query(Warehouse).filter(Warehouse.id == update_data["warehouse_id"]).first()
+        if not warehouse:
+            raise HTTPException(status_code=400, detail="Warehouse not found")
+
     for field, value in update_data.items():
         setattr(shop, field, value)
     
@@ -175,6 +187,43 @@ async def delete_shop(
     shop = db.query(MedicalShop).filter(MedicalShop.id == shop_id).first()
     if not shop:
         raise HTTPException(status_code=404, detail="Shop not found")
+    
+    # CASCADE DELETE LOGIC
+    from app.db.models import ShopStock, User, Employee, Customer, Invoice, Return
+    
+    # 1. Delete all Returns linked to this shop (must be before Invoices due to FK)
+    # Returns have a direct shop_id FK OR indirect via Invoice. 
+    # Model check: Return has shop_id.
+    db.query(Return).filter(Return.shop_id == shop_id).delete()
+
+    # 2. Delete all Invoices linked to this shop
+    # This will cascade delete InvoiceItems if configured, but let's trust the ORM or DB constraints
+    db.query(Invoice).filter(Invoice.shop_id == shop_id).delete()
+    
+    # 3. Delete all Stock
+    db.query(ShopStock).filter(ShopStock.shop_id == shop_id).delete()
+    
+    # 3.1 Delete Dispatches and Purchase Requests (Non-nullable FKs)
+    from app.db.models import Dispatch, PurchaseRequest
+    db.query(Dispatch).filter(Dispatch.shop_id == shop_id).delete()
+    db.query(PurchaseRequest).filter(PurchaseRequest.shop_id == shop_id).delete()
+    
+    # 4. Unlink Users
+    users = db.query(User).filter(User.assigned_shop_id == shop_id).all()
+    for user in users:
+        user.assigned_shop_id = None
+        
+    # 5. Unlink Employees
+    employees = db.query(Employee).filter(Employee.shop_id == shop_id).all()
+    for emp in employees:
+        emp.shop_id = None
+        
+    # 6. Unlink Customers
+    customers = db.query(Customer).filter(Customer.shop_id == shop_id).all()
+    for cust in customers:
+        cust.shop_id = None
+        
+    db.flush()
     
     db.delete(shop)
     db.commit()
