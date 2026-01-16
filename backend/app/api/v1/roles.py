@@ -43,7 +43,7 @@ def role_to_response(role: Role) -> RoleResponse:
 
 
 @router.get("", response_model=RoleListResponse)
-async def list_roles(
+def list_roles(
     include_system: bool = True,
     creatable_only: bool = False,
     db: Session = Depends(get_db),
@@ -71,7 +71,7 @@ async def list_roles(
 
 
 @router.get("/assignable")
-async def list_assignable_roles(
+def list_assignable_roles(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["users.create", "users.edit"]))
 ):
@@ -96,7 +96,7 @@ async def list_assignable_roles(
 
 
 @router.post("", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
-async def create_role(
+def create_role(
     role_data: RoleCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))
@@ -136,7 +136,7 @@ async def create_role(
 
 
 @router.get("/{role_id}", response_model=RoleResponse)
-async def get_role(
+def get_role(
     role_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.view", "roles.manage"]))
@@ -153,7 +153,7 @@ async def get_role(
 
 
 @router.put("/{role_id}", response_model=RoleResponse)
-async def update_role(
+def update_role(
     role_id: str,
     update_data: RoleUpdate,
     db: Session = Depends(get_db),
@@ -211,7 +211,7 @@ async def update_role(
 
 
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_role(
+def delete_role(
     role_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))
@@ -251,7 +251,7 @@ async def delete_role(
 
 
 @router.post("/{role_id}/permissions/{permission_id}", status_code=status.HTTP_201_CREATED)
-async def add_permission_to_role(
+def add_permission_to_role(
     role_id: str,
     permission_id: str,
     db: Session = Depends(get_db),
@@ -280,7 +280,7 @@ async def add_permission_to_role(
 
 
 @router.delete("/{role_id}/permissions/{permission_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_permission_from_role(
+def remove_permission_from_role(
     role_id: str,
     permission_id: str,
     db: Session = Depends(get_db),
@@ -304,7 +304,7 @@ async def remove_permission_from_role(
 
 
 @router.post("/{role_id}/users/{user_id}", status_code=status.HTTP_201_CREATED)
-async def assign_role_to_user(
+def assign_role_to_user(
     role_id: str,
     user_id: str,
     db: Session = Depends(get_db),
@@ -332,7 +332,7 @@ async def assign_role_to_user(
 
 
 @router.delete("/{role_id}/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_role_from_user(
+def remove_role_from_user(
     role_id: str,
     user_id: str,
     db: Session = Depends(get_db),

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { inventoryApi } from '../services/api';
+import { inventoryApi, warehousesApi, shopsApi } from '../services/api';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
@@ -19,22 +19,92 @@ interface StockMovement {
     performed_by: string;
 }
 
+interface StockItem {
+    id: string;
+    medicine_id: string;
+    medicine_name: string;
+    medicine_code: string;
+    brand: string;
+    batch_id: string;
+    batch_number: string;
+    expiry_date: string | null;
+    quantity: number;
+    rack_name: string | null;
+    rack_number: string | null;
+    updated_at: string;
+}
+
 export default function InventoryPage() {
     // Operational Context for Super Admin flow
     const { activeEntity, scope } = useOperationalContext();
 
+    // View Mode: 'stock' (Current Levels) or 'movements' (History)
+    const [viewMode, setViewMode] = useState<'stock' | 'movements'>('stock');
+
+    // Data States
     const [movements, setMovements] = useState<StockMovement[]>([]);
+    const [stockItems, setStockItems] = useState<StockItem[]>([]);
     const [loading, setLoading] = useState(true);
-    // Local filter for Super Admin in global scope
+
+    // Filters
     const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
     const [movementType, setMovementType] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const pageSize = 20;
 
     useEffect(() => {
-        fetchMovements();
-    }, [currentPage, selectedWarehouseId, movementType, activeEntity]);
+        if (viewMode === 'stock') {
+            fetchStock();
+        } else {
+            fetchMovements();
+        }
+    }, [viewMode, currentPage, selectedWarehouseId, movementType, searchQuery, activeEntity]);
+
+    const fetchStock = async () => {
+        setLoading(true);
+        try {
+            // Determine source based on context
+            let response;
+            const params: any = { page: currentPage, size: pageSize };
+
+            // Add search query if present
+            if (searchQuery) {
+                params.search = searchQuery;
+            }
+
+            if (activeEntity?.type === 'warehouse') {
+                response = await warehousesApi.getStock(activeEntity.id, params);
+            } else if (activeEntity?.type === 'shop') {
+                response = await shopsApi.getStock(activeEntity.id, params);
+            } else if (scope === 'global') {
+                // For global view, we might need a different approach or default to oversight
+                // But for now, let's assume Super Admin selects a warehouse
+                if (selectedWarehouseId) {
+                    response = await warehousesApi.getStock(selectedWarehouseId, params);
+                } else {
+                    // If no warehouse selected in global, show empty or prompt
+                    setStockItems([]);
+                    setTotalItems(0);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            if (response?.data) {
+                setStockItems(response.data.items || []);
+                setTotalItems(response.data.total || 0);
+            }
+        } catch (err) {
+            console.error('Failed to fetch stock:', err);
+            setStockItems([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchMovements = async () => {
         try {
@@ -47,7 +117,6 @@ export default function InventoryPage() {
             } else if (activeEntity?.type === 'shop') {
                 params.shop_id = activeEntity.id;
             } else if (scope === 'global' && selectedWarehouseId) {
-                // If global, allow filtering by selected warehouse
                 params.warehouse_id = selectedWarehouseId;
             }
 
@@ -98,15 +167,68 @@ export default function InventoryPage() {
         }
     };
 
-    // Calculate stats
-    const stats = {
-        total: totalItems,
-        stockIn: movements.filter(m => m.movement_type === 'in').length,
-        stockOut: movements.filter(m => m.movement_type === 'out').length,
-        transfers: movements.filter(m => m.movement_type === 'transfer').length
-    };
+    // Columns for Stock View
+    const stockColumns: Column<StockItem>[] = [
+        {
+            header: 'Medicine Name',
+            key: 'medicine_name',
+            render: (item) => (
+                <div>
+                    <p className="font-medium text-sm text-slate-900 dark:text-white">{item.medicine_name}</p>
+                    <p className="text-[11px] text-slate-500">{item.medicine_code || 'N/A'}</p>
+                </div>
+            )
+        },
+        {
+            header: 'Brand',
+            key: 'brand',
+            className: 'hidden md:table-cell',
+            render: (item) => (
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {item.brand || '-'}
+                </span>
+            )
+        },
+        {
+            header: 'Batch Info',
+            key: 'batch_number',
+            render: (item) => (
+                <div>
+                    <span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{item.batch_number}</span>
+                    {item.expiry_date && (
+                        <p className="text-[10px] text-slate-500 mt-0.5">Exp: {new Date(item.expiry_date).toLocaleDateString()}</p>
+                    )}
+                </div>
+            )
+        },
+        {
+            header: 'Location',
+            key: 'rack_name',
+            className: 'hidden lg:table-cell',
+            render: (item) => (
+                <div className="text-xs text-slate-600 dark:text-slate-400">
+                    {item.rack_name || item.rack_number ? (
+                        <span>{item.rack_name} {item.rack_number ? `(${item.rack_number})` : ''}</span>
+                    ) : (
+                        <span className="italic text-slate-400">No Rack</span>
+                    )}
+                </div>
+            )
+        },
+        {
+            header: 'Quantity',
+            key: 'quantity',
+            align: 'right',
+            render: (item) => (
+                <span className="font-mono font-medium text-slate-900 dark:text-white">
+                    {item.quantity.toLocaleString()}
+                </span>
+            )
+        }
+    ];
 
-    const columns: Column<StockMovement>[] = [
+    // Columns for Movements View
+    const movementColumns: Column<StockMovement>[] = [
         {
             header: 'Details',
             key: 'id',
@@ -123,6 +245,7 @@ export default function InventoryPage() {
             render: (move) => (
                 <div>
                     <p className="font-medium text-sm text-slate-900 dark:text-white">{move.medicine_name}</p>
+                    {/* Backend needs to provide brand for movements, currently not available in model but UI ready */}
                     <p className="text-[11px] text-slate-500">Batch: {move.batch_number}</p>
                 </div>
             )
@@ -148,15 +271,6 @@ export default function InventoryPage() {
             )
         },
         {
-            header: 'Location',
-            key: 'warehouse_name',
-            render: (move) => (
-                <span className="text-xs text-slate-600 dark:text-slate-400">
-                    {move.warehouse_name || move.shop_name || '-'}
-                </span>
-            )
-        },
-        {
             header: 'Date',
             key: 'created_at',
             align: 'right',
@@ -172,22 +286,50 @@ export default function InventoryPage() {
     return (
         <UniversalListPage>
             <UniversalListPage.Header
-                title="Inventory Movements"
-                subtitle={`Track stock changes ${scope === 'global' ? 'across all locations' : activeEntity?.name ? `for ${activeEntity.name}` : ''}`}
+                title="Inventory Management"
+                subtitle={`Manage stock and view history ${scope === 'global' ? 'across all locations' : activeEntity?.name ? `for ${activeEntity.name}` : ''}`}
+                actions={
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                        <button
+                            onClick={() => { setViewMode('stock'); setCurrentPage(1); }}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'stock'
+                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                        >
+                            Current Stock
+                        </button>
+                        <button
+                            onClick={() => { setViewMode('movements'); setCurrentPage(1); }}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'movements'
+                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                        >
+                            History
+                        </button>
+                    </div>
+                }
             />
 
             <UniversalListPage.KPICards>
-                <StatCard title="Total Movements" value={stats.total} icon="history" onClick={() => setMovementType('')} isActive={movementType === ''} />
-                <StatCard title="Stock In" value={stats.stockIn} icon="login" trend="neutral" />
-                <StatCard title="Stock Out" value={stats.stockOut} icon="logout" trend="neutral" />
-                <StatCard title="Transfers" value={stats.transfers} icon="swap_horiz" trend="neutral" />
+                <StatCard
+                    title={viewMode === 'stock' ? "Total Stock Items" : "Total Movements"}
+                    value={totalItems}
+                    icon={viewMode === 'stock' ? "inventory_2" : "history"}
+                    onClick={() => { }}
+                    isActive={true}
+                />
+                <StatCard title="Stock In" value={"-"} icon="login" trend="neutral" />
+                <StatCard title="Stock Out" value={"-"} icon="logout" trend="neutral" />
+                <StatCard title="Transfers" value={"-"} icon="swap_horiz" trend="neutral" />
             </UniversalListPage.KPICards>
 
             <UniversalListPage.DataTable
-                columns={columns}
-                data={movements}
+                columns={viewMode === 'stock' ? stockColumns : movementColumns as any}
+                data={viewMode === 'stock' ? stockItems : movements as any}
                 loading={loading}
-                emptyMessage="No stock movements found."
+                emptyMessage={viewMode === 'stock' ? "No stock found in this location." : "No stock movements found."}
                 pagination={{
                     currentPage: currentPage,
                     totalPages: Math.ceil(totalItems / pageSize),
@@ -197,8 +339,13 @@ export default function InventoryPage() {
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls
-                        title="Movement List"
+                        title={viewMode === 'stock' ? "Stock List" : "Movement List"}
                         count={totalItems}
+                        searchProps={viewMode === 'stock' ? {
+                            value: searchQuery,
+                            onChange: (val) => { setSearchQuery(val); setCurrentPage(1); },
+                            placeholder: "Search medicines..."
+                        } : undefined}
                         actions={
                             <div className="flex items-center gap-2">
                                 {/* Warehouse Selector - ONLY visible to Super Admin in GLOBAL scope */}
@@ -208,22 +355,24 @@ export default function InventoryPage() {
                                         onChange={(e) => { setSelectedWarehouseId(e.target.value); setCurrentPage(1); }}
                                         className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
-                                        <option value="">All Warehouses</option>
+                                        <option value="">Select Warehouse</option>
                                         <option value="WH001">Central Warehouse</option>
                                     </select>
                                 )}
 
-                                <select
-                                    value={movementType}
-                                    onChange={(e) => { setMovementType(e.target.value); setCurrentPage(1); }}
-                                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">All Types</option>
-                                    <option value="in">Stock In</option>
-                                    <option value="out">Stock Out</option>
-                                    <option value="transfer">Transfer</option>
-                                    <option value="adjustment">Adjustment</option>
-                                </select>
+                                {viewMode === 'movements' && (
+                                    <select
+                                        value={movementType}
+                                        onChange={(e) => { setMovementType(e.target.value); setCurrentPage(1); }}
+                                        className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">All Types</option>
+                                        <option value="in">Stock In</option>
+                                        <option value="out">Stock Out</option>
+                                        <option value="transfer">Transfer</option>
+                                        <option value="adjustment">Adjustment</option>
+                                    </select>
+                                )}
                             </div>
                         }
                         embedded={true}

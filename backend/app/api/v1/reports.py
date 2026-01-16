@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/sales")
-async def get_sales_report(
+def get_sales_report(
     shop_id: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
@@ -50,7 +50,7 @@ async def get_sales_report(
 
 
 @router.get("/sales/daily")
-async def get_daily_sales(
+def get_daily_sales(
     shop_id: Optional[str] = None,
     report_date: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -86,7 +86,7 @@ async def get_daily_sales(
 
 
 @router.get("/sales/monthly")
-async def get_monthly_sales(
+def get_monthly_sales(
     shop_id: Optional[str] = None,
     month: Optional[int] = None,
     year: Optional[int] = None,
@@ -121,7 +121,7 @@ async def get_monthly_sales(
 
 
 @router.get("/inventory")
-async def get_inventory_report(
+def get_inventory_report(
     warehouse_id: Optional[str] = None,
     shop_id: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -147,7 +147,7 @@ async def get_inventory_report(
 
 
 @router.get("/profit-loss")
-async def get_profit_loss_report(
+def get_profit_loss_report(
     shop_id: Optional[str] = None,
     month: Optional[int] = None,
     year: Optional[int] = None,
@@ -189,7 +189,7 @@ async def get_profit_loss_report(
 
 
 @router.get("/expiry")
-async def get_expiry_report(
+def get_expiry_report(
     warehouse_id: Optional[str] = None,
     shop_id: Optional[str] = None,
     days_ahead: int = Query(60, ge=1, le=365),
@@ -226,6 +226,7 @@ async def get_expiry_report(
         items.append({
             "medicine_id": batch.medicine_id,
             "name": medicine.name if medicine else "Unknown",
+            "brand": medicine.brand if medicine else None,
             "batch_number": batch.batch_number,
             "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
             "quantity": batch.quantity,
@@ -240,6 +241,7 @@ async def get_expiry_report(
         items.append({
             "medicine_id": batch.medicine_id,
             "name": medicine.name if medicine else "Unknown",
+            "brand": medicine.brand if medicine else None,
             "batch_number": batch.batch_number,
             "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
             "quantity": batch.quantity,

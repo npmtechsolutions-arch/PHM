@@ -388,10 +388,10 @@ export default function Sidebar() {
 
     // Check if user can see an item based on permissions
     const canSeeItem = (item: NavItemType | SubItem): boolean => {
-        // Super Admin CANNOT see operational items (excludeFromSuperAdmin items)
-        if (isSuperAdmin && 'excludeFromSuperAdmin' in item && item.excludeFromSuperAdmin) {
-            return false;
-        }
+        // Super Admin sees EVERYTHING (for testing and oversight)
+        // if (isSuperAdmin && 'excludeFromSuperAdmin' in item && item.excludeFromSuperAdmin) {
+        //     return false;
+        // }
 
         // Warehouse Admin CANNOT see items marked for exclusion
         if (userRole === 'warehouse_admin' && 'excludeFromWarehouseAdmin' in item && item.excludeFromWarehouseAdmin) {

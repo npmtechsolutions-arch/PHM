@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import PageLayout from '../components/PageLayout';
-import Card from '../components/Card';
+import UniversalListPage from '../components/UniversalListPage';
+import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
+import { type Column } from '../components/Table';
 
 interface AdjustmentReason {
     id: string;
@@ -36,6 +37,11 @@ export default function AdjustmentReasonsPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
+    // Pagination & Search
+    const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
     useEffect(() => {
         if (user && !hasPermission('adjustment_reasons.view')) {
             navigate('/');
@@ -51,14 +57,10 @@ export default function AdjustmentReasonsPage() {
             setItems(res.data || []);
         } catch (err) {
             console.error('Failed to load adjustment reasons:', err);
-            // Provide defaults if API doesn't exist yet
-            setItems([
-                { id: '1', code: 'DAMAGE', name: 'Damaged Goods', description: 'Stock damaged during storage or handling', adjustment_type: 'decrease', is_active: true, created_at: new Date().toISOString() },
-                { id: '2', code: 'EXPIRED', name: 'Expired Stock', description: 'Stock passed expiry date', adjustment_type: 'decrease', is_active: true, created_at: new Date().toISOString() },
-                { id: '3', code: 'THEFT', name: 'Theft/Loss', description: 'Stock lost or stolen', adjustment_type: 'decrease', is_active: true, created_at: new Date().toISOString() },
-                { id: '4', code: 'CORRECTION', name: 'Count Correction', description: 'Physical count differs from system', adjustment_type: 'decrease', is_active: true, created_at: new Date().toISOString() },
-                { id: '5', code: 'FOUND', name: 'Found Stock', description: 'Previously missing stock found', adjustment_type: 'increase', is_active: true, created_at: new Date().toISOString() },
-            ]);
+            // Fallback for demo if API fails
+            if (items.length === 0) {
+                setItems([]);
+            }
         } finally {
             setLoading(false);
         }
@@ -116,87 +118,123 @@ export default function AdjustmentReasonsPage() {
         }
     };
 
+    // Filter
+    const filtered = items.filter(item =>
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.code.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    // Stats
+    const stats = {
+        total: items.length,
+        increase: items.filter(i => i.adjustment_type === 'increase').length,
+        decrease: items.filter(i => i.adjustment_type === 'decrease').length
+    };
+
+    const columns: Column<AdjustmentReason>[] = [
+        {
+            header: 'Code',
+            key: 'code',
+            render: (item) => <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{item.code}</span>
+        },
+        {
+            header: 'Reason Name',
+            key: 'name',
+            render: (item) => (
+                <div>
+                    <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                    {item.description && <div className="text-xs text-slate-500">{item.description}</div>}
+                </div>
+            )
+        },
+        {
+            header: 'Type',
+            key: 'adjustment_type',
+            render: (item) => (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${item.adjustment_type === 'increase'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                    <span className="material-symbols-outlined text-[14px]">
+                        {item.adjustment_type === 'increase' ? 'arrow_upward' : 'arrow_downward'}
+                    </span>
+                    {item.adjustment_type === 'increase' ? 'Increase' : 'Decrease'}
+                </span>
+            )
+        },
+        {
+            header: 'Actions',
+            key: 'id',
+            align: 'right',
+            render: (item) => (
+                <div className="flex justify-end gap-1">
+                    {hasPermission('adjustment_reasons.edit') && (
+                        <Button variant="ghost" onClick={() => openEditModal(item)} className="!p-1.5 h-8 w-8 text-blue-600">
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('adjustment_reasons.delete') && (
+                        <Button variant="ghost" onClick={() => handleDelete(item)} className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50">
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </Button>
+                    )}
+                </div>
+            )
+        }
+    ];
+
     return (
-        <PageLayout
-            title="Adjustment Reasons"
-            description="Manage stock adjustment reasons for inventory corrections"
-            icon="swap_vert"
-            actions={
-                hasPermission('adjustment_reasons.create') && (
-                    <Button variant="primary" onClick={openCreateModal}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        Add Reason
-                    </Button>
-                )
-            }
-        >
-            <Card className="space-y-6">
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-                    </div>
-                ) : items.length === 0 ? (
-                    <div className="py-16 text-center">
-                        <span className="material-symbols-outlined text-5xl text-slate-300 mb-3">swap_vert</span>
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">No adjustment reasons</h3>
-                        <p className="text-slate-500 mt-1">Add reasons to enable stock adjustments</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full table-zebra">
-                            <thead className="bg-slate-50 dark:bg-slate-900/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Code</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Type</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Description</th>
-                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {items.map((item) => (
-                                    <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                        <td className="px-4 py-3 font-mono text-sm">{item.code}</td>
-                                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.name}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 text-xs rounded-full ${item.adjustment_type === 'increase' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {item.adjustment_type === 'increase' ? '↑ Increase' : '↓ Decrease'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{item.description || '-'}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex justify-center gap-1">
-                                                {hasPermission('adjustment_reasons.edit') && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        onClick={() => openEditModal(item)}
-                                                        className="!p-1.5 h-8 w-8 text-blue-600"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                    </Button>
-                                                )}
-                                                {hasPermission('adjustment_reasons.delete') && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        onClick={() => handleDelete(item)}
-                                                        className="!p-1.5 h-8 w-8 text-red-600"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
+        <UniversalListPage>
+            <UniversalListPage.Header
+                title="Adjustment Reasons"
+                subtitle="Manage stock adjustment reasons"
+                actions={
+                    hasPermission('adjustment_reasons.create') && (
+                        <Button variant="primary" onClick={openCreateModal}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            Add Reason
+                        </Button>
+                    )
+                }
+            />
+
+            <UniversalListPage.KPICards>
+                <StatCard title="Total Reasons" value={stats.total} icon="swap_vert" isActive={true} />
+                <StatCard title="Increase Types" value={stats.increase} icon="trending_up" trend="up" valueClassName="text-green-600" />
+                <StatCard title="Decrease Types" value={stats.decrease} icon="trending_down" trend="down" valueClassName="text-red-600" />
+            </UniversalListPage.KPICards>
+
+            <UniversalListPage.DataTable
+                columns={columns}
+                data={paginatedData}
+                loading={loading}
+                emptyMessage="No adjustment reasons found."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(filtered.length / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: filtered.length,
+                    pageSize: pageSize
+                }}
+                headerSlot={
+                    <UniversalListPage.ListControls
+                        title="Reason List"
+                        count={filtered.length}
+                        searchProps={{
+                            value: search,
+                            onChange: (val) => { setSearch(val); setCurrentPage(1); },
+                            placeholder: "Search reasons..."
+                        }}
+                        embedded={true}
+                    />
+                }
+            />
 
             <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingItem ? 'Edit Reason' : 'Add Reason'}>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-xl text-red-600 text-sm">{error}</div>}
 
                     <div className="grid grid-cols-2 gap-4">
                         <Input label="Code *" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="DAMAGE" required />
@@ -206,12 +244,12 @@ export default function AdjustmentReasonsPage() {
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Adjustment Type *</label>
                         <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" checked={formData.adjustment_type === 'decrease'} onChange={() => setFormData({ ...formData, adjustment_type: 'decrease' })} className="text-primary" />
+                            <label className="flex items-center gap-2 cursor-pointer p-2 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-slate-200 dark:border-slate-700">
+                                <input type="radio" checked={formData.adjustment_type === 'decrease'} onChange={() => setFormData({ ...formData, adjustment_type: 'decrease' })} className="text-primary w-4 h-4" />
                                 <span className="text-sm">Decrease (Stock Out)</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" checked={formData.adjustment_type === 'increase'} onChange={() => setFormData({ ...formData, adjustment_type: 'increase' })} className="text-primary" />
+                            <label className="flex items-center gap-2 cursor-pointer p-2 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-slate-200 dark:border-slate-700">
+                                <input type="radio" checked={formData.adjustment_type === 'increase'} onChange={() => setFormData({ ...formData, adjustment_type: 'increase' })} className="text-primary w-4 h-4" />
                                 <span className="text-sm">Increase (Stock In)</span>
                             </label>
                         </div>
@@ -225,6 +263,6 @@ export default function AdjustmentReasonsPage() {
                     </div>
                 </form>
             </Modal>
-        </PageLayout>
+        </UniversalListPage>
     );
 }

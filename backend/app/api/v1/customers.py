@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_customers(
+def list_customers(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
@@ -72,7 +72,7 @@ async def list_customers(
 
 
 @router.post("")
-async def create_customer(
+def create_customer(
     customer_data: CustomerCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -112,7 +112,7 @@ async def create_customer(
 
 
 @router.get("/{customer_id}")
-async def get_customer(
+def get_customer(
     customer_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -144,7 +144,7 @@ async def get_customer(
 
 
 @router.put("/{customer_id}")
-async def update_customer(
+def update_customer(
     customer_id: str,
     update_data: CustomerUpdate,
     db: Session = Depends(get_db),
@@ -165,7 +165,7 @@ async def update_customer(
 
 
 @router.delete("/{customer_id}")
-async def delete_customer(
+def delete_customer(
     customer_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "shop_owner"]))
@@ -184,7 +184,7 @@ async def delete_customer(
 # ==================== FOLLOW-UP ENDPOINTS ====================
 
 @router.get("/{customer_id}/followups")
-async def list_customer_followups(
+def list_customer_followups(
     customer_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -216,7 +216,7 @@ async def list_customer_followups(
 
 
 @router.post("/{customer_id}/followups")
-async def create_followup(
+def create_followup(
     customer_id: str,
     followup_data: FollowupCreate,
     db: Session = Depends(get_db),
@@ -246,7 +246,7 @@ async def create_followup(
 
 
 @router.put("/{customer_id}/followups/{followup_id}/complete")
-async def complete_followup(
+def complete_followup(
     customer_id: str,
     followup_id: str,
     db: Session = Depends(get_db),
@@ -271,7 +271,7 @@ async def complete_followup(
 # ==================== PRESCRIPTION ENDPOINTS ====================
 
 @router.get("/{customer_id}/prescriptions")
-async def list_customer_prescriptions(
+def list_customer_prescriptions(
     customer_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -303,7 +303,7 @@ async def list_customer_prescriptions(
 
 
 @router.post("/{customer_id}/prescriptions")
-async def create_prescription(
+def create_prescription(
     customer_id: str,
     prescription_data: PrescriptionCreate,
     db: Session = Depends(get_db),

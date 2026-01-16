@@ -280,7 +280,7 @@ def require_all_permissions(required_permissions: List[str]):
 
 def require_role(required_roles: List[str]):
     """Dependency to require specific roles (legacy - prefer require_permission)"""
-    async def role_checker(auth: AuthContext = Depends(get_auth_context)):
+    def role_checker(auth: AuthContext = Depends(get_auth_context)):
         if auth.role not in required_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -292,7 +292,7 @@ def require_role(required_roles: List[str]):
 
 def require_super_admin():
     """Dependency to require super_admin role (legacy - prefer require_permission)"""
-    async def checker(auth: AuthContext = Depends(get_auth_context)):
+    def checker(auth: AuthContext = Depends(get_auth_context)):
         if not auth.is_super_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

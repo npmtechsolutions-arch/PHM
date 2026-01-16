@@ -1,6 +1,6 @@
 interface BadgeProps {
     children: React.ReactNode;
-    variant: 'success' | 'warning' | 'error' | 'info' | 'secondary';
+    variant: 'success' | 'warning' | 'error' | 'info' | 'secondary' | 'primary';
     className?: string;
 }
 
@@ -10,6 +10,7 @@ const variantStyles: Record<BadgeProps['variant'], string> = {
     error: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     secondary: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
+    primary: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
 };
 
 export default function Badge({ children, variant, className = '' }: BadgeProps) {

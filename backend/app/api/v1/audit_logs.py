@@ -44,7 +44,7 @@ class AuditLogListResponse(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @router.get("", response_model=AuditLogListResponse)
-async def list_audit_logs(
+def list_audit_logs(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
     action: Optional[str] = None,
@@ -111,7 +111,7 @@ async def list_audit_logs(
 
 
 @router.get("/stats")
-async def get_audit_stats(
+def get_audit_stats(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):

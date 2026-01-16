@@ -24,7 +24,7 @@ class NotificationCreate(BaseModel):
 
 
 @router.get("")
-async def list_notifications(
+def list_notifications(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     is_read: Optional[bool] = None,
@@ -67,7 +67,7 @@ async def list_notifications(
 
 
 @router.post("")
-async def create_notification(
+def create_notification(
     notification_data: NotificationCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -91,7 +91,7 @@ async def create_notification(
 
 
 @router.put("/{notification_id}/read")
-async def mark_notification_read(
+def mark_notification_read(
     notification_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -108,7 +108,7 @@ async def mark_notification_read(
 
 
 @router.put("/read-all")
-async def mark_all_read(
+def mark_all_read(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -120,7 +120,7 @@ async def mark_all_read(
 
 
 @router.delete("/{notification_id}")
-async def delete_notification(
+def delete_notification(
     notification_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)

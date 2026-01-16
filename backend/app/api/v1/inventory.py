@@ -25,7 +25,7 @@ class StockAdjustment(BaseModel):
 
 
 @router.get("/movements")
-async def get_stock_movements(
+def get_stock_movements(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     location_type: Optional[str] = None,
@@ -123,7 +123,7 @@ async def get_stock_movements(
 
 
 @router.post("/adjust")
-async def adjust_stock(
+def adjust_stock(
     adjustment: StockAdjustment,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
@@ -160,7 +160,7 @@ class StockEntry(BaseModel):
 
 
 @router.post("/entry")
-async def create_stock_entry(
+def create_stock_entry(
     entry: StockEntry,
     db: Session = Depends(get_db),
     current_user = Depends(require_role(["super_admin", "warehouse_admin"]))
@@ -267,7 +267,7 @@ async def create_stock_entry(
 
 
 @router.get("/alerts")
-async def get_stock_alerts(
+def get_stock_alerts(
     alert_type: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)

@@ -6,6 +6,7 @@ import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Input from '../components/Input';
 import Select from '../components/Select';
+import SearchableSelect from '../components/SearchableSelect';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 
@@ -14,6 +15,7 @@ interface Medicine {
     name: string;
     generic_name: string;
     manufacturer: string;
+    brand?: string;
     mrp: number;
     purchase_price: number;
 }
@@ -202,14 +204,14 @@ export default function WarehouseStockEntry() {
                         </div>
 
                         <div>
-                            <Select
+                            <SearchableSelect
                                 label="Medicine *"
                                 value={selectedMedicine}
-                                onChange={(e) => setSelectedMedicine(e.target.value)}
+                                onChange={(val) => setSelectedMedicine(val)}
                                 required
                                 options={medicines.map(med => ({
                                     value: med.id,
-                                    label: `${med.name} - ${med.manufacturer}`
+                                    label: `${med.name} ${med.brand ? `(${med.brand})` : ''} - ${med.manufacturer}`
                                 }))}
                                 placeholder="Select Medicine"
                             />
@@ -217,6 +219,10 @@ export default function WarehouseStockEntry() {
                                 const med = medicines.find(m => m.id === selectedMedicine);
                                 return med ? (
                                     <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-sm grid grid-cols-2 gap-2">
+                                        <div className="flex justify-between col-span-2 border-b border-blue-200 dark:border-blue-800 pb-2 mb-1">
+                                            <span className="text-slate-500">Brand:</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">{med.brand || '-'} ({med.manufacturer})</span>
+                                        </div>
                                         <div className="flex justify-between"><span className="text-slate-500">Generic:</span> <span className="font-medium text-slate-900 dark:text-white">{med.generic_name}</span></div>
                                         <div className="flex justify-between"><span className="text-slate-500">MRP:</span> <span className="font-medium text-slate-900 dark:text-white">₹{med.mrp}</span></div>
                                     </div>
@@ -227,7 +233,7 @@ export default function WarehouseStockEntry() {
                         {existingBatches.length > 0 && (
                             <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
                                 <Select
-                                    label="Reuse Existing Batch Details"
+                                    label="Quick Fill from Existing Batch (Optional)"
                                     value={selectedExistingBatch}
                                     onChange={(e) => handleExistingBatchSelect(e.target.value)}
                                     placeholder="-- Use new batch details below --"
@@ -245,7 +251,7 @@ export default function WarehouseStockEntry() {
                                 label="Batch Number *"
                                 value={batchNumber}
                                 onChange={(e) => setBatchNumber(e.target.value.toUpperCase())}
-                                placeholder="e.g., BATCH001"
+                                placeholder="New or Existing Batch Number"
                                 required
                                 disabled={!selectedMedicine}
                                 className="font-mono"

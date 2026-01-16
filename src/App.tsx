@@ -30,6 +30,7 @@ import AttendanceReport from './pages/attendance/AttendanceReport';
 import SalaryManagement from './pages/SalaryManagement';
 import InvoicesList from './pages/InvoicesList';
 import DispatchesList from './pages/DispatchesList';
+import DispatchCreate from './pages/DispatchCreate';
 import PurchaseRequestsList from './pages/PurchaseRequestsList';
 import POSBilling from './pages/POSBilling';
 import NotificationsPage from './pages/NotificationsPage';
@@ -158,6 +159,7 @@ function App() {
 
                   {/* Dispatches (Operational) */}
                   <Route path="dispatches" element={<DispatchesList />} />
+                  <Route path="dispatches/create" element={<DispatchCreate />} />
 
                   {/* Purchase Requests */}
                   <Route path="purchase-requests" element={<PurchaseRequestsList />} />

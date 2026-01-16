@@ -153,6 +153,7 @@ export default function ExpiryLossReport() {
                                     <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <span className="font-semibold text-slate-900 dark:text-white">{item.name}</span>
+                                            {item.brand && <div className="text-xs text-slate-500">{item.brand}</div>}
                                         </td>
                                         <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-xs">{item.batch_number}</td>
                                         <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{item.expiry_date}</td>

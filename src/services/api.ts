@@ -280,6 +280,8 @@ export const employeesApi = {
 
     update: (id: string, data: any) => api.put(`/employees/${id}`, data),
 
+    delete: (id: string) => api.delete(`/employees/${id}`),
+
     markAttendance: (data: any) => api.post('/employees/attendance', data),
 
     getDailyAttendance: (date: string) =>

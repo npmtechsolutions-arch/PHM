@@ -87,7 +87,7 @@ class HSNResponse(HSNBase):
 # ==================== CATEGORY ENDPOINTS ====================
 
 @router.get("/categories", response_model=List[CategoryResponse])
-async def list_categories(
+def list_categories(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["categories.view"]))
@@ -100,7 +100,7 @@ async def list_categories(
 
 
 @router.post("/categories", response_model=CategoryResponse)
-async def create_category(
+def create_category(
     data: CategoryCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["categories.create"]))
@@ -118,7 +118,7 @@ async def create_category(
 
 
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
-async def update_category(
+def update_category(
     category_id: str,
     data: CategoryBase,
     db: Session = Depends(get_db),
@@ -138,7 +138,7 @@ async def update_category(
 
 
 @router.delete("/categories/{category_id}")
-async def delete_category(
+def delete_category(
     category_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["categories.delete"]))
@@ -156,7 +156,7 @@ async def delete_category(
 # ==================== UNIT ENDPOINTS ====================
 
 @router.get("/units", response_model=List[UnitResponse])
-async def list_units(
+def list_units(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["units.view"]))
@@ -169,7 +169,7 @@ async def list_units(
 
 
 @router.post("/units", response_model=UnitResponse)
-async def create_unit(
+def create_unit(
     data: UnitCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["units.create"]))
@@ -187,7 +187,7 @@ async def create_unit(
 
 
 @router.put("/units/{unit_id}", response_model=UnitResponse)
-async def update_unit(
+def update_unit(
     unit_id: str,
     data: UnitBase,
     db: Session = Depends(get_db),
@@ -207,7 +207,7 @@ async def update_unit(
 
 
 @router.delete("/units/{unit_id}")
-async def delete_unit(
+def delete_unit(
     unit_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["units.delete"]))
@@ -225,7 +225,7 @@ async def delete_unit(
 # ==================== HSN ENDPOINTS ====================
 
 @router.get("/hsn", response_model=List[HSNResponse])
-async def list_hsn_codes(
+def list_hsn_codes(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["hsn.view"]))
@@ -238,7 +238,7 @@ async def list_hsn_codes(
 
 
 @router.post("/hsn", response_model=HSNResponse)
-async def create_hsn_code(
+def create_hsn_code(
     data: HSNCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["hsn.create"]))
@@ -256,7 +256,7 @@ async def create_hsn_code(
 
 
 @router.put("/hsn/{hsn_id}", response_model=HSNResponse)
-async def update_hsn_code(
+def update_hsn_code(
     hsn_id: str,
     data: HSNBase,
     db: Session = Depends(get_db),
@@ -276,7 +276,7 @@ async def update_hsn_code(
 
 
 @router.delete("/hsn/{hsn_id}")
-async def delete_hsn_code(
+def delete_hsn_code(
     hsn_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["hsn.delete"]))
@@ -314,7 +314,7 @@ class GSTSlabResponse(GSTSlabBase):
 # ==================== GST SLAB ENDPOINTS ====================
 
 @router.get("/gst-slabs", response_model=List[GSTSlabResponse])
-async def list_gst_slabs(
+def list_gst_slabs(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.view"]))
@@ -327,7 +327,7 @@ async def list_gst_slabs(
 
 
 @router.post("/gst-slabs", response_model=GSTSlabResponse)
-async def create_gst_slab(
+def create_gst_slab(
     data: GSTSlabCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.create"]))
@@ -352,7 +352,7 @@ async def create_gst_slab(
 
 
 @router.put("/gst-slabs/{slab_id}", response_model=GSTSlabResponse)
-async def update_gst_slab(
+def update_gst_slab(
     slab_id: str,
     data: GSTSlabBase,
     db: Session = Depends(get_db),
@@ -385,7 +385,7 @@ async def update_gst_slab(
 
 
 @router.delete("/gst-slabs/{slab_id}")
-async def delete_gst_slab(
+def delete_gst_slab(
     slab_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.delete"]))
@@ -428,7 +428,7 @@ class MedicineTypeResponse(MedicineTypeBase):
 # ==================== MEDICINE TYPE ENDPOINTS ====================
 
 @router.get("/medicine-types", response_model=List[MedicineTypeResponse])
-async def list_medicine_types(
+def list_medicine_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.view"]))
@@ -441,7 +441,7 @@ async def list_medicine_types(
 
 
 @router.post("/medicine-types", response_model=MedicineTypeResponse)
-async def create_medicine_type(
+def create_medicine_type(
     data: MedicineTypeCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.create"]))
@@ -459,7 +459,7 @@ async def create_medicine_type(
 
 
 @router.put("/medicine-types/{type_id}", response_model=MedicineTypeResponse)
-async def update_medicine_type(
+def update_medicine_type(
     type_id: str,
     data: MedicineTypeBase,
     db: Session = Depends(get_db),
@@ -488,7 +488,7 @@ async def update_medicine_type(
 
 
 @router.delete("/medicine-types/{type_id}")
-async def delete_medicine_type(
+def delete_medicine_type(
     type_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.delete"]))
@@ -528,7 +528,7 @@ class BrandResponse(BrandBase):
 # ==================== BRAND ENDPOINTS ====================
 
 @router.get("/brands", response_model=List[BrandResponse])
-async def list_brands(
+def list_brands(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["brands.view"]))
@@ -541,7 +541,7 @@ async def list_brands(
 
 
 @router.post("/brands", response_model=BrandResponse)
-async def create_brand(
+def create_brand(
     data: BrandCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["brands.create"]))
@@ -559,7 +559,7 @@ async def create_brand(
 
 
 @router.put("/brands/{brand_id}", response_model=BrandResponse)
-async def update_brand(
+def update_brand(
     brand_id: str,
     data: BrandBase,
     db: Session = Depends(get_db),
@@ -588,7 +588,7 @@ async def update_brand(
 
 
 @router.delete("/brands/{brand_id}")
-async def delete_brand(
+def delete_brand(
     brand_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["brands.delete"]))
@@ -632,7 +632,7 @@ class ManufacturerResponse(ManufacturerBase):
 # ==================== MANUFACTURER ENDPOINTS ====================
 
 @router.get("/manufacturers", response_model=List[ManufacturerResponse])
-async def list_manufacturers(
+def list_manufacturers(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["manufacturers.view"]))
@@ -645,7 +645,7 @@ async def list_manufacturers(
 
 
 @router.post("/manufacturers", response_model=ManufacturerResponse)
-async def create_manufacturer(
+def create_manufacturer(
     data: ManufacturerCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["manufacturers.create"]))
@@ -663,7 +663,7 @@ async def create_manufacturer(
 
 
 @router.put("/manufacturers/{manufacturer_id}", response_model=ManufacturerResponse)
-async def update_manufacturer(
+def update_manufacturer(
     manufacturer_id: str,
     data: ManufacturerBase,
     db: Session = Depends(get_db),
@@ -692,7 +692,7 @@ async def update_manufacturer(
 
 
 @router.delete("/manufacturers/{manufacturer_id}")
-async def delete_manufacturer(
+def delete_manufacturer(
     manufacturer_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["manufacturers.delete"]))
@@ -732,7 +732,7 @@ class PaymentMethodResponse(PaymentMethodBase):
 # ==================== PAYMENT METHOD ENDPOINTS ====================
 
 @router.get("/payment-methods", response_model=List[PaymentMethodResponse])
-async def list_payment_methods(
+def list_payment_methods(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.view"]))
@@ -745,7 +745,7 @@ async def list_payment_methods(
 
 
 @router.post("/payment-methods", response_model=PaymentMethodResponse)
-async def create_payment_method(
+def create_payment_method(
     data: PaymentMethodCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.create"]))
@@ -763,7 +763,7 @@ async def create_payment_method(
 
 
 @router.put("/payment-methods/{method_id}", response_model=PaymentMethodResponse)
-async def update_payment_method(
+def update_payment_method(
     method_id: str,
     data: PaymentMethodBase,
     db: Session = Depends(get_db),
@@ -791,7 +791,7 @@ async def update_payment_method(
 
 
 @router.delete("/payment-methods/{method_id}")
-async def delete_payment_method(
+def delete_payment_method(
     method_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.delete"]))
@@ -840,7 +840,7 @@ class SupplierResponse(SupplierBase):
 # ==================== SUPPLIER ENDPOINTS ====================
 
 @router.get("/suppliers", response_model=List[SupplierResponse])
-async def list_suppliers(
+def list_suppliers(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["suppliers.view"]))
@@ -853,7 +853,7 @@ async def list_suppliers(
 
 
 @router.post("/suppliers", response_model=SupplierResponse)
-async def create_supplier(
+def create_supplier(
     data: SupplierCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["suppliers.create"]))
@@ -871,7 +871,7 @@ async def create_supplier(
 
 
 @router.put("/suppliers/{supplier_id}", response_model=SupplierResponse)
-async def update_supplier(
+def update_supplier(
     supplier_id: str,
     data: SupplierBase,
     db: Session = Depends(get_db),
@@ -899,7 +899,7 @@ async def update_supplier(
 
 
 @router.delete("/suppliers/{supplier_id}")
-async def delete_supplier(
+def delete_supplier(
     supplier_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["suppliers.delete"]))
@@ -940,7 +940,7 @@ class AdjustmentReasonResponse(AdjustmentReasonBase):
 # ==================== ADJUSTMENT REASON ENDPOINTS ====================
 
 @router.get("/adjustment-reasons", response_model=List[AdjustmentReasonResponse])
-async def list_adjustment_reasons(
+def list_adjustment_reasons(
     is_active: Optional[bool] = True,
     adjustment_type: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -956,7 +956,7 @@ async def list_adjustment_reasons(
 
 
 @router.post("/adjustment-reasons", response_model=AdjustmentReasonResponse)
-async def create_adjustment_reason(
+def create_adjustment_reason(
     data: AdjustmentReasonCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["adjustment_reasons.create"]))
@@ -978,7 +978,7 @@ async def create_adjustment_reason(
 
 
 @router.put("/adjustment-reasons/{reason_id}", response_model=AdjustmentReasonResponse)
-async def update_adjustment_reason(
+def update_adjustment_reason(
     reason_id: str,
     data: AdjustmentReasonBase,
     db: Session = Depends(get_db),
@@ -1009,7 +1009,7 @@ async def update_adjustment_reason(
 
 
 @router.delete("/adjustment-reasons/{reason_id}")
-async def delete_adjustment_reason(
+def delete_adjustment_reason(
     reason_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["adjustment_reasons.delete"]))

@@ -16,6 +16,9 @@ class RoleType(str, Enum):
     CASHIER = "cashier"
     HR_MANAGER = "hr_manager"
     ACCOUNTANT = "accountant"
+    EMPLOYEE = "employee"
+    WAREHOUSE_EMPLOYEE = "warehouse_employee"
+    PHARMACY_EMPLOYEE = "pharmacy_employee"
 
 
 # ==================== PERMISSION SCHEMAS ====================

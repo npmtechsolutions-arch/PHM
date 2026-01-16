@@ -27,6 +27,7 @@ from app.api.v1.login_activity import router as login_activity_router
 from app.api.v1.masters import router as masters_router
 from app.api.v1.master_options import router as master_options_router
 from app.api.v1.unified_masters import router as unified_masters_router  # SSOT Masters
+from app.api.v1.inventory_alerts import router as inventory_alerts_router
 
 router = APIRouter()
 
@@ -39,6 +40,7 @@ router.include_router(warehouses_router, prefix="/warehouses", tags=["Warehouses
 router.include_router(shops_router, prefix="/shops", tags=["Medical Shops"])
 router.include_router(medicines_router, prefix="/medicines", tags=["Medicines"])
 router.include_router(inventory_router, prefix="/stock", tags=["Inventory"])
+router.include_router(inventory_alerts_router, prefix="/inventory/alerts", tags=["Inventory Alerts"])
 router.include_router(purchase_requests_router, prefix="/purchase-requests", tags=["Purchase Requests"])
 router.include_router(dispatches_router, prefix="/dispatches", tags=["Dispatches"])
 router.include_router(invoices_router, prefix="/invoices", tags=["Invoices"])

@@ -218,6 +218,7 @@ export interface StockAlert {
     type: 'low_stock' | 'expiring' | 'expired';
     medicine_id: string;
     medicine_name: string;
+    brand?: string;
     location_type?: string;
     location_id?: string;
     location_name?: string;
@@ -242,6 +243,7 @@ export interface SalesReport {
 export interface ExpiryItem {
     medicine_id: string;
     name: string;
+    brand?: string;
     batch_number: string;
     expiry_date: string;
     quantity: number;

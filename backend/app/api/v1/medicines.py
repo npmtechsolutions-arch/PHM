@@ -17,7 +17,8 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_medicines(
+@router.get("")
+def list_medicines(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     search: Optional[str] = None,
@@ -72,7 +73,8 @@ async def list_medicines(
 
 
 @router.get("/{medicine_id}")
-async def get_medicine(
+@router.get("/{medicine_id}")
+def get_medicine(
     medicine_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -108,7 +110,8 @@ async def get_medicine(
 
 
 @router.post("")
-async def create_medicine(
+@router.post("")
+def create_medicine(
     medicine_data: MedicineCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
@@ -141,7 +144,8 @@ async def create_medicine(
 
 
 @router.put("/{medicine_id}")
-async def update_medicine(
+@router.put("/{medicine_id}")
+def update_medicine(
     medicine_id: str,
     medicine_data: MedicineUpdate,
     db: Session = Depends(get_db),
@@ -163,7 +167,8 @@ async def update_medicine(
 
 
 @router.delete("/{medicine_id}")
-async def delete_medicine(
+@router.delete("/{medicine_id}")
+def delete_medicine(
     medicine_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))
@@ -180,7 +185,8 @@ async def delete_medicine(
 
 
 @router.get("/{medicine_id}/batches")
-async def get_medicine_batches(
+@router.get("/{medicine_id}/batches")
+def get_medicine_batches(
     medicine_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -214,7 +220,8 @@ async def get_medicine_batches(
 
 
 @router.post("/{medicine_id}/batches")
-async def create_batch(
+@router.post("/{medicine_id}/batches")
+def create_batch(
     medicine_id: str,
     batch_data: BatchCreate,
     db: Session = Depends(get_db),

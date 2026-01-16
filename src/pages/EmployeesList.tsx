@@ -18,7 +18,7 @@ interface Employee {
     department: string;
     designation: string;
     employment_type?: string;
-    salary: number;
+    basic_salary: number;
     status: string;
     shop_id?: string;
     shop_name?: string;
@@ -29,6 +29,7 @@ interface Employee {
 interface EmployeeForm {
     name: string;
     email: string;
+    password: string;
     phone: string;
     department: string;
     designation: string;
@@ -39,11 +40,18 @@ interface EmployeeForm {
     address: string;
     emergency_contact: string;
     gender: string;
+    // Salary components
+    hra_percent: number;
+    allowances_percent: number;
+    pf_percent: number;
+    esi_percent: number;
+    esi_applicable: boolean;
 }
 
 const emptyForm: EmployeeForm = {
     name: '',
     email: '',
+    password: '',
     phone: '',
     department: 'operations',
     designation: '',
@@ -54,6 +62,11 @@ const emptyForm: EmployeeForm = {
     address: '',
     emergency_contact: '',
     gender: '',
+    hra_percent: 40.0,
+    allowances_percent: 20.0,
+    pf_percent: 12.0,
+    esi_percent: 0.75,
+    esi_applicable: true,
 };
 
 export default function EmployeesList() {
@@ -72,12 +85,18 @@ export default function EmployeesList() {
     const [formData, setFormData] = useState<EmployeeForm>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [createdCredentials, setCreatedCredentials] = useState<any>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
+    const [statusFilter, setStatusFilter] = useState('');
     const isWarehouseAdmin = user?.role === 'warehouse_admin';
+    const isSuperAdmin = user?.role === 'super_admin';
 
     useEffect(() => {
         fetchEmployees();
-    }, [deptFilter, currentPage, search]);
+    }, [deptFilter, currentPage, search, statusFilter]);
 
     const fetchEmployees = async () => {
         try {
@@ -85,6 +104,7 @@ export default function EmployeesList() {
             const params: any = { page: currentPage, size: pageSize };
             if (search) params.search = search;
             if (deptFilter) params.department = deptFilter;
+            if (statusFilter) params.status = statusFilter;
 
             const res = await employeesApi.list(params);
             setEmployees(res.data.items || res.data.data || res.data || []);
@@ -119,12 +139,18 @@ export default function EmployeesList() {
                 department: data.department || (isWarehouseAdmin ? 'operations' : 'pharmacy'),
                 designation: data.designation || '',
                 employment_type: data.employment_type || 'full_time',
-                salary: data.salary || 0,
+                salary: data.basic_salary || 0,
                 shop_id: data.shop_id || '',
                 date_of_joining: data.date_of_joining?.split('T')[0] || '',
                 address: data.address || '',
                 emergency_contact: data.emergency_contact || '',
                 gender: data.gender || '',
+                hra_percent: data.hra_percent || 40.0,
+                allowances_percent: data.allowances_percent || 20.0,
+                pf_percent: data.pf_percent || 12.0,
+                esi_percent: data.esi_percent || 0.75,
+                esi_applicable: data.esi_applicable !== undefined ? data.esi_applicable : true,
+                password: '',
             });
             setError('');
             setShowModal(true);
@@ -159,19 +185,31 @@ export default function EmployeesList() {
                 date_of_joining: formData.date_of_joining,
                 basic_salary: Number(formData.salary) || undefined,
                 email: formData.email || undefined,
+                password: formData.password || undefined,
                 gender: formData.gender || undefined,
                 address: formData.address || undefined,
                 emergency_contact: formData.emergency_contact || undefined,
                 shop_id: formData.shop_id || undefined,
+                hra_percent: formData.hra_percent,
+                allowances_percent: formData.allowances_percent,
+                pf_percent: formData.pf_percent,
+                esi_percent: formData.esi_percent,
+                esi_applicable: formData.esi_applicable,
             };
 
             if (editingEmployee) {
                 await employeesApi.update(editingEmployee.id, payload);
+                setShowModal(false);
+                fetchEmployees();
             } else {
-                await employeesApi.create(payload);
+                const response = await employeesApi.create(payload);
+                // Check if credentials were returned
+                if (response.data?.data?.credentials) {
+                    setCreatedCredentials(response.data.data.credentials);
+                }
+                setShowModal(false);
+                fetchEmployees();
             }
-            setShowModal(false);
-            fetchEmployees();
         } catch (err: any) {
             console.error('Failed to save employee:', err);
             let errorMessage = 'Failed to save employee';
@@ -189,15 +227,36 @@ export default function EmployeesList() {
         }
     };
 
+    const handleDelete = async () => {
+        if (!deletingEmployee) return;
+
+        setDeleting(true);
+        try {
+            await employeesApi.delete(deletingEmployee.id);
+            setShowDeleteModal(false);
+            setDeletingEmployee(null);
+            fetchEmployees();
+        } catch (err: any) {
+            console.error('Failed to delete employee:', err);
+            let errorMessage = 'Failed to delete employee';
+            if (err.response?.data?.detail) {
+                errorMessage = err.response.data.detail;
+            }
+            alert(errorMessage);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const openDeleteModal = (employee: Employee) => {
+        setDeletingEmployee(employee);
+        setShowDeleteModal(true);
+    };
+
     const formatCurrency = (v: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v);
 
     // Stats
-    const stats = {
-        total: employees.length,
-        active: employees.filter(e => e.status === 'active').length,
-        inactive: employees.filter(e => e.status === 'inactive').length,
-        onLeave: employees.filter(e => e.status === 'on_leave').length
-    };
+    // Stats removed as per build cleanup (unused)
 
     const columns: Column<Employee>[] = [
         {
@@ -223,8 +282,8 @@ export default function EmployeesList() {
         { header: 'Designation', key: 'designation', className: 'hidden sm:table-cell' },
         {
             header: 'Salary',
-            key: 'salary',
-            render: (emp) => <span className="font-medium font-mono text-slate-700 dark:text-slate-300">{formatCurrency(emp.salary || 0)}</span>,
+            key: 'basic_salary',
+            render: (emp) => <span className="font-medium font-mono text-slate-700 dark:text-slate-300">{formatCurrency(emp.basic_salary || 0)}</span>,
             align: 'right'
         },
         {
@@ -241,7 +300,7 @@ export default function EmployeesList() {
             header: 'Actions',
             key: 'id',
             render: (emp) => (
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-1">
                     <Button
                         variant="ghost"
                         onClick={() => openEditModal(emp)}
@@ -249,6 +308,14 @@ export default function EmployeesList() {
                         title="Edit Employee"
                     >
                         <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        onClick={() => openDeleteModal(emp)}
+                        className="!p-1.5 h-8 w-8 text-slate-500 hover:text-red-600"
+                        title="Delete Employee"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
                     </Button>
                 </div>
             ),
@@ -270,10 +337,44 @@ export default function EmployeesList() {
             />
 
             <UniversalListPage.KPICards>
-                <StatCard title="Total Employees" value={totalItems} icon="badge" onClick={() => setDeptFilter('')} isActive={deptFilter === ''} />
-                <StatCard title="Active" value={stats.active} icon="check_circle" trend="up" change="+5%" />
-                <StatCard title="Inactive" value={stats.inactive} icon="cancel" trend="neutral" />
-                <StatCard title="On Leave" value={stats.onLeave} icon="event_busy" trend="neutral" />
+                <StatCard
+                    title="All Employees"
+                    value={!statusFilter ? totalItems : '-'}
+                    icon="badge"
+                    onClick={() => { setStatusFilter(''); setDeptFilter(''); }}
+                    isActive={!statusFilter && !deptFilter}
+                />
+                <StatCard
+                    title="Active"
+                    value={statusFilter === 'active' ? totalItems : '-'}
+                    icon="check_circle"
+                    onClick={() => setStatusFilter('active')}
+                    isActive={statusFilter === 'active'}
+                />
+                <StatCard
+                    title="On Leave"
+                    value={statusFilter === 'on_leave' ? totalItems : '-'}
+                    icon="event_busy"
+                    onClick={() => setStatusFilter('on_leave')}
+                    isActive={statusFilter === 'on_leave'}
+                />
+                <StatCard
+                    title="Inactive"
+                    value={statusFilter === 'inactive' ? totalItems : '-'}
+                    icon="cancel"
+                    onClick={() => setStatusFilter('inactive')}
+                    isActive={statusFilter === 'inactive'}
+                />
+                {isSuperAdmin && (
+                    <StatCard
+                        title="Terminated"
+                        value={statusFilter === 'terminated' ? totalItems : '-'}
+                        icon="delete"
+                        onClick={() => setStatusFilter('terminated')}
+                        isActive={statusFilter === 'terminated'}
+                        className="!bg-red-50 dark:!bg-red-900/10 !border-red-200 dark:!border-red-800"
+                    />
+                )}
             </UniversalListPage.KPICards>
 
             {/* Zero-Gap Integration */}
@@ -361,6 +462,18 @@ export default function EmployeesList() {
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors"
                                         />
                                     </div>
+                                    {!editingEmployee && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Password</label>
+                                            <input
+                                                type="password"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors"
+                                                placeholder="Enter password for user account"
+                                            />
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Join Date</label>
                                         <input
@@ -433,6 +546,76 @@ export default function EmployeesList() {
                                     )}
                                 </div>
 
+                                {/* Salary Components Section */}
+                                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4">
+                                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px]">percent</span>
+                                        Salary Component Configuration
+                                    </h3>
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">HRA %</label>
+                                            <input
+                                                type="number"
+                                                value={formData.hra_percent}
+                                                onChange={(e) => setFormData({ ...formData, hra_percent: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors font-mono text-sm"
+                                                step="0.01"
+                                                min="0"
+                                                max="100"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Allowances %</label>
+                                            <input
+                                                type="number"
+                                                value={formData.allowances_percent}
+                                                onChange={(e) => setFormData({ ...formData, allowances_percent: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors font-mono text-sm"
+                                                step="0.01"
+                                                min="0"
+                                                max="100"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">PF %</label>
+                                            <input
+                                                type="number"
+                                                value={formData.pf_percent}
+                                                onChange={(e) => setFormData({ ...formData, pf_percent: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors font-mono text-sm"
+                                                step="0.01"
+                                                min="0"
+                                                max="100"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">ESI %</label>
+                                            <input
+                                                type="number"
+                                                value={formData.esi_percent}
+                                                onChange={(e) => setFormData({ ...formData, esi_percent: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors font-mono text-sm"
+                                                step="0.01"
+                                                min="0"
+                                                max="100"
+                                                disabled={!formData.esi_applicable}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mt-3">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.esi_applicable}
+                                                onChange={(e) => setFormData({ ...formData, esi_applicable: e.target.checked })}
+                                                className="rounded border-slate-300"
+                                            />
+                                            <span className="text-xs text-slate-600 dark:text-slate-400">ESI Applicable (only for salary &lt; ₹21,000)</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Address</label>
                                     <textarea
@@ -462,6 +645,150 @@ export default function EmployeesList() {
                                 </Button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && deletingEmployee && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 animate-scaleIn">
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-2xl">warning</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Delete Employee</h2>
+                                    <p className="text-sm text-slate-500">This action cannot be undone</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+                                <p className="text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                    <span className="material-symbols-outlined text-[18px] mt-0.5">info</span>
+                                    <span>Are you sure you want to delete <strong>{deletingEmployee.name}</strong>? The employee status will be set to "terminated".</span>
+                                </p>
+                            </div>
+
+                            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                <div className="flex justify-between">
+                                    <span>Employee Code:</span>
+                                    <span className="font-mono font-semibold text-slate-900 dark:text-white">{deletingEmployee.employee_code || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Department:</span>
+                                    <span className="font-medium text-slate-900 dark:text-white capitalize">{deletingEmployee.department}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Phone:</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">{deletingEmployee.phone}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setDeletingEmployee(null);
+                                }}
+                                disabled={deleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleDelete}
+                                disabled={deleting}
+                                loading={deleting}
+                                className="!bg-red-600 hover:!bg-red-700"
+                            >
+                                Delete Employee
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Credentials Modal */}
+            {createdCredentials && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 animate-scaleIn">
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">check_circle</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Employee Created!</h2>
+                                    <p className="text-sm text-slate-500">User account credentials generated</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+                                <p className="text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                    <span className="material-symbols-outlined text-[18px] mt-0.5">info</span>
+                                    <span>Please save these credentials securely and share them with the employee. They won't be shown again.</span>
+                                </p>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Email</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={createdCredentials.email}
+                                            readOnly
+                                            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-mono text-sm"
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => navigator.clipboard.writeText(createdCredentials.email)}
+                                            className="!p-2"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Temporary Password</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={createdCredentials.temporary_password}
+                                            readOnly
+                                            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-mono text-sm font-bold"
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => navigator.clipboard.writeText(createdCredentials.temporary_password)}
+                                            className="!p-2"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                            <Button
+                                variant="primary"
+                                onClick={() => setCreatedCredentials(null)}
+                            >
+                                Got It
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

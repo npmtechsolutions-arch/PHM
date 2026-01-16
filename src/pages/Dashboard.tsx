@@ -149,7 +149,9 @@ export default function Dashboard() {
 
             setAlerts(stockAlerts.slice(0, 5).map((a: any) => ({
                 id: a.id || Math.random().toString(),
-                title: a.type === 'low_stock' ? `Low Stock - ${a.medicine_name}` : `Expiry Alert - ${a.medicine_name}`,
+                title: a.type === 'low_stock'
+                    ? `Low Stock - ${a.medicine_name} ${a.brand ? `(${a.brand})` : ''}`
+                    : `Expiry Alert - ${a.medicine_name} ${a.brand ? `(${a.brand})` : ''}`,
                 description: a.type === 'low_stock'
                     ? `Only ${a.current_quantity} units left`
                     : `Expires in ${a.days_to_expiry} days`,

@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("", response_model=PermissionListResponse)
-async def list_permissions(
+def list_permissions(
     module: str = None,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))
@@ -46,7 +46,7 @@ async def list_permissions(
 
 
 @router.get("/modules")
-async def list_permission_modules(
+def list_permission_modules(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))
 ):
@@ -56,7 +56,7 @@ async def list_permission_modules(
 
 
 @router.get("/my")
-async def get_my_permissions(
+def get_my_permissions(
     auth: AuthContext = Depends(get_auth_context)
 ):
     """Get current user's permissions"""
@@ -68,7 +68,7 @@ async def get_my_permissions(
 
 
 @router.post("", response_model=PermissionResponse, status_code=status.HTTP_201_CREATED)
-async def create_permission(
+def create_permission(
     permission_data: PermissionCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))
@@ -106,7 +106,7 @@ async def create_permission(
 
 
 @router.get("/{permission_id}", response_model=PermissionResponse)
-async def get_permission(
+def get_permission(
     permission_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))
@@ -131,7 +131,7 @@ async def get_permission(
 
 
 @router.delete("/{permission_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_permission(
+def delete_permission(
     permission_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["roles.manage"]))

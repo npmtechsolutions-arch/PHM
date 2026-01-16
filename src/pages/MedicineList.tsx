@@ -104,6 +104,12 @@ export default function MedicineList() {
             )
         },
         {
+            header: 'Brand',
+            key: 'brand',
+            className: 'hidden md:table-cell',
+            render: (m) => <span className="font-medium text-slate-700 dark:text-slate-300">{m.brand || '-'}</span>
+        },
+        {
             header: 'Manufacturer',
             key: 'manufacturer',
             className: 'hidden md:table-cell',

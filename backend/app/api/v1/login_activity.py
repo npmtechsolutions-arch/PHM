@@ -41,7 +41,7 @@ class LoginActivityListResponse(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @router.get("", response_model=LoginActivityListResponse)
-async def list_login_activity(
+def list_login_activity(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
     action: Optional[str] = None,
@@ -108,7 +108,7 @@ async def list_login_activity(
 
 
 @router.get("/stats")
-async def get_login_stats(
+def get_login_stats(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):

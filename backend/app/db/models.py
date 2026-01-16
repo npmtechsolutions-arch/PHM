@@ -23,6 +23,9 @@ class RoleType(str, enum.Enum):
     CASHIER = "cashier"
     HR_MANAGER = "hr_manager"
     ACCOUNTANT = "accountant"
+    EMPLOYEE = "employee"
+    WAREHOUSE_EMPLOYEE = "warehouse_employee"
+    PHARMACY_EMPLOYEE = "pharmacy_employee"
 
 
 class WarehouseStatus(str, enum.Enum):
@@ -651,6 +654,12 @@ class Employee(Base):
     pf_number = Column(String(30))
     esi_number = Column(String(30))
     basic_salary = Column(Float, nullable=False)
+    # Salary component percentages
+    hra_percent = Column(Float, default=40.0)  # House Rent Allowance %
+    allowances_percent = Column(Float, default=20.0)  # Other allowances %
+    pf_percent = Column(Float, default=12.0)  # Provident Fund %
+    esi_percent = Column(Float, default=0.75)  # ESI %
+    esi_applicable = Column(Boolean, default=True)  # ESI applicable if salary < 21000
     shop_id = Column(String(36), ForeignKey("medical_shops.id"))
     warehouse_id = Column(String(36), ForeignKey("warehouses.id"))
     status = Column(String(20), default="active")

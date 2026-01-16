@@ -7,6 +7,7 @@ import { WarehouseSelect, ShopSelect } from '../components/MasterSelect';
 interface StockItem {
     id: string;
     medicine_name: string;
+    brand?: string;
     batch_number: string;
     quantity: number;
     location_type: 'warehouse' | 'shop';
@@ -66,6 +67,7 @@ export default function InventoryOversight() {
             const items: StockItem[] = alertData.map((alert: any) => ({
                 id: alert.id || Math.random().toString(),
                 medicine_name: alert.medicine_name,
+                brand: alert.brand,
                 batch_number: alert.batch_number || 'N/A',
                 quantity: alert.current_quantity || 0,
                 location_type: alert.location_type || 'warehouse',
@@ -250,6 +252,7 @@ export default function InventoryOversight() {
                                 <thead className="bg-slate-50 dark:bg-slate-900/50">
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Medicine</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Brand</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Batch</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Location</th>
                                         <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Quantity</th>
@@ -269,6 +272,9 @@ export default function InventoryOversight() {
                                         >
                                             <td className="px-4 py-3">
                                                 <p className="font-medium text-slate-900 dark:text-white">{item.medicine_name}</p>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <p className="text-sm text-slate-700 dark:text-slate-300">{item.brand || '-'}</p>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className="font-mono text-sm bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">

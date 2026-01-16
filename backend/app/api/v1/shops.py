@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_shops(
+def list_shops(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     search: Optional[str] = None,
@@ -69,7 +69,7 @@ async def list_shops(
 
 
 @router.get("/{shop_id}")
-async def get_shop(
+def get_shop(
     shop_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -103,7 +103,7 @@ async def get_shop(
 
 
 @router.post("")
-async def create_shop(
+def create_shop(
     shop_data: ShopCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
@@ -145,7 +145,7 @@ async def create_shop(
 
 
 @router.put("/{shop_id}")
-async def update_shop(
+def update_shop(
     shop_id: str,
     shop_data: ShopUpdate,
     db: Session = Depends(get_db),
@@ -178,7 +178,7 @@ async def update_shop(
 
 
 @router.delete("/{shop_id}")
-async def delete_shop(
+def delete_shop(
     shop_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))

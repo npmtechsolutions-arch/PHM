@@ -3,7 +3,7 @@ Employee and HR API Routes - Database Connected
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Optional
 from datetime import datetime, date
 
@@ -15,7 +15,7 @@ from app.models.employee import (
 from app.models.common import APIResponse
 from app.core.security import get_current_user, get_auth_context, require_role, AuthContext
 from app.db.database import get_db
-from app.db.models import Employee, Attendance, SalaryRecord, AttendanceStatus
+from app.db.models import Employee, Attendance, SalaryRecord, AttendanceStatus, User
 
 router = APIRouter()
 
@@ -29,7 +29,7 @@ def generate_employee_code(db: Session) -> str:
 # ==================== ATTENDANCE ENDPOINTS (Placed First to avoid ID shadowing) ====================
 
 @router.get("/attendance/daily")
-async def get_daily_attendance(
+def get_daily_attendance(
     date: Optional[date] = Query(None, description="Date to get attendance for (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context)
@@ -99,15 +99,44 @@ async def get_daily_attendance(
 
 
 @router.post("/attendance")
-async def mark_attendance(
+def mark_attendance(
     attendance_data: AttendanceCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context)
 ):
-    """Mark attendance for an employee"""
+    """Mark attendance for an employee with validation"""
     employee = db.query(Employee).filter(Employee.id == attendance_data.employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
+    
+    # Business Logic Validation
+    if attendance_data.check_in and attendance_data.check_out:
+        if attendance_data.check_out <= attendance_data.check_in:
+            raise HTTPException(
+                status_code=400, 
+                detail="Check-out time must be after check-in time"
+            )
+        
+        # Calculate working hours
+        delta = attendance_data.check_out - attendance_data.check_in
+        working_hours = delta.total_seconds() / 3600
+        
+        # Validate reasonable working hours (max 24 hours)
+        if working_hours > 24:
+            raise HTTPException(
+                status_code=400,
+                detail="Working hours cannot exceed 24 hours"
+            )
+    else:
+        working_hours = 0.0
+    
+    # Validate status-based logic
+    if attendance_data.status in ['absent', 'leave']:
+        if attendance_data.check_in or attendance_data.check_out:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot have check-in/check-out times for absent or leave status"
+            )
     
     # Check if already marked for this date
     existing = db.query(Attendance).filter(
@@ -116,13 +145,22 @@ async def mark_attendance(
     ).first()
     
     if existing:
-        raise HTTPException(status_code=400, detail="Attendance already marked for this date")
+        # Update existing record instead of raising error
+        existing.status = AttendanceStatus(attendance_data.status) if attendance_data.status else existing.status
+        existing.check_in = attendance_data.check_in
+        existing.check_out = attendance_data.check_out
+        existing.working_hours = working_hours
+        existing.notes = attendance_data.notes
+        
+        db.commit()
+        db.refresh(existing)
+        
+        return APIResponse(
+            message="Attendance updated successfully",
+            data={"id": existing.id, "working_hours": working_hours}
+        )
     
-    working_hours = 0.0
-    if attendance_data.check_in and attendance_data.check_out:
-        delta = attendance_data.check_out - attendance_data.check_in
-        working_hours = delta.total_seconds() / 3600
-    
+    # Create new attendance record
     attendance = Attendance(
         employee_id=attendance_data.employee_id,
         date=attendance_data.date,
@@ -144,7 +182,7 @@ async def mark_attendance(
 
 
 @router.post("/attendance/submit")
-async def submit_attendance(
+def submit_attendance(
     submit_data: dict,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["warehouse_admin", "pharmacy_admin", "hr_manager"]))
@@ -182,7 +220,7 @@ async def submit_attendance(
 
 
 @router.post("/attendance/lock")
-async def lock_attendance(
+def lock_attendance(
     lock_data: dict,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["super_admin", "hr_manager"]))
@@ -220,7 +258,7 @@ async def lock_attendance(
 
 
 @router.post("/attendance/unlock")
-async def unlock_attendance(
+def unlock_attendance(
     unlock_data: dict,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["super_admin"]))
@@ -254,7 +292,7 @@ async def unlock_attendance(
 
 
 @router.get("/attendance/{employee_id}")
-async def get_employee_attendance(
+def get_employee_attendance(
     employee_id: str,
     month: Optional[int] = None,
     year: Optional[int] = None,
@@ -297,7 +335,7 @@ async def get_employee_attendance(
 # ==================== SALARY ENDPOINTS ====================
 
 @router.get("/salary")
-async def get_salary_records(
+def get_salary_records(
     month: Optional[int] = Query(None, description="Month (1-12)"),
     year: Optional[int] = Query(None, description="Year"),
     employee_id: Optional[str] = Query(None, description="Filter by employee ID"),
@@ -346,7 +384,7 @@ async def get_salary_records(
 
 
 @router.get("/salary/{employee_id}")
-async def get_employee_salary(
+def get_employee_salary(
     employee_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context)
@@ -388,12 +426,12 @@ async def get_employee_salary(
 
 
 @router.post("/salary/process")
-async def process_salary(
+def process_salary(
     request: ProcessSalaryRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["super_admin", "hr_manager", "warehouse_admin"]))
 ):
-    """Process salary for employees"""
+    """Process salary for employees using their individual salary component configurations"""
     query = db.query(Employee).filter(Employee.status == "active")
     
     if request.employee_ids:
@@ -413,11 +451,17 @@ async def process_salary(
         if existing:
             continue
         
+        # Use employee-specific percentages
         basic = employee.basic_salary
-        hra = basic * 0.4
-        allowances = basic * 0.2
-        pf = basic * 0.12
-        esi = basic * 0.0075 if basic < 21000 else 0
+        hra = basic * (employee.hra_percent / 100)
+        allowances = basic * (employee.allowances_percent / 100)
+        pf = basic * (employee.pf_percent / 100)
+        
+        # ESI only if applicable and salary < 21000
+        esi = 0
+        if employee.esi_applicable and basic < 21000:
+            esi = basic * (employee.esi_percent / 100)
+        
         gross = basic + hra + allowances
         total_deductions = pf + esi
         net = gross - total_deductions
@@ -447,8 +491,9 @@ async def process_salary(
     )
 
 
+
 @router.get("/performance/{employee_id}")
-async def get_employee_performance(
+def get_employee_performance(
     employee_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context)
@@ -469,7 +514,7 @@ async def get_employee_performance(
 # ==================== GENERIC EMPLOYEE CRUD (Moved to bottom) ====================
 
 @router.get("")
-async def list_employees(
+def list_employees(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=1000),
     search: Optional[str] = None,
@@ -478,9 +523,13 @@ async def list_employees(
     warehouse_id: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(get_auth_context)
 ):
-    """List all employees"""
+    """
+    List all employees.
+    By default, excludes 'terminated' employees.
+    Only Super Admin can filter by status='terminated'.
+    """
     query = db.query(Employee)
     
     if search:
@@ -500,7 +549,23 @@ async def list_employees(
         query = query.filter(Employee.warehouse_id == warehouse_id)
     
     if status:
+        if status == "terminated":
+            # Only Super Admin can view terminated employees
+            if not auth.is_super_admin:
+                 # Return empty list for non-super admins trying to access terminated
+                return {
+                    "items": [],
+                    "total": 0,
+                    "page": page,
+                    "size": size
+                }
         query = query.filter(Employee.status == status)
+    else:
+        # Default: hide terminated employees unless explicitly requested (and authorized above)
+        query = query.filter(Employee.status != "terminated")
+    
+    # Sort by creation date descending (newest first)
+    query = query.order_by(Employee.created_at.desc())
     
     total = query.count()
     employees = query.offset((page - 1) * size).limit(size).all()
@@ -532,20 +597,118 @@ async def list_employees(
 
 
 @router.post("")
-async def create_employee(
+def create_employee(
     employee_data: EmployeeCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["super_admin", "hr_manager", "warehouse_admin"]))
 ):
-    """Create a new employee"""
+    """Create a new employee and automatically create a User account"""
+    from app.db.models import User, Role, RoleType
+    from app.core.security import get_password_hash
+    import secrets
+    import string
+    
     # For Warehouse Admin, enforce warehouse binding
     if auth.role == "warehouse_admin":
         employee_data.warehouse_id = auth.warehouse_id
         
     employee_code = generate_employee_code(db)
     
+    # Auto-generate email if missing to ensure User account creation
+    if not employee_data.email:
+        employee_data.email = f"{employee_code.lower()}@phm.internal"
+        print(f"DEBUG: Auto-generated email: {employee_data.email}")
+    
+    # Auto-create User account if email provided
+    user_id = None
+    temp_password = None
+    
+    print(f"DEBUG: create_employee called. Email: {employee_data.email}, Warehouse: {employee_data.warehouse_id}")
+    
+    if employee_data.email:
+        # Check if user already exists by Email or Phone
+        filters = [User.email == employee_data.email]
+        if employee_data.phone:
+            filters.append(User.phone == employee_data.phone)
+            
+        existing_user = db.query(User).filter(or_(*filters)).first()
+        
+        if not existing_user:
+            # Use provided password or generate temporary one
+            temp_password = employee_data.password or f"Emp@{employee_code}"
+            
+            # Determine role based on designation
+            # Determine role based on validation rules
+            designation_lower = employee_data.designation.lower() if employee_data.designation else ""
+            
+            # 1. Base rule: Context determines default role
+            if employee_data.warehouse_id:
+                role_name = "warehouse_employee"
+            elif employee_data.shop_id:
+                role_name = "pharmacy_employee"
+            else:
+                role_name = "employee"
+
+            # 2. Designation overrides for specific roles
+            if "manager" in designation_lower or "admin" in designation_lower:
+                role_name = "warehouse_admin" if employee_data.warehouse_id else "pharmacy_admin"
+            elif "pharmacist" in designation_lower:
+                role_name = "pharmacist"
+            elif "cashier" in designation_lower:
+                role_name = "cashier"
+            
+            # Get role from database or create if missing (for employees)
+            role = db.query(Role).filter(Role.name == role_name).first()
+            if not role and role_name in ["employee", "warehouse_employee", "pharmacy_employee"]:
+                # Auto-create missing employee roles
+                desc_map = {
+                    "employee": "Standard Employee Role",
+                    "warehouse_employee": "Warehouse Staff Role",
+                    "pharmacy_employee": "Pharmacy Staff Role"
+                }
+                role = Role(
+                    name=role_name, 
+                    description=desc_map.get(role_name, "Employee Role"), 
+                    is_system=True, 
+                    is_creatable=True,
+                    entity_type="warehouse" if "warehouse" in role_name else "shop" if "pharmacy" in role_name else None
+                )
+                db.add(role)
+                db.flush()
+
+            # Determine Legacy Role Enum
+            try:
+                legacy_role = RoleType(role_name)
+            except ValueError:
+                # Fallback if somehow defined in string but not enum
+                legacy_role = RoleType.EMPLOYEE
+            
+            print(f"DEBUG: Role determined: {role_name}")
+            
+            # Create User account
+            new_user = User(
+                email=employee_data.email,
+                password_hash=get_password_hash(temp_password),
+                full_name=employee_data.name,
+                phone=employee_data.phone,
+                role=legacy_role,
+                role_id=role.id if role else None,
+                assigned_warehouse_id=employee_data.warehouse_id,
+                assigned_shop_id=employee_data.shop_id,
+                is_active=True
+            )
+            
+            db.add(new_user)
+            db.flush()  # Get user_id without committing
+            user_id = new_user.id
+            print(f"DEBUG: User created with ID: {user_id} and Role: {legacy_role}")
+        else:
+            user_id = existing_user.id
+    
+    # Create Employee record
     employee = Employee(
         employee_code=employee_code,
+        user_id=user_id,
         name=employee_data.name,
         email=employee_data.email,
         phone=employee_data.phone,
@@ -563,6 +726,11 @@ async def create_employee(
         pf_number=employee_data.pf_number,
         esi_number=employee_data.esi_number,
         basic_salary=employee_data.basic_salary,
+        hra_percent=employee_data.hra_percent,
+        allowances_percent=employee_data.allowances_percent,
+        pf_percent=employee_data.pf_percent,
+        esi_percent=employee_data.esi_percent,
+        esi_applicable=employee_data.esi_applicable,
         shop_id=employee_data.shop_id,
         warehouse_id=employee_data.warehouse_id,
         status="active"
@@ -572,14 +740,28 @@ async def create_employee(
     db.commit()
     db.refresh(employee)
     
+    response_data = {
+        "id": employee.id,
+        "employee_code": employee_code,
+        "user_created": user_id is not None
+    }
+    
+    if temp_password:
+        response_data["credentials"] = {
+            "email": employee_data.email,
+            "temporary_password": temp_password,
+            "message": "User account created. Please share these credentials with the employee."
+        }
+    
     return APIResponse(
         message="Employee created successfully",
-        data={"id": employee.id, "employee_code": employee_code}
+        data=response_data
     )
 
 
+
 @router.get("/{employee_id}")
-async def get_employee(
+def get_employee(
     employee_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -618,7 +800,7 @@ async def get_employee(
 
 
 @router.put("/{employee_id}")
-async def update_employee(
+def update_employee(
     employee_id: str,
     update_data: EmployeeUpdate,
     db: Session = Depends(get_db),
@@ -639,17 +821,42 @@ async def update_employee(
 
 
 @router.delete("/{employee_id}")
-async def delete_employee(
+def delete_employee(
     employee_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["super_admin", "hr_manager"]))
+    auth: AuthContext = Depends(require_role(["super_admin", "hr_manager", "warehouse_admin", "shop_owner"]))
 ):
-    """Delete (deactivate) employee"""
+    """Delete (deactivate) employee - Entity-scoped for admins"""
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     
+    # Entity-scoped permission checks
+    if auth.role == "warehouse_admin":
+        # Warehouse admin can only delete employees in their warehouse
+        if not auth.warehouse_id or employee.warehouse_id != auth.warehouse_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only delete employees assigned to your warehouse"
+            )
+    elif auth.role == "shop_owner":
+        # Shop owner can only delete employees in their shop
+        if not auth.shop_id or employee.shop_id != auth.shop_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only delete employees assigned to your shop"
+            )
+    # Super admin and hr_manager can delete any employee (no additional checks needed)
+    
+    # Soft delete - set status to terminated for audit trail
     employee.status = "terminated"
+    
+    # Also deactivate the associated User account if it exists
+    if employee.user_id:
+        user = db.query(User).filter(User.id == employee.user_id).first()
+        if user:
+            user.is_active = False
+            
     db.commit()
     
     return APIResponse(message="Employee terminated successfully")

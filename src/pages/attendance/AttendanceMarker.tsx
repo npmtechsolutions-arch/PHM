@@ -56,8 +56,6 @@ export default function AttendanceMarker() {
                     status: record.status || 'present',
                     check_in: check_in_time,
                     check_out: check_out_time,
-                    record_status: record.record_status,
-                    is_editable: record.is_editable
                 };
             });
 
@@ -117,32 +115,7 @@ export default function AttendanceMarker() {
         }
     };
 
-    const submitAndLock = async () => {
-        // Validate all employees are marked
-        const unmarked = attendanceData?.attendance.filter(emp => !attendance[emp.employee_id]);
-        if (unmarked && unmarked.length > 0) {
-            const confirm = window.confirm(
-                `${unmarked.length} employees not marked. Submit anyway?`
-            );
-            if (!confirm) return;
-        }
 
-        setSubmitting(true);
-        try {
-            // First save all attendance
-            await saveDraft();
-
-            // Then submit
-            await employeesApi.submitAttendance({ date: selectedDate });
-
-            setMessage({ type: 'success', text: 'Attendance submitted and locked successfully!' });
-            await loadAttendanceForDate(); // Reload to show locked state
-        } catch (error: any) {
-            setMessage({ type: 'error', text: error.response?.data?.detail || 'Failed to submit attendance' });
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     const getStatusBadge = (status: string) => {
         const config: Record<string, { icon: string; label: string; color: string }> = {
@@ -186,8 +159,9 @@ export default function AttendanceMarker() {
         leave: Object.values(attendance).filter(a => a.status === 'leave').length
     };
 
-    const isEditable = attendanceData?.date_status === 'draft' || attendanceData?.date_status === 'not_marked';
-    const isLocked = attendanceData?.date_status === 'locked' || attendanceData?.date_status === 'submitted';
+    // Force editable at all times as per business requirement
+    const isEditable = true;
+
 
     return (
         <div className="attendance-marker">
@@ -204,11 +178,7 @@ export default function AttendanceMarker() {
                 </div>
             </div>
 
-            {isLocked && (
-                <div className="alert alert-warning">
-                    This attendance is {attendanceData?.date_status}. Editing is disabled. Only Super Admin can unlock.
-                </div>
-            )}
+            {/* Locking warning removed */}
 
             {message.text && (
                 <div className={`message ${message.type}`}>
@@ -320,24 +290,16 @@ export default function AttendanceMarker() {
                                 ))}
                         </tbody>
                     </table>
-                    {isEditable && (
-                        <div className="table-footer">
-                            <button
-                                className="btn-secondary"
-                                onClick={saveDraft}
-                                disabled={submitting}
-                            >
-                                {submitting ? 'Saving...' : 'Save Draft'}
-                            </button>
-                            <button
-                                className="btn-submit"
-                                onClick={submitAndLock}
-                                disabled={submitting}
-                            >
-                                {submitting ? 'Submitting...' : 'Submit & Lock'}
-                            </button>
-                        </div>
-                    )}
+                    {/* Always show save controls */}
+                    <div className="table-footer">
+                        <button
+                            className="btn-submit"
+                            onClick={saveDraft}
+                            disabled={submitting}
+                        >
+                            {submitting ? 'Saving...' : 'Save Attendance'}
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

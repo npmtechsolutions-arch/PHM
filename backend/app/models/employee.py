@@ -48,6 +48,12 @@ class EmployeeBase(BaseModel):
     pf_number: Optional[str] = None
     esi_number: Optional[str] = None
     basic_salary: float = Field(gt=0)
+    # Salary component percentages
+    hra_percent: float = Field(default=40.0, ge=0, le=100)
+    allowances_percent: float = Field(default=20.0, ge=0, le=100)
+    pf_percent: float = Field(default=12.0, ge=0, le=100)
+    esi_percent: float = Field(default=0.75, ge=0, le=100)
+    esi_applicable: bool = True
 
 
 class EmployeeCreate(EmployeeBase):
@@ -55,6 +61,7 @@ class EmployeeCreate(EmployeeBase):
     shop_id: Optional[str] = None
     warehouse_id: Optional[str] = None
     user_id: Optional[str] = None
+    password: Optional[str] = None
 
 
 class EmployeeUpdate(BaseModel):

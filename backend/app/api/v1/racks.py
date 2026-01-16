@@ -63,7 +63,7 @@ class RackListResponse(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @router.get("", response_model=RackListResponse)
-async def list_racks(
+def list_racks(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
@@ -132,7 +132,7 @@ async def list_racks(
 
 
 @router.get("/{rack_id}", response_model=RackResponse)
-async def get_rack(
+def get_rack(
     rack_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["racks.view"]))
@@ -173,7 +173,7 @@ async def get_rack(
 
 
 @router.post("", response_model=RackResponse)
-async def create_rack(
+def create_rack(
     rack_data: RackCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["racks.create"]))
@@ -231,7 +231,7 @@ async def create_rack(
 
 
 @router.put("/{rack_id}", response_model=RackResponse)
-async def update_rack(
+def update_rack(
     rack_id: str,
     rack_data: RackUpdate,
     db: Session = Depends(get_db),
@@ -270,7 +270,7 @@ async def update_rack(
 
 
 @router.delete("/{rack_id}")
-async def delete_rack(
+def delete_rack(
     rack_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["racks.delete"]))

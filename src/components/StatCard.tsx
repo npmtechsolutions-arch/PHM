@@ -8,6 +8,7 @@ interface StatCardProps {
     isActive?: boolean;
     trend?: string; // Legacy support
     valueClassName?: string;
+    className?: string;
 }
 
 export default function StatCard({
@@ -18,7 +19,8 @@ export default function StatCard({
     icon,
     onClick,
     isActive = false,
-    valueClassName
+    valueClassName,
+    className = ''
 }: StatCardProps) {
     const changeColors = {
         up: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10',
@@ -42,6 +44,7 @@ export default function StatCard({
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 ring-1 ring-blue-500/30'
                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                 }
+                ${className}
             `}
         >
             <div className="flex items-center justify-between">

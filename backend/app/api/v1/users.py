@@ -38,12 +38,12 @@ def get_user_permissions(db: Session, user: User) -> List[str]:
 
 
 @router.get("")
-async def list_users(
+def list_users(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
     role: Optional[str] = None,
-    is_active: Optional[bool] = Query(True, description="Filter by active status. Default is True (active users only)"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status. Default is None (all users)"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -52,6 +52,8 @@ async def list_users(
     
     # Apply warehouse scope filtering for Warehouse Admin
     user_role = current_user.get("role")
+    print(f"DEBUG: list_users called by {user_role}. Filters: warehouse={current_user.get('warehouse_id')}, active={is_active}")
+    
     if user_role == "warehouse_admin":
         # Warehouse Admin can only see users from their warehouse
         warehouse_id = current_user.get("warehouse_id")
@@ -67,7 +69,7 @@ async def list_users(
             }
     # Super Admin sees all users (no filter applied)
     
-    # Default: only show active users unless explicitly requested
+    # Only apply filter if explicitly provided
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
     
@@ -79,6 +81,9 @@ async def list_users(
     
     if role:
         query = query.filter(User.role == role)
+    
+    # Sort by creation date descending (newest first)
+    query = query.order_by(User.created_at.desc())
     
     total = query.count()
     users = query.offset((page - 1) * size).limit(size).all()
@@ -106,7 +111,7 @@ async def list_users(
 
 
 @router.post("")
-async def create_user(
+def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_permission(["users.create"]))
@@ -253,7 +258,7 @@ async def create_user(
 
 
 @router.get("/{user_id}")
-async def get_user(
+def get_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -280,7 +285,7 @@ async def get_user(
 
 
 @router.put("/{user_id}")
-async def update_user(
+def update_user(
     user_id: str,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
@@ -331,7 +336,7 @@ async def update_user(
 
 
 @router.delete("/{user_id}")
-async def delete_user(
+def delete_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))
@@ -354,7 +359,7 @@ async def delete_user(
 # ==================== ROLE ENDPOINTS ====================
 
 @router.get("/roles/list")
-async def list_roles(
+def list_roles(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -377,7 +382,7 @@ async def list_roles(
 
 
 @router.post("/roles")
-async def create_role(
+def create_role(
     role_data: RoleCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))
@@ -401,7 +406,7 @@ async def create_role(
 
 
 @router.post("/{user_id}/roles")
-async def assign_role(
+def assign_role(
     user_id: str,
     request: AssignRoleRequest,
     db: Session = Depends(get_db),

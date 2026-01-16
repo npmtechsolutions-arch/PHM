@@ -70,7 +70,7 @@ async def get_settings(
 
 
 @router.put("")
-async def update_settings(
+def update_settings(
     settings_data: SettingsUpdateRequest,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))
@@ -87,7 +87,7 @@ async def update_settings(
 
 
 @router.get("/tax")
-async def get_tax_settings(
+def get_tax_settings(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -101,7 +101,7 @@ async def get_tax_settings(
 
 
 @router.put("/tax")
-async def update_tax_settings(
+def update_tax_settings(
     tax_data: dict,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))
@@ -118,7 +118,7 @@ async def update_tax_settings(
 
 
 @router.get("/tax/summary")
-async def get_tax_summary(
+def get_tax_summary(
     month: Optional[int] = None,
     year: Optional[int] = None,
     db: Session = Depends(get_db),
@@ -156,7 +156,7 @@ async def get_tax_summary(
 
 
 @router.get("/tax/gst")
-async def get_gst_report(
+def get_gst_report(
     month: Optional[int] = None,
     year: Optional[int] = None,
     db: Session = Depends(get_db),

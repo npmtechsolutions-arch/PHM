@@ -3,6 +3,7 @@ import React from 'react';
 interface PageLayoutProps {
     title: string;
     description?: string;
+    subtitle?: string;
     icon?: string; // Enterprise: optional icon for page title
     actions?: React.ReactNode;
     children: React.ReactNode;
@@ -12,6 +13,7 @@ interface PageLayoutProps {
 export default function PageLayout({
     title,
     description,
+    subtitle,
     icon,
     actions,
     children,
@@ -33,9 +35,9 @@ export default function PageLayout({
                             <h1 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">
                                 {title}
                             </h1>
-                            {description && (
+                            {(description || subtitle) && (
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    {description}
+                                    {description || subtitle}
                                 </p>
                             )}
                         </div>

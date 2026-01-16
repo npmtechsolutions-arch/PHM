@@ -57,7 +57,7 @@ class DetailedTaxReport(BaseModel):
 
 
 @router.get("/summary", response_model=TaxSummary)
-async def get_tax_summary(
+def get_tax_summary(
     shop_id: Optional[str] = None,
     month: Optional[int] = Query(None, ge=1, le=12),
     year: Optional[int] = Query(None, ge=2000, le=2100),
@@ -110,7 +110,7 @@ async def get_tax_summary(
 
 
 @router.get("/gst", response_model=GSTReport)
-async def get_gst_report(
+def get_gst_report(
     shop_id: Optional[str] = None,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2000, le=2100),
@@ -150,7 +150,7 @@ async def get_gst_report(
 
 
 @router.get("/vat", response_model=VATReport)
-async def get_vat_report(
+def get_vat_report(
     shop_id: Optional[str] = None,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2000, le=2100),
@@ -183,7 +183,7 @@ async def get_vat_report(
 
 
 @router.get("/period/{year}/{month}", response_model=DetailedTaxReport)
-async def get_period_tax_report(
+def get_period_tax_report(
     year: int,
     month: int,
     shop_id: Optional[str] = None,
@@ -192,7 +192,7 @@ async def get_period_tax_report(
 ):
     """Get detailed tax report for a specific period"""
     # Get summary
-    summary = await get_tax_summary(shop_id, month, year, db)
+    summary = get_tax_summary(shop_id, month, year, db)
     
     # Get breakdowns by HSN code
     query = db.query(
@@ -226,7 +226,7 @@ async def get_period_tax_report(
 
 
 @router.get("/settings")
-async def get_tax_settings(
+def get_tax_settings(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -256,7 +256,7 @@ async def get_tax_settings(
 
 
 @router.put("/settings")
-async def update_tax_settings(
+def update_tax_settings(
     settings: dict,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)

@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_warehouses(
+def list_warehouses(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     search: Optional[str] = None,
@@ -65,7 +65,7 @@ async def list_warehouses(
 
 
 @router.get("/{warehouse_id}")
-async def get_warehouse(
+def get_warehouse(
     warehouse_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
@@ -97,7 +97,7 @@ async def get_warehouse(
 
 
 @router.post("")
-async def create_warehouse(
+def create_warehouse(
     warehouse_data: WarehouseCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
@@ -130,7 +130,7 @@ async def create_warehouse(
 
 
 @router.put("/{warehouse_id}")
-async def update_warehouse(
+def update_warehouse(
     warehouse_id: str,
     warehouse_data: WarehouseUpdate,
     db: Session = Depends(get_db),
@@ -152,7 +152,7 @@ async def update_warehouse(
 
 
 @router.delete("/{warehouse_id}")
-async def delete_warehouse(
+def delete_warehouse(
     warehouse_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin"]))
@@ -207,7 +207,7 @@ async def delete_warehouse(
 
 
 @router.get("/{warehouse_id}/shops")
-async def get_warehouse_shops(
+def get_warehouse_shops(
     warehouse_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -232,3 +232,68 @@ async def get_warehouse_shops(
             for shop in shops
         ]
     }
+
+
+@router.get("/{warehouse_id}/stock")
+def get_warehouse_stock(
+    warehouse_id: str,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
+):
+    """Get warehouse stock with pagination and search"""
+    # Import models here to avoid circular imports or ensure they are available
+    from app.db.models import Medicine, Batch
+    
+    # Check if warehouse exists
+    warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
+    if not warehouse:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+
+    # Access control: Warehouse Admin can only see their own warehouse
+    if current_user.role == "warehouse_admin" and current_user.warehouse_id != warehouse_id:
+         raise HTTPException(status_code=403, detail="Access denied to this warehouse")
+
+    query = db.query(WarehouseStock).join(Medicine, WarehouseStock.medicine_id == Medicine.id)
+    
+    query = query.filter(WarehouseStock.warehouse_id == warehouse_id)
+
+    if search:
+        query = query.filter(
+            (Medicine.name.ilike(f"%{search}%")) |
+            (Medicine.brand.ilike(f"%{search}%"))
+        )
+    
+    # Order by medicine name
+    query = query.order_by(Medicine.name.asc())
+
+    total = query.count()
+    stocks = query.offset((page - 1) * size).limit(size).all()
+
+    items = []
+    for stock in stocks:
+        try:
+            medicine = db.query(Medicine).filter(Medicine.id == stock.medicine_id).first()
+            batch = db.query(Batch).filter(Batch.id == stock.batch_id).first()
+            
+            items.append({
+                "id": stock.id,
+                "medicine_id": stock.medicine_id,
+                "medicine_name": medicine.name if medicine else "Unknown",
+                "medicine_code": medicine.hsn_code if medicine else "",
+                "brand": medicine.brand if medicine else "",
+                "batch_id": stock.batch_id,
+                "batch_number": batch.batch_number if batch else "Unknown",
+                "expiry_date": batch.expiry_date.isoformat() if batch and batch.expiry_date else None,
+                "quantity": stock.quantity,
+                "rack_name": stock.rack_name,
+                "rack_number": stock.rack_number,
+                "updated_at": stock.updated_at
+            })
+        except Exception as e:
+            print(f"Error processing stock item {stock.id}: {str(e)}")
+            continue
+
+    return {"items": items, "total": total, "page": page, "size": size}

@@ -61,7 +61,7 @@ class CategoryListResponse(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @router.get("", response_model=MasterOptionListResponse)
-async def list_master_options(
+def list_master_options(
     category: Optional[str] = None,
     include_inactive: bool = False,
     db: Session = Depends(get_db)
@@ -89,14 +89,14 @@ async def list_master_options(
 
 
 @router.get("/categories", response_model=CategoryListResponse)
-async def list_categories(db: Session = Depends(get_db)):
+def list_categories(db: Session = Depends(get_db)):
     """List all unique option categories"""
     categories = db.query(MasterOption.category).distinct().order_by(MasterOption.category).all()
     return CategoryListResponse(categories=[c[0] for c in categories])
 
 
 @router.get("/by-category/{category}", response_model=List[MasterOptionResponse])
-async def get_options_by_category(
+def get_options_by_category(
     category: str,
     include_inactive: bool = False,
     db: Session = Depends(get_db)
@@ -113,7 +113,7 @@ async def get_options_by_category(
 
 
 @router.get("/{option_id}", response_model=MasterOptionResponse)
-async def get_master_option(option_id: str, db: Session = Depends(get_db)):
+def get_master_option(option_id: str, db: Session = Depends(get_db)):
     """Get a single master option by ID"""
     option = db.query(MasterOption).filter(MasterOption.id == option_id).first()
     if not option:
@@ -122,7 +122,7 @@ async def get_master_option(option_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=MasterOptionResponse, dependencies=[Depends(require_permission(["settings.manage"]))])
-async def create_master_option(
+def create_master_option(
     data: MasterOptionCreate,
     db: Session = Depends(get_db)
 ):
@@ -156,7 +156,7 @@ async def create_master_option(
 
 
 @router.put("/{option_id}", response_model=MasterOptionResponse, dependencies=[Depends(require_permission(["settings.manage"]))])
-async def update_master_option(
+def update_master_option(
     option_id: str,
     data: MasterOptionUpdate,
     db: Session = Depends(get_db)
@@ -200,7 +200,7 @@ async def update_master_option(
 
 
 @router.delete("/{option_id}", dependencies=[Depends(require_permission(["settings.manage"]))])
-async def delete_master_option(option_id: str, db: Session = Depends(get_db)):
+def delete_master_option(option_id: str, db: Session = Depends(get_db)):
     """Delete a master option (requires settings.manage permission). System options cannot be deleted."""
     option = db.query(MasterOption).filter(MasterOption.id == option_id).first()
     if not option:

@@ -54,7 +54,7 @@ def get_user_permissions(db: Session, user: User) -> List[str]:
 
 
 @router.post("/login", response_model=Token)
-async def login(
+def login(
     request: Request,
     db: Session = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
@@ -150,7 +150,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(
+def refresh_token(
     token_request: TokenRefreshRequest,
     db: Session = Depends(get_db)
 ):
@@ -223,7 +223,7 @@ async def refresh_token(
 
 
 @router.post("/logout")
-async def logout(
+def logout(
     request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -250,7 +250,7 @@ async def logout(
 
 
 @router.get("/me")
-async def get_current_user_info(
+def get_current_user_info(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -291,7 +291,7 @@ async def get_current_user_info(
 
 
 @router.post("/forgot-password")
-async def forgot_password(
+def forgot_password(
     request_data: PasswordResetRequest,
     db: Session = Depends(get_db)
 ):
@@ -326,7 +326,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
-async def reset_password(
+def reset_password(
     reset_data: PasswordResetConfirm,
     db: Session = Depends(get_db)
 ):
@@ -366,7 +366,7 @@ async def reset_password(
 
 
 @router.post("/change-password")
-async def change_password(
+def change_password(
     current_password: str,
     new_password: str,
     db: Session = Depends(get_db),

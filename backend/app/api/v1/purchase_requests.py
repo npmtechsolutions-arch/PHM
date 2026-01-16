@@ -29,7 +29,7 @@ def generate_pr_number(db: Session) -> str:
 
 
 @router.get("")
-async def list_purchase_requests(
+def list_purchase_requests(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     status: Optional[str] = None,
@@ -79,7 +79,7 @@ async def list_purchase_requests(
 
 
 @router.post("")
-async def create_purchase_request(
+def create_purchase_request(
     request_data: PurchaseRequestCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["shop_owner", "pharmacist", "super_admin", "warehouse_admin"]))
@@ -132,7 +132,7 @@ async def create_purchase_request(
 
 
 @router.get("/{request_id}")
-async def get_purchase_request(
+def get_purchase_request(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -182,7 +182,7 @@ async def get_purchase_request(
 
 
 @router.put("/{request_id}/approve")
-async def approve_purchase_request(
+def approve_purchase_request(
     request_id: str,
     approval: PurchaseRequestApproval,
     db: Session = Depends(get_db),
@@ -223,7 +223,7 @@ async def approve_purchase_request(
 
 
 @router.put("/{request_id}/reject")
-async def reject_purchase_request(
+def reject_purchase_request(
     request_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin"]))

@@ -343,7 +343,7 @@ class AllMastersResponse(BaseModel):
 # ==================== MAIN ENDPOINT ====================
 
 @router.get("/all", response_model=AllMastersResponse, summary="Get all master data")
-async def get_all_masters(
+def get_all_masters(
     include_inactive: bool = Query(False, description="Include inactive master values"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -396,7 +396,7 @@ async def get_all_masters(
 
 # --- Payment Methods ---
 @router.get("/payment-methods", response_model=List[PaymentMethodResponse])
-async def list_payment_methods(
+def list_payment_methods(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.view"]))
@@ -415,7 +415,7 @@ class PaymentMethodCreate(BaseModel):
 
 
 @router.post("/payment-methods", response_model=PaymentMethodResponse)
-async def create_payment_method(
+def create_payment_method(
     data: PaymentMethodCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.create"]))
@@ -432,7 +432,7 @@ async def create_payment_method(
 
 
 @router.put("/payment-methods/{item_id}", response_model=PaymentMethodResponse)
-async def update_payment_method(
+def update_payment_method(
     item_id: str,
     data: PaymentMethodCreate,
     db: Session = Depends(get_db),
@@ -451,7 +451,7 @@ async def update_payment_method(
 
 
 @router.delete("/payment-methods/{item_id}")
-async def delete_payment_method(
+def delete_payment_method(
     item_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.delete"]))
@@ -467,7 +467,7 @@ async def delete_payment_method(
 
 # --- Shop Types ---
 @router.get("/shop-types", response_model=List[ShopTypeResponse])
-async def list_shop_types(
+def list_shop_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["shop_types.view"]))
@@ -486,7 +486,7 @@ class ShopTypeCreate(BaseModel):
 
 
 @router.post("/shop-types", response_model=ShopTypeResponse)
-async def create_shop_type(
+def create_shop_type(
     data: ShopTypeCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["shop_types.create"]))
@@ -503,7 +503,7 @@ async def create_shop_type(
 
 
 @router.put("/shop-types/{item_id}", response_model=ShopTypeResponse)
-async def update_shop_type(
+def update_shop_type(
     item_id: str,
     data: ShopTypeCreate,
     db: Session = Depends(get_db),
@@ -522,7 +522,7 @@ async def update_shop_type(
 
 
 @router.delete("/shop-types/{item_id}")
-async def delete_shop_type(
+def delete_shop_type(
     item_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["shop_types.delete"]))
@@ -538,7 +538,7 @@ async def delete_shop_type(
 
 # --- Customer Types ---
 @router.get("/customer-types", response_model=List[CustomerTypeResponse])
-async def list_customer_types(
+def list_customer_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["customer_types.view"]))
@@ -558,7 +558,7 @@ class CustomerTypeCreate(BaseModel):
 
 
 @router.post("/customer-types", response_model=CustomerTypeResponse)
-async def create_customer_type(
+def create_customer_type(
     data: CustomerTypeCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["customer_types.create"]))
@@ -576,7 +576,7 @@ async def create_customer_type(
 
 # --- Medicine Types ---
 @router.get("/medicine-types", response_model=List[MedicineTypeResponse])
-async def list_medicine_types(
+def list_medicine_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.view"]))
@@ -595,7 +595,7 @@ class MedicineTypeCreate(BaseModel):
 
 
 @router.post("/medicine-types", response_model=MedicineTypeResponse)
-async def create_medicine_type(
+def create_medicine_type(
     data: MedicineTypeCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.create"]))
@@ -613,7 +613,7 @@ async def create_medicine_type(
 
 # --- GST Slabs ---
 @router.get("/gst-slabs", response_model=List[GSTSlabResponse])
-async def list_gst_slabs(
+def list_gst_slabs(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.view"]))
@@ -630,7 +630,7 @@ class GSTSlabCreate(BaseModel):
 
 
 @router.post("/gst-slabs", response_model=GSTSlabResponse)
-async def create_gst_slab(
+def create_gst_slab(
     data: GSTSlabCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.create"]))
@@ -654,7 +654,7 @@ async def create_gst_slab(
 
 # --- Genders ---
 @router.get("/genders", response_model=List[GenderResponse])
-async def list_genders(
+def list_genders(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["genders.view"]))
@@ -667,7 +667,7 @@ async def list_genders(
 
 # --- Employment Types ---
 @router.get("/employment-types", response_model=List[EmploymentTypeResponse])
-async def list_employment_types(
+def list_employment_types(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["employment_types.view"]))
@@ -680,7 +680,7 @@ async def list_employment_types(
 
 # --- Urgency Levels ---
 @router.get("/urgency-levels", response_model=List[UrgencyResponse])
-async def list_urgency_levels(
+def list_urgency_levels(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["urgency_levels.view"]))
@@ -693,7 +693,7 @@ async def list_urgency_levels(
 
 # --- Statuses ---
 @router.get("/statuses", response_model=List[StatusResponse])
-async def list_statuses(
+def list_statuses(
     entity_type: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
@@ -709,7 +709,7 @@ async def list_statuses(
 
 # --- Designations ---
 @router.get("/designations", response_model=List[DesignationResponse])
-async def list_designations(
+def list_designations(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["designations.view"]))
@@ -728,7 +728,7 @@ class DesignationCreate(BaseModel):
 
 
 @router.post("/designations", response_model=DesignationResponse)
-async def create_designation(
+def create_designation(
     data: DesignationCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["designations.create"]))
@@ -746,7 +746,7 @@ async def create_designation(
 
 # --- Departments ---
 @router.get("/departments", response_model=List[DepartmentResponse])
-async def list_departments(
+def list_departments(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["departments.view"]))
@@ -765,7 +765,7 @@ class DepartmentCreate(BaseModel):
 
 
 @router.post("/departments", response_model=DepartmentResponse)
-async def create_department(
+def create_department(
     data: DepartmentCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["departments.create"]))

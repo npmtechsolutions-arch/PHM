@@ -35,7 +35,7 @@ def generate_return_number(db: Session) -> str:
 
 
 @router.get("")
-async def list_invoices(
+def list_invoices(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     shop_id: Optional[str] = None,
@@ -89,7 +89,7 @@ async def list_invoices(
 
 
 @router.post("")
-async def create_invoice(
+def create_invoice(
     invoice_data: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["shop_owner", "pharmacist", "cashier"]))
@@ -231,7 +231,7 @@ async def create_invoice(
 
 
 @router.get("/{invoice_id}")
-async def get_invoice(
+def get_invoice(
     invoice_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -288,7 +288,7 @@ async def get_invoice(
 
 
 @router.get("/{invoice_id}/items")
-async def get_invoice_items(
+def get_invoice_items(
     invoice_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -317,7 +317,7 @@ async def get_invoice_items(
 
 
 @router.post("/{invoice_id}/returns")
-async def process_return(
+def process_return(
     invoice_id: str,
     return_data: ReturnCreate,
     db: Session = Depends(get_db),
