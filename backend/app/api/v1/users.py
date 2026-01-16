@@ -112,106 +112,144 @@ async def create_user(
     current_user: dict = Depends(require_permission(["users.create"]))
 ):
     """Create a new user with permission-based role assignment"""
-    logger.info(f"Creating user with data: {user_data.model_dump()}")
-    
-    # Get current user's role and warehouse
-    user_role = current_user.get("role") if isinstance(current_user, dict) else current_user.role
-    user_warehouse_id = current_user.get("warehouse_id") if isinstance(current_user, dict) else current_user.warehouse_id
-    
-    # Determine the role to assign
-    role = None
-    if user_data.role_id:
-        # New permission-based approach: use role_id
-        role = db.query(Role).filter(Role.id == user_data.role_id).first()
-        if not role:
-            raise HTTPException(status_code=400, detail="Invalid role_id")
-        if not role.is_creatable:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Role '{role.name}' cannot be assigned via API. Contact system administrator."
-            )
+    try:
+        print(f"=== USER CREATION START ===")
+        print(f"User data received: {user_data.model_dump()}")
+        print(f"Current user: {current_user}")
         
-        # Warehouse Admin restrictions
+        # Get current user's role and warehouse
+        user_role = current_user.get("role") if isinstance(current_user, dict) else current_user.role
+        user_warehouse_id = current_user.get("warehouse_id") if isinstance(current_user, dict) else current_user.warehouse_id
+        
+        print(f"User role: {user_role}, Warehouse ID: {user_warehouse_id}")
+    
+        # Determine the role to assign
+        role = None
+        if user_data.role_id:
+            # New permission-based approach: use role_id
+            role = db.query(Role).filter(Role.id == user_data.role_id).first()
+            if not role:
+                raise HTTPException(status_code=400, detail="Invalid role_id")
+            if not role.is_creatable:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Role '{role.name}' cannot be assigned via API. Contact system administrator."
+                )
+            
+            # Warehouse Admin restrictions
+            if user_role == "warehouse_admin":
+                # Cannot assign warehouse_admin or super_admin roles
+                if role.name in ["warehouse_admin", "super_admin"]:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"You cannot assign '{role.name}' role. Contact Super Admin."
+                    )
+                # Cannot assign shop-level roles
+                if role.entity_type == "shop":
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Warehouse Admin cannot assign shop-level roles. Contact Super Admin."
+                    )
+                    
+        elif user_data.role:
+            # Legacy approach: role sent as string name
+            role_name = user_data.role
+            
+            # Validate against RoleType enum values
+            valid_roles = [r.value for r in RoleType]
+            if role_name not in valid_roles:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+                )
+            
+            # Prevent super_admin creation via API
+            if role_name == RoleType.SUPER_ADMIN.value:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Super Admin cannot be created through the API. Contact system administrator."
+                )
+            
+            # Find the role in database
+            role = db.query(Role).filter(Role.name == role_name).first()
+            
+            # Convert string to RoleType enum for database storage
+            try:
+                role_enum = RoleType(role_name)
+            except ValueError:
+                role_enum = None
+        
+        # Warehouse Admin must assign users to their own warehouse
         if user_role == "warehouse_admin":
-            # Cannot assign warehouse_admin or super_admin roles
-            if role.name in ["warehouse_admin", "super_admin"]:
+            if not user_warehouse_id:
                 raise HTTPException(
-                    status_code=403,
-                    detail=f"You cannot assign '{role.name}' role. Contact Super Admin."
+                    status_code=400,
+                    detail="Warehouse Admin must be assigned to a warehouse"
                 )
-            # Cannot assign shop-level roles
-            if role.entity_type == "shop":
+            # Force the new user to be assigned to the same warehouse
+            user_data.assigned_warehouse_id = user_warehouse_id
+        
+        # Validate entity assignment based on role entity_type
+        if role and role.entity_type == "warehouse":
+            if not user_data.assigned_warehouse_id:
                 raise HTTPException(
-                    status_code=403,
-                    detail=f"Warehouse Admin cannot assign shop-level roles. Contact Super Admin."
+                    status_code=400,
+                    detail=f"Role '{role.name}' requires assignment to a warehouse"
                 )
-                
-    elif user_data.role:
-        # Legacy approach: use role enum
-        if user_data.role == RoleType.SUPER_ADMIN:
-            raise HTTPException(
-                status_code=403,
-                detail="Super Admin cannot be created through the API. Contact system administrator."
-            )
-        # Find or validate the role exists in DB
-        role_name = user_data.role.value if hasattr(user_data.role, 'value') else str(user_data.role)
-        role = db.query(Role).filter(Role.name == role_name).first()
-    
-    # Warehouse Admin must assign users to their own warehouse
-    if user_role == "warehouse_admin":
-        if not user_warehouse_id:
-            raise HTTPException(
-                status_code=400,
-                detail="Warehouse Admin must be assigned to a warehouse"
-            )
-        # Force the new user to be assigned to the same warehouse
-        user_data.assigned_warehouse_id = user_warehouse_id
-    
-    # Validate entity assignment based on role entity_type
-    if role and role.entity_type == "warehouse":
-        if not user_data.assigned_warehouse_id:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Role '{role.name}' requires assignment to a warehouse"
-            )
-    elif role and role.entity_type == "shop":
-        if not user_data.assigned_shop_id:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Role '{role.name}' requires assignment to a medical shop"
-            )
-    
-    # Check if email exists
-    existing = db.query(User).filter(User.email == user_data.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    user = User(
-        email=user_data.email,
-        password_hash=get_password_hash(user_data.password),
-        full_name=user_data.full_name,
-        phone=user_data.phone,
-        role=user_data.role if user_data.role else None,  # Legacy
-        role_id=role.id if role else None,  # New FK
-        assigned_warehouse_id=user_data.assigned_warehouse_id if user_data.assigned_warehouse_id else None,
-        assigned_shop_id=user_data.assigned_shop_id if user_data.assigned_shop_id else None,
-        is_active=True
-    )
-    
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    return APIResponse(
-        message="User created successfully",
-        data={
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "role": role.name if role else None,
-            "role_id": user.role_id
-        }
-    )
+        elif role and role.entity_type == "shop":
+            if not user_data.assigned_shop_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Role '{role.name}' requires assignment to a medical shop"
+                )
+        
+        # Check if email exists
+        existing = db.query(User).filter(User.email == user_data.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Determine the role enum value for legacy field
+        role_enum_value = None
+        if user_data.role:
+            # role_enum was set in the elif block above
+            role_enum_value = role_enum if 'role_enum' in locals() else None
+        
+        user = User(
+            email=user_data.email,
+            password_hash=get_password_hash(user_data.password),
+            full_name=user_data.full_name,
+            phone=user_data.phone,
+            role=role_enum_value,  # Legacy enum field
+            role_id=role.id if role else None,  # New FK
+            assigned_warehouse_id=user_data.assigned_warehouse_id if user_data.assigned_warehouse_id else None,
+            assigned_shop_id=user_data.assigned_shop_id if user_data.assigned_shop_id else None,
+            is_active=True
+        )
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        logger.info(f"User created successfully: {user.id}")
+        
+        return APIResponse(
+            message="User created successfully",
+            data={
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": role.name if role else None,
+                "role_id": user.role_id
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating user: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/{user_id}")

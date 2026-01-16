@@ -41,6 +41,7 @@ export default function UsersList() {
         full_name: '',
         phone: '',
         role: '',
+        role_id: '',
         password: '',
         assigned_warehouse_id: '',
         assigned_shop_id: '',
@@ -93,17 +94,19 @@ export default function UsersList() {
     // ... [Preserved logic: handleSearch, openCreateModal, openEditModal, handleSubmit, handleDelete] ...
     const openCreateModal = () => {
         setEditingUser(null);
-        setFormData({ email: '', full_name: '', phone: '', role: '', password: '', assigned_warehouse_id: '', assigned_shop_id: '' });
+        setFormData({ email: '', full_name: '', phone: '', role: '', role_id: '', password: '', assigned_warehouse_id: '', assigned_shop_id: '' });
         setShowModal(true);
     };
 
     const openEditModal = (user: User) => {
         setEditingUser(user);
+        const roleObj = assignableRoles.find(r => r.name === user.role);
         setFormData({
             email: user.email || '',
             full_name: user.full_name || '',
             phone: user.phone || '',
             role: user.role,
+            role_id: roleObj?.id || '',
             password: '',
             assigned_warehouse_id: user.assigned_warehouse_id || '',
             assigned_shop_id: user.assigned_shop_id || '',
@@ -114,6 +117,7 @@ export default function UsersList() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            console.log('Submitting user data:', formData);
             if (editingUser) {
                 await usersApi.update(editingUser.id, formData);
                 window.toast?.success('User updated successfully');
@@ -125,6 +129,8 @@ export default function UsersList() {
             fetchUsers();
         } catch (error: any) {
             console.error('Failed to save user:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
             const errorMessage = error.response?.data?.detail
                 ? (Array.isArray(error.response.data.detail)
                     ? error.response.data.detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ')
@@ -351,7 +357,17 @@ export default function UsersList() {
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
                                 <select
                                     value={formData.role}
-                                    onChange={(e) => setFormData({ ...formData, role: e.target.value, assigned_warehouse_id: '', assigned_shop_id: '' })}
+                                    onChange={(e) => {
+                                        const selectedName = e.target.value;
+                                        const selectedRole = assignableRoles.find(r => r.name === selectedName);
+                                        setFormData({
+                                            ...formData,
+                                            role: selectedName,
+                                            role_id: selectedRole?.id || '',
+                                            assigned_warehouse_id: '',
+                                            assigned_shop_id: ''
+                                        });
+                                    }}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                 >
                                     <option value="">Select Role</option>

@@ -34,6 +34,7 @@ export default function WarehouseAdd() {
 
         setSaving(true);
         try {
+            console.log('Sending warehouse data:', formData);
             await warehousesApi.create(formData);
             navigate('/warehouses');
         } catch (err: any) {

@@ -414,7 +414,7 @@ export default function SalaryManagement() {
                             onChange: (val) => { setSearchTerm(val); setCurrentPage(1); },
                             placeholder: "Search employees..."
                         }}
-                        customFilters={
+                        actions={
                             <div className="flex items-center gap-4">
                                 {/* Period Selector */}
                                 <div className="flex items-center gap-2">

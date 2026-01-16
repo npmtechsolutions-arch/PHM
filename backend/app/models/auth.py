@@ -89,9 +89,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8)
-    # Support both legacy role enum and new role_id FK
-    role: Optional[RoleType] = None  # Legacy - will be deprecated
-    role_id: Optional[str] = None     # New - FK to roles table
+    # Support both legacy role string and new role_id FK
+    role: Optional[str] = None  # Accept role name as string (e.g., "warehouse_admin")
+    role_id: Optional[str] = None     # New - FK to roles table (preferred)
     assigned_warehouse_id: Optional[str] = None
     assigned_shop_id: Optional[str] = None
 

@@ -382,8 +382,8 @@ async def get_all_masters(
         designations=order_by_sort(filter_active(db.query(DesignationMaster), DesignationMaster), DesignationMaster).all(),
         departments=order_by_sort(filter_active(db.query(DepartmentMaster), DepartmentMaster), DepartmentMaster).all(),
         roles=db.query(Role).filter(Role.is_creatable == True).all(),
-        warehouses=db.query(Warehouse).filter(Warehouse.status == "active").all(),
-        shops=db.query(MedicalShop).filter(MedicalShop.status == "active").all(),
+        warehouses=db.query(Warehouse).all(),  # Return all warehouses, frontend can filter if needed
+        shops=db.query(MedicalShop).all(),  # Return all shops, frontend can filter if needed
         racks=filter_active(db.query(Rack), Rack).all(),
         brands=order_by_sort(filter_active(db.query(BrandMaster), BrandMaster), BrandMaster).all(),
         manufacturers=order_by_sort(filter_active(db.query(ManufacturerMaster), ManufacturerMaster), ManufacturerMaster).all(),

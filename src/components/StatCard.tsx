@@ -7,6 +7,7 @@ interface StatCardProps {
     onClick?: () => void;
     isActive?: boolean;
     trend?: string; // Legacy support
+    valueClassName?: string;
 }
 
 export default function StatCard({
@@ -16,7 +17,8 @@ export default function StatCard({
     changeType = 'up',
     icon,
     onClick,
-    isActive = false
+    isActive = false,
+    valueClassName
 }: StatCardProps) {
     const changeColors = {
         up: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10',
@@ -51,7 +53,7 @@ export default function StatCard({
                 </span>
             </div>
             <div className="flex items-end gap-2 mt-2">
-                <p className={`text-2xl font-bold ${isActive ? 'text-blue-900 dark:text-blue-100' : 'text-slate-900 dark:text-white'}`}>
+                <p className={`text-2xl font-bold ${valueClassName ? valueClassName : (isActive ? 'text-blue-900 dark:text-blue-100' : 'text-slate-900 dark:text-white')}`}>
                     {value}
                 </p>
                 {change && (
