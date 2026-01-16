@@ -39,6 +39,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "https://pmsmdu.netlify.app",
+        "http://pms.npmtech.in/",
         "*",  # Allow all origins as fallback
     ],
     allow_credentials=True,
