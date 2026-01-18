@@ -543,18 +543,20 @@ export function ShopSelect({ value, onChange, required, disabled, className, war
             value={value}
             onChange={(e) => onChange(e.target.value)}
             required={required}
-            disabled={disabled || isLoading}
+            disabled={disabled || isLoading || shops.length === 0}
             className={className || "w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"}
         >
             <option value="">
-                {isLoading ? 'Loading...' : 'Select Shop'}
+                {isLoading ? 'Loading...' : shops.length === 0 ? '⚠️ No shops found' : 'Select Shop'}
             </option>
-            {shops.map((shop) => (
-                <option key={shop.id} value={shop.id}>
-                    {shop.name} ({shop.code})
-                </option>
-            ))}
-        </select>
+            {
+                shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                        {shop.name} ({shop.code})
+                    </option>
+                ))
+            }
+        </select >
     );
 }
 

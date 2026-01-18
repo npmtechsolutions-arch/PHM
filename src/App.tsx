@@ -8,7 +8,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import WarehouseList from './pages/WarehouseList';
-import WarehouseStockEntry from './pages/WarehouseStockEntry';
+import StockEntry from './pages/StockEntry';
 import ShopList from './pages/ShopList';
 import MedicineList from './pages/MedicineList';
 import MedicineDetails from './pages/MedicineDetails';
@@ -31,6 +31,7 @@ import SalaryManagement from './pages/SalaryManagement';
 import InvoicesList from './pages/InvoicesList';
 import DispatchesList from './pages/DispatchesList';
 import DispatchCreate from './pages/DispatchCreate';
+import DispatchDetails from './pages/DispatchDetails';
 import PurchaseRequestsList from './pages/PurchaseRequestsList';
 import POSBilling from './pages/POSBilling';
 import NotificationsPage from './pages/NotificationsPage';
@@ -61,7 +62,7 @@ import ManufacturersPage from './pages/ManufacturersPage';
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
-  const token = localStorage.getItem('access_token');
+
 
   // If loading, show spinner
   if (loading) {
@@ -121,12 +122,13 @@ function App() {
                   <Route path="warehouses" element={<WarehouseList />} />
                   <Route path="warehouses/add" element={<WarehouseAdd />} />
                   <Route path="warehouses/edit/:id" element={<WarehouseEdit />} />
-                  <Route path="warehouses/stock" element={<WarehouseStockEntry />} />
+                  <Route path="warehouses/stock" element={<StockEntry />} />
 
                   {/* Shops */}
                   <Route path="shops" element={<ShopList />} />
                   <Route path="shops/add" element={<ShopAdd />} />
                   <Route path="shops/:id/edit" element={<EditMedicalShop />} />
+                  <Route path="shops/stock" element={<StockEntry />} />
 
                   {/* Warehouse-Shop Mapping */}
                   <Route path="warehouse-mapping" element={<WarehouseShopMapping />} />
@@ -177,6 +179,7 @@ function App() {
                   {/* Dispatches (Operational) */}
                   <Route path="dispatches" element={<DispatchesList />} />
                   <Route path="dispatches/create" element={<DispatchCreate />} />
+                  <Route path="dispatches/:id" element={<DispatchDetails />} />
 
                   {/* Purchase Requests */}
                   <Route path="purchase-requests" element={<PurchaseRequestsList />} />

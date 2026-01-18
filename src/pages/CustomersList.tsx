@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { customersApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
+import { useUser } from '../contexts/UserContext';
+import { useOperationalContext } from '../contexts/OperationalContext';
 import { CustomerTypeSelect, GenderSelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
@@ -25,6 +27,8 @@ interface Customer {
 
 export default function CustomersList() {
     const { isLoading: mastersLoading } = useMasterData();
+    const { user } = useUser();
+    const { activeEntity, scope } = useOperationalContext();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -90,7 +94,20 @@ export default function CustomersList() {
             if (editingCustomer) {
                 await customersApi.update(editingCustomer.id, formData);
             } else {
-                await customersApi.create(formData);
+                let shopId = user?.shop_id;
+                if (scope === 'shop' && activeEntity?.id) {
+                    shopId = activeEntity.id;
+                }
+
+                if (!shopId && user?.role === 'super_admin') {
+                    // Fallback or error if super admin hasn't selected a shop context
+                    // For now, if no shop_id, we might let backend validation fail or default to something if possible
+                }
+
+                await customersApi.create({
+                    ...formData,
+                    shop_id: shopId
+                });
             }
             setShowModal(false);
             fetchCustomers();

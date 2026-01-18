@@ -100,7 +100,7 @@ def list_login_activity(
             user = db.query(User).filter(User.id == log.user_id).first()
             if user:
                 log_dict["user_name"] = user.full_name
-                log_dict["user_role"] = user.role.value if user.role else None
+                log_dict["user_role"] = user.role.value if hasattr(user.role, 'value') else (str(user.role) if user.role else None)
         
         items.append(LoginActivityResponse(**log_dict))
     

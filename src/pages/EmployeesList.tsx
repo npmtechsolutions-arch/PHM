@@ -24,6 +24,8 @@ interface Employee {
     shop_name?: string;
     date_of_joining?: string;
     gender?: string;
+    department?: string;
+    designation?: string;
 }
 
 interface EmployeeForm {
@@ -39,6 +41,8 @@ interface EmployeeForm {
     address: string;
     emergency_contact: string;
     gender: string;
+    department: string;
+    designation: string;
     // Salary components
     hra_percent: number;
     allowances_percent: number;
@@ -60,6 +64,8 @@ const emptyForm: EmployeeForm = {
     address: '',
     emergency_contact: '',
     gender: '',
+    department: '',
+    designation: '',
     hra_percent: 40.0,
     allowances_percent: 20.0,
     pf_percent: 12.0,

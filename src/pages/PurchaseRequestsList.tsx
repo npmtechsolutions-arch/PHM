@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { purchaseRequestsApi, medicinesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
+import { useUser } from '../contexts/UserContext';
+import { useOperationalContext } from '../contexts/OperationalContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { ShopSelect, WarehouseSelect, UrgencySelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
@@ -25,6 +27,11 @@ interface PurchaseRequest {
 export default function PurchaseRequestsList() {
     const navigate = useNavigate();
     const { isLoading: mastersLoading } = useMasterData();
+    const { user } = useUser(); // Need to import useUser if not available, or use permission context. 
+    // Assuming UniversalListPage wraps this or we have context access.
+    // Wait, PurchaseRequestsList uses UniversalListPage but we are inside the component.
+    // Let's add useUser hook.
+    const userRole = user?.role;
     const [requests, setRequests] = useState<PurchaseRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
@@ -92,6 +99,16 @@ export default function PurchaseRequestsList() {
         } catch (e) { console.error(e); alert('Failed to reject'); }
     };
 
+    const { activeEntity } = useOperationalContext();
+    const isShopUser = activeEntity?.type === 'shop';
+
+    // Auto-fill shop ID for shop users when modal opens
+    useEffect(() => {
+        if (showCreateModal && isShopUser && activeEntity?.id) {
+            setNewRequest(prev => ({ ...prev, shop_id: activeEntity.id }));
+        }
+    }, [showCreateModal, isShopUser, activeEntity]);
+
     const handleCreate = async () => {
         if (!newRequest.shop_id || !newRequest.warehouse_id || newRequest.items.length === 0) {
             alert('Please fill all required fields');
@@ -105,10 +122,7 @@ export default function PurchaseRequestsList() {
                 urgency: newRequest.priority,
                 items: newRequest.items
                     .filter(i => i.medicine_id && i.quantity > 0)
-                    .map(i => ({
-                        medicine_id: i.medicine_id,
-                        quantity_requested: i.quantity
-                    }))
+                    .map(i => ({ medicine_id: i.medicine_id, quantity_requested: i.quantity }))
             });
             setShowCreateModal(false);
             setNewRequest({ shop_id: '', warehouse_id: '', priority: 'normal', items: [{ medicine_id: '', quantity: 1 }] });
@@ -199,7 +213,14 @@ export default function PurchaseRequestsList() {
             align: 'right',
             render: (req) => (
                 <div className="flex justify-end gap-2">
-                    {req.status === 'pending' && (
+                    <button
+                        onClick={() => setViewId(req.id)}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500"
+                        title="View Details"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">visibility</span>
+                    </button>
+                    {req.status === 'pending' && (userRole === 'warehouse_admin' || userRole === 'warehouse_employee') && (
                         <>
                             <Button
                                 variant="success"
@@ -217,7 +238,7 @@ export default function PurchaseRequestsList() {
                             </Button>
                         </>
                     )}
-                    {req.status === 'approved' && (
+                    {req.status === 'approved' && (userRole === 'warehouse_admin' || userRole === 'warehouse_employee') && (
                         <Button
                             variant="primary"
                             onClick={() => navigate(`/dispatches/create?pr_id=${req.id}`)}
@@ -231,16 +252,22 @@ export default function PurchaseRequestsList() {
         }
     ];
 
+    const [viewId, setViewId] = useState<string | null>(null);
+
+    const getStatus = (id: string) => requests.find(r => r.id === id)?.status;
+
     return (
         <UniversalListPage loading={mastersLoading}>
             <UniversalListPage.Header
                 title="Purchase Requests"
                 subtitle="Manage stock requests from shops to warehouses"
                 actions={
-                    <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        New Request
-                    </Button>
+                    (userRole !== 'warehouse_admin' && userRole !== 'warehouse_employee') && (
+                        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            New Request
+                        </Button>
+                    )
                 }
             />
 
@@ -329,14 +356,16 @@ export default function PurchaseRequestsList() {
                         </div>
                         <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shop *</label>
-                                    <ShopSelect
-                                        value={newRequest.shop_id}
-                                        onChange={(val) => setNewRequest(prev => ({ ...prev, shop_id: val }))}
-                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
-                                    />
-                                </div>
+                                {!isShopUser && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shop *</label>
+                                        <ShopSelect
+                                            value={newRequest.shop_id}
+                                            onChange={(val) => setNewRequest(prev => ({ ...prev, shop_id: val }))}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                        />
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Warehouse *</label>
                                     <WarehouseSelect
@@ -420,6 +449,116 @@ export default function PurchaseRequestsList() {
                     </div>
                 </div>
             )}
+            {/* View Modal */}
+            {viewId && (
+                <ViewRequestModal
+                    requestId={viewId}
+                    onClose={() => setViewId(null)}
+                    onApprove={() => { setViewId(null); handleApprove(viewId); }}
+                    onReject={() => { setViewId(null); handleReject(viewId); }}
+                    canAction={getStatus(viewId) === 'pending' && (userRole === 'warehouse_admin' || userRole === 'warehouse_employee')}
+                />
+            )}
         </UniversalListPage>
+    );
+}
+
+function ViewRequestModal({ requestId, onClose, onApprove, onReject, canAction }: any) {
+    const [request, setRequest] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        purchaseRequestsApi.get(requestId).then(res => {
+            setRequest(res.data);
+        }).catch(console.error).finally(() => setLoading(false));
+    }, [requestId]);
+
+    if (!requestId) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto animate-scaleIn border border-slate-200 dark:border-slate-700">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Request Details</h2>
+                        <p className="text-sm text-slate-500">#{request?.request_number || requestId.slice(0, 8)}</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div className="p-6">
+                    {loading ? (
+                        <div className="text-center py-8">Loading...</div>
+                    ) : request ? (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span className="block text-slate-500">From Shop</span>
+                                    <span className="font-medium text-slate-900 dark:text-white text-lg">{request.shop_name}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-slate-500">To Warehouse</span>
+                                    <span className="font-medium text-slate-900 dark:text-white text-lg">{request.warehouse_name}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-slate-500">Status</span>
+                                    <Badge variant={request.status === 'approved' ? 'success' : request.status === 'rejected' ? 'error' : 'warning'}>
+                                        {request.status}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <span className="block text-slate-500">Date</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {new Date(request.created_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white mb-3">Requested Items</h3>
+                                <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-medium">
+                                            <tr>
+                                                <th className="px-4 py-3">Medicine</th>
+                                                <th className="px-4 py-3 text-right">Qty</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                            {request.items?.map((item: any, idx: number) => (
+                                                <tr key={idx}>
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-medium text-slate-900 dark:text-white">{item.medicine_name}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono">
+                                                        {item.quantity_requested}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center text-red-500">Failed to load details</div>
+                    )}
+                </div>
+
+                <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+                        Close
+                    </button>
+                    {canAction && request && (
+                        <>
+                            <Button variant="danger" onClick={onReject}>Reject</Button>
+                            <Button variant="success" onClick={onApprove}>Approve</Button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }

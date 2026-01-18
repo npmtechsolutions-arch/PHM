@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dispatchesApi } from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
@@ -23,6 +24,7 @@ interface Dispatch {
 
 export default function DispatchesList() {
     const navigate = useNavigate();
+    const { activeEntity } = useOperationalContext();
     const [dispatches, setDispatches] = useState<Dispatch[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
@@ -86,8 +88,8 @@ export default function DispatchesList() {
             render: (d) => (
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${d.status === 'delivered' ? 'bg-green-100 text-green-600' :
-                            d.status === 'in_transit' ? 'bg-blue-100 text-blue-600' :
-                                'bg-amber-100 text-amber-600'
+                        d.status === 'in_transit' ? 'bg-blue-100 text-blue-600' :
+                            'bg-amber-100 text-amber-600'
                         }`}>
                         <span className="material-symbols-outlined">
                             {d.status === 'delivered' ? 'check_circle' : d.status === 'in_transit' ? 'local_shipping' : 'schedule'}
@@ -95,7 +97,7 @@ export default function DispatchesList() {
                     </div>
                     <div>
                         <div className="font-medium text-slate-900 dark:text-white font-mono">{d.dispatch_number || d.id.slice(0, 8)}</div>
-                        <div className="text-xs text-slate-500">{new Date(d.dispatch_date).toLocaleDateString()}</div>
+                        <div className="text-xs text-slate-500">{d.dispatch_date ? new Date(d.dispatch_date).toLocaleDateString() : 'Pending Date'}</div>
                     </div>
                 </div>
             )
@@ -141,14 +143,19 @@ export default function DispatchesList() {
                             Start
                         </Button>
                     )}
-                    {d.status === 'in_transit' && (
+                    {/* Allow Shop to Receive Stock at any stage if needed, or strictly after transit. 
+                        User requested visibility, but ONLY for shops. Warehouse Admin should NOT see this. */}
+                    {activeEntity?.type === 'shop' && ['pending', 'created', 'in_transit'].includes(d.status?.toLowerCase()) && (
                         <Button
                             variant="success"
-                            onClick={() => handleUpdateStatus(d.id, 'delivered')}
-                            disabled={updatingId === d.id}
+                            onClick={() => navigate('/shops/stock', {
+                                state: {
+                                    dispatchId: d.id,
+                                }
+                            })}
                             className="!py-1 !px-2 !text-xs"
                         >
-                            Complete
+                            Receive Stock
                         </Button>
                     )}
                     <Button

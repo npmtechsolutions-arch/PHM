@@ -233,10 +233,14 @@ def get_dispatch(
             "id": item.id,
             "medicine_id": item.medicine_id,
             "medicine_name": medicine.name if medicine else "Unknown",
+            "manufacturer": medicine.manufacturer if medicine else "Unknown",
             "batch_id": item.batch_id,
             "batch_number": batch.batch_number if batch else "Unknown",
             "expiry_date": batch.expiry_date.isoformat() if batch and batch.expiry_date else None,
-            "quantity": item.quantity
+            "quantity": item.quantity,
+            "purchase_price": batch.purchase_price if batch else 0,
+            "mrp": batch.mrp if batch else 0,
+            "selling_price": medicine.selling_price if medicine else 0
         })
     
     return {

@@ -92,7 +92,7 @@ class AuthContext:
         Super Admin always has all permissions.
         """
         # Super Admin bypasses all permission checks
-        if self.role == "super_admin":
+        if self.role.lower() == "super_admin":
             return True
         return permission_code in self.permissions
     
@@ -103,7 +103,7 @@ class AuthContext:
         Super Admin always has all permissions.
         """
         # Super Admin bypasses all permission checks
-        if self.role == "super_admin":
+        if self.role.lower() == "super_admin":
             return True
         return any(p in self.permissions for p in permission_codes)
     
@@ -114,7 +114,7 @@ class AuthContext:
         Super Admin always has all permissions.
         """
         # Super Admin bypasses all permission checks
-        if self.role == "super_admin":
+        if self.role.lower() == "super_admin":
             return True
         return all(p in self.permissions for p in permission_codes)
     
@@ -125,7 +125,7 @@ class AuthContext:
         Super Admin always has access to all modules.
         """
         # Super Admin bypasses all permission checks
-        if self.role == "super_admin":
+        if self.role.lower() == "super_admin":
             return True
         return any(p.startswith(f"{module}.") for p in self.permissions)
     
@@ -136,8 +136,8 @@ class AuthContext:
         based on which permission the user has.
         Super Admin always has global scope.
         """
-        # Super Admin has global scope for everything
-        if self.role == "super_admin":
+        # Super Admin always has global scope
+        if self.role.lower() == "super_admin":
             return "global"
         for perm in self.permissions:
             if perm.startswith(permission_prefix):
@@ -151,7 +151,7 @@ class AuthContext:
     @property
     def is_super_admin(self) -> bool:
         """Check if user is super admin (has all permissions)"""
-        return self.role == "super_admin"
+        return self.role.lower() == "super_admin"
     
     @property
     def is_warehouse_admin(self) -> bool:
@@ -280,8 +280,8 @@ def require_all_permissions(required_permissions: List[str]):
 
 def require_role(required_roles: List[str]):
     """Dependency to require specific roles (legacy - prefer require_permission)"""
-    def role_checker(auth: AuthContext = Depends(get_auth_context)):
-        if auth.role not in required_roles:
+    async def role_checker(auth: AuthContext = Depends(get_auth_context)):
+        if auth.role.lower() not in [r.lower() for r in required_roles]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions"

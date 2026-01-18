@@ -55,28 +55,30 @@ def list_users(
     user_shop_id = current_user.get("shop_id")
     user_warehouse_id = current_user.get("warehouse_id")
     
-    # 1. Warehouse Admin Scope
-    if user_role == "warehouse_admin":
-        if not user_warehouse_id:
-            return {"items": [], "total": 0, "page": page, "size": size}
-        query = query.filter(
-            (User.assigned_warehouse_id == user_warehouse_id) | 
-            (User.assigned_warehouse_id == None)
-        )
-        
-    # 2. Shop Scope (Owners/Managers)
-    elif user_role in ["shop_owner", "pharmacist", "pharmacy_admin"]:
-        if not user_shop_id:
-             return {"items": [], "total": 0, "page": page, "size": size}
-        query = query.filter(User.assigned_shop_id == user_shop_id)
-        
-    # 3. Regular Employees (Can only see themselves? Or their shop?)
-    # Usually regular employees shouldn't be listing users, but if they do, restrict to self or shop
-    elif user_role in ["cashier", "pharmacy_employee"]:
-        if user_shop_id:
-             query = query.filter(User.assigned_shop_id == user_shop_id)
-        else:
-             query = query.filter(User.id == current_user.get("user_id"))
+    # Super Admin bypasses all entity isolation
+    if user_role != "super_admin":
+        # 1. Warehouse Admin Scope
+        if user_role == "warehouse_admin":
+            if not user_warehouse_id:
+                return {"items": [], "total": 0, "page": page, "size": size}
+            query = query.filter(
+                (User.assigned_warehouse_id == user_warehouse_id) | 
+                (User.assigned_warehouse_id == None)
+            )
+            
+        # 2. Shop Scope (Owners/Managers)
+        elif user_role in ["shop_owner", "pharmacist", "pharmacy_admin"]:
+            if not user_shop_id:
+                 return {"items": [], "total": 0, "page": page, "size": size}
+            query = query.filter(User.assigned_shop_id == user_shop_id)
+            
+        # 3. Regular Employees (Can only see themselves? Or their shop?)
+        # Usually regular employees shouldn't be listing users, but if they do, restrict to self or shop
+        elif user_role in ["cashier", "pharmacy_employee"]:
+            if user_shop_id:
+                 query = query.filter(User.assigned_shop_id == user_shop_id)
+            else:
+                 query = query.filter(User.id == current_user.get("user_id"))
 
     # Only apply filter if explicitly provided
     if is_active is not None:
@@ -104,7 +106,7 @@ def list_users(
                 "email": u.email,
                 "full_name": u.full_name,
                 "phone": u.phone,
-                "role": u.role.value if u.role else None,
+                "role": u.role.value if hasattr(u.role, 'value') else (str(u.role) if u.role else None),
                 "is_active": u.is_active,
                 "last_login": u.last_login,
                 "created_at": u.created_at,
@@ -280,7 +282,7 @@ def get_user(
         "email": user.email,
         "full_name": user.full_name,
         "phone": user.phone,
-        "role": user.role.value if user.role else None,
+        "role": user.role.value if hasattr(user.role, 'value') else (str(user.role) if user.role else None),
         "is_active": user.is_active,
         "email_verified": user.email_verified,
         "last_login": user.last_login,

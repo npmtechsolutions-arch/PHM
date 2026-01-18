@@ -12,7 +12,7 @@ from app.models.order import (
     PurchaseRequestApproval, PurchaseRequestStatus
 )
 from app.models.common import APIResponse
-from app.core.security import get_current_user, require_role, AuthContext
+from app.core.security import get_current_user, require_role, AuthContext, get_auth_context
 from app.db.database import get_db
 from app.db.models import (
     PurchaseRequest, PurchaseRequestItem, Medicine, MedicalShop, Warehouse,
@@ -46,25 +46,27 @@ def list_purchase_requests(
     user_shop_id = current_user.get("shop_id")
     user_warehouse_id = current_user.get("warehouse_id")
     
-    # 1. Shop Context: Shop Owner/Employee can ONLY see their shop's requests
-    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
-    if user_role in shop_roles or (user_role and user_shop_id):
-        # Force filter by assigned shop
-        if user_shop_id:
-            shop_id = user_shop_id 
-        # (If user has role but no shop_id, they see nothing or error? 
-        # For now, let's assume they might be setup incorrectly, but we shouldn't show ALL data.
-        # But if shop_id is overridden here, it protects the data.)
-        
-        # If they tried to request another shop's data (search param), it gets overridden or we can error.
-        # Overriding is safer/simpler: they just see their data.
-        query = query.filter(PurchaseRequest.shop_id == user_shop_id)
-        
-    # 2. Warehouse Context: Warehouse Admin can ONLY see their warehouse's requests
-    if user_role == "warehouse_admin" or (user_role and user_warehouse_id):
-         if user_warehouse_id:
-            warehouse_id = user_warehouse_id
-         query = query.filter(PurchaseRequest.warehouse_id == user_warehouse_id)
+    # Super Admin bypasses all entity isolation
+    if user_role != "super_admin":
+        # 1. Shop Context: Shop Owner/Employee can ONLY see their shop's requests
+        shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+        if user_role in shop_roles or (user_role and user_shop_id):
+            # Force filter by assigned shop
+            if user_shop_id:
+                shop_id = user_shop_id 
+            # (If user has role but no shop_id, they see nothing or error? 
+            # For now, let's assume they might be setup incorrectly, but we shouldn't show ALL data.
+            # But if shop_id is overridden here, it protects the data.)
+            
+            # If they tried to request another shop's data (search param), it gets overridden or we can error.
+            # Overriding is safer/simpler: they just see their data.
+            query = query.filter(PurchaseRequest.shop_id == user_shop_id)
+            
+        # 2. Warehouse Context: Warehouse Admin can ONLY see their warehouse's requests
+        if user_role == "warehouse_admin" or (user_role and user_warehouse_id):
+             if user_warehouse_id:
+                warehouse_id = user_warehouse_id
+             query = query.filter(PurchaseRequest.warehouse_id == user_warehouse_id)
     
     # Standard filters (from query params)
     # Note: If shop_id/warehouse_id were set above by auth logic, they are effectively enforced.
@@ -114,7 +116,7 @@ def list_purchase_requests(
 def create_purchase_request(
     request_data: PurchaseRequestCreate,
     db: Session = Depends(get_db),
-    auth: AuthContext = Depends(require_role(["shop_owner", "pharmacist", "super_admin", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["shop_owner", "pharmacist", "pharmacy_employee", "pharmacy_admin", "super_admin"]))
 ):
     """Create a new purchase request"""
     # Validate shop and warehouse
@@ -179,15 +181,17 @@ def get_purchase_request(
     user_shop_id = current_user.get("shop_id")
     user_warehouse_id = current_user.get("warehouse_id")
     
-    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
-    
-    if user_role in shop_roles:
-        if pr.shop_id != user_shop_id:
-            raise HTTPException(status_code=403, detail="Access denied to this purchase request")
-            
-    if user_role == "warehouse_admin":
-        if pr.warehouse_id != user_warehouse_id:
-             raise HTTPException(status_code=403, detail="Access denied to this purchase request")
+    # Super Admin bypasses all entity access control
+    if user_role != "super_admin":
+        shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+        
+        if user_role in shop_roles:
+            if pr.shop_id != user_shop_id:
+                raise HTTPException(status_code=403, detail="Access denied to this purchase request")
+                
+        if user_role == "warehouse_admin":
+            if pr.warehouse_id != user_warehouse_id:
+                 raise HTTPException(status_code=403, detail="Access denied to this purchase request")
 
     shop = db.query(MedicalShop).filter(MedicalShop.id == pr.shop_id).first()
     warehouse = db.query(Warehouse).filter(Warehouse.id == pr.warehouse_id).first()
@@ -233,7 +237,7 @@ def approve_purchase_request(
     request_id: str,
     approval: PurchaseRequestApproval,
     db: Session = Depends(get_db),
-    auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin", "warehouse_employee"]))
 ):
     """Approve purchase request"""
     pr = db.query(PurchaseRequest).filter(PurchaseRequest.id == request_id).first()
@@ -273,7 +277,7 @@ def approve_purchase_request(
 def reject_purchase_request(
     request_id: str,
     db: Session = Depends(get_db),
-    auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin", "warehouse_employee"]))
 ):
     """Reject purchase request"""
     pr = db.query(PurchaseRequest).filter(PurchaseRequest.id == request_id).first()

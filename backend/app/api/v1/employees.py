@@ -724,14 +724,20 @@ def create_employee(
             legacy_role = RoleType.EMPLOYEE
         
         print(f"DEBUG: Role determined: {role_name}")
+        print(f"DEBUG: legacy_role object: {legacy_role}")
+        print(f"DEBUG: legacy_role.value: {legacy_role.value}")
+        print(f"DEBUG: type(legacy_role.value): {type(legacy_role.value)}")
         
         # Create User account
+        role_value_to_use = str(legacy_role.value)  # Explicitly convert to string
+        print(f"DEBUG: role_value_to_use: {role_value_to_use}")
+        
         new_user = User(
             email=employee_data.email,
             password_hash=get_password_hash(temp_password),
             full_name=employee_data.name,
             phone=employee_data.phone,
-            role=legacy_role.value,
+            role=role_value_to_use,
             role_id=role.id if role else None,
             assigned_warehouse_id=employee_data.warehouse_id,
             assigned_shop_id=employee_data.shop_id,

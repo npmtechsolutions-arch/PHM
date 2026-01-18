@@ -1,69 +1,80 @@
 """
-Check specific user's role and permissions
-Run with: python -m scripts.check_user_permissions war@gmail.com
+Fixed diagnostic script to check user permissions
 """
-import sys
-sys.path.insert(0, '.')
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.orm import sessionmaker
+import os
+from pathlib import Path
 
-from app.db.database import SessionLocal
-from app.db.models import User, Role
+# Get database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_Kwb6WtM7HlPI@ep-misty-band-a1ncnenu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require")
 
-def check_user(email):
-    db = SessionLocal()
+# Create engine and session
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+
+def check_permissions():
+    """Check user permissions using raw SQL to avoid import issues"""
+    session = Session()
     
     try:
-        print(f"🔍 Checking user: {email}\n")
+        # Query users with their roles
+        query = text("""
+            SELECT 
+                u.id as user_id,
+                u.email,
+                u.is_active,
+                r.id as role_id,
+                r.name as role_name,
+                r.role_type,
+                u.warehouse_id,
+                u.shop_id,
+                (SELECT COUNT(*) 
+                 FROM role_permissions rp 
+                 WHERE rp.role_id = r.id) as permission_count
+            FROM users u
+            LEFT JOIN roles r ON u.role_id = r.id
+            ORDER BY u.email
+        """)
         
-        # Get user
-        user = db.query(User).filter(User.email == email).first()
-        if not user:
-            print(f"  ❌ User not found: {email}")
-            return
+        result = session.execute(query)
+        users = result.fetchall()
         
-        print(f"✅ User found:")
-        print(f"   ID: {user.id}")
-        print(f"   Email: {user.email}")
-        print(f"   Full Name: {user.full_name}")
-        print(f"   Role (enum): {user.role}")
-        print(f"   Role ID (FK): {user.role_id}")
-        print(f"   Warehouse ID: {user.assigned_warehouse_id}")
-        print(f"   Shop ID: {user.assigned_shop_id}")
+        print("\n" + "="*80)
+        print("USER PERMISSIONS REPORT")
+        print("="*80 + "\n")
+        
+        for user in users:
+            print(f"Email: {user.email}")
+            print(f"User ID: {user.user_id}")
+            print(f"Active: {user.is_active}")
+            
+            if user.role_name:
+                print(f"Role: {user.role_name} (Type: {user.role_type})")
+                print(f"Permission Count: {user.permission_count}")
+                
+                if user.permission_count == 0:
+                    print("  WARNING: NO PERMISSIONS ASSIGNED!")
+            else:
+                print("  WARNING: NO ROLE ASSIGNED!")
+            
+            print(f"Warehouse ID: {user.warehouse_id}")
+            print(f"Shop ID: {user.shop_id}")
+            print("-" * 80 + "\n")
+        
+        # Find users with zero permissions
+        print("\nUSERS WITH ZERO PERMISSIONS:")
+        print("-" * 80)
+        zero_perm_users = [u for u in users if u.permission_count == 0 and u.role_name]
+        if zero_perm_users:
+            for user in zero_perm_users:
+                print(f"  - {user.email} (Role: {user.role_name})")
+        else:
+            print("  None found")
         print()
         
-        # Check role_id
-        if user.role_id:
-            role = db.query(Role).filter(Role.id == user.role_id).first()
-            if role:
-                print(f"✅ Role (via role_id FK):")
-                print(f"   Name: {role.name}")
-                print(f"   Permissions: {len(role.permissions)}")
-                print()
-                print("   Permission codes:")
-                for perm in sorted(role.permissions, key=lambda p: p.code):
-                    print(f"     • {perm.code}")
-            else:
-                print(f"❌ Role not found for role_id: {user.role_id}")
-        else:
-            print("⚠️  No role_id set, checking role enum...")
-            role_name = user.role.value if hasattr(user.role, 'value') else str(user.role)
-            print(f"   Role enum value: {role_name}")
-            
-            role = db.query(Role).filter(Role.name == role_name).first()
-            if role:
-                print(f"✅ Role found (via enum):")
-                print(f"   Name: {role.name}")
-                print(f"   Permissions: {len(role.permissions)}")
-            else:
-                print(f"❌ Role not found for name: {role_name}")
-        
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
     finally:
-        db.close()
-
+        session.close()
 
 if __name__ == "__main__":
-    email = sys.argv[1] if len(sys.argv) > 1 else "war@gmail.com"
-    check_user(email)
+    check_permissions()

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import ListHeaderBar from './ListHeaderBar';
 import Table from './Table';
 

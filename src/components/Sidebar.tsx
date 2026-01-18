@@ -255,10 +255,10 @@ const operationalItems: NavItemType[] = [
 
     // 8. Stock Entry - Warehouse operational
     {
-        path: '/warehouses/stock',
+        path: '/shops/stock', // Adjusted for shop path specifically or shared route
         label: 'Stock Entry',
         icon: 'add_box',
-        permissions: ['inventory.entry.warehouse', 'stock.entry.warehouse'],
+        permissions: ['inventory.entry.warehouse', 'stock.entry.warehouse'], // HIDDEN FOR SHOPS (Access via Dispatches)
         excludeFromSuperAdmin: true
     },
 
@@ -280,10 +280,10 @@ const operationalItems: NavItemType[] = [
         excludeFromSuperAdmin: true
     },
 
-    // 11. Dispatches - Warehouse operational
+    // 11. Dispatches (Warehouse) / Incoming Shipments (Shop)
     {
         path: '/dispatches',
-        label: 'Dispatches',
+        label: 'Dispatches', // This will be dynamic in the Sidebar component render
         icon: 'local_shipping',
         permissions: ['dispatches.view.warehouse', 'dispatches.view.shop', 'dispatches.manage.warehouse'],
         excludeFromSuperAdmin: true
@@ -459,6 +459,12 @@ export default function Sidebar() {
     };
 
     const renderNavItem = (item: NavItemType, index: number) => {
+        // Dynamic Label Override for Dispatches (Shop Role)
+        let label = item.label;
+        if (item.path === '/dispatches' && (userRole !== 'warehouse_admin' && userRole !== 'warehouse_employee')) {
+            label = 'Incoming Shipments';
+        }
+
         const hasChildren = item.children && item.children.length > 0;
         const isExpanded = expandedGroups.includes(item.path);
         const isActive = isGroupActive(item);
@@ -477,7 +483,7 @@ export default function Sidebar() {
                         <span className="material-symbols-outlined text-[22px] transition-transform group-hover:scale-110">
                             {item.icon}
                         </span>
-                        <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
+                        <span className="text-sm font-medium flex-1 text-left">{label}</span>
                         <span className={`material-symbols-outlined text-[18px] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
                             expand_more
                         </span>
@@ -530,14 +536,14 @@ export default function Sidebar() {
                     ${isCollapsed ? 'justify-center' : ''}`
                 }
                 style={{ animationDelay: `${index * 20}ms` }}
-                title={isCollapsed ? item.label : undefined}
+                title={isCollapsed ? label : undefined}
             >
                 <span className="material-symbols-outlined text-[22px] transition-transform group-hover:scale-110">
                     {item.icon}
                 </span>
                 {!isCollapsed && (
                     <>
-                        <span className="text-sm font-medium flex-1">{item.label}</span>
+                        <span className="text-sm font-medium flex-1">{label}</span>
                         {item.badge && (
                             <span className="px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
                                 {item.badge}

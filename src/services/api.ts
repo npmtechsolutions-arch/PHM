@@ -79,19 +79,17 @@ api.interceptors.response.use(
                 }
             } catch (refreshError) {
                 // Refresh failed - proceed to session expired handling
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                window.location.href = '/login?expired=true';
+                return Promise.reject(refreshError);
             }
 
-            // If we are here, refresh failed or no refresh token.
-            // Dispatch event for UI to show modal
-            isSessionExpired = true;
-            window.dispatchEvent(new Event('auth:session-expired'));
-
-            return new Promise((resolve, reject) => {
-                failedQueue.push({ resolve, reject });
-            }).then((token) => {
-                originalRequest.headers.Authorization = `Bearer ${token}`;
-                return api(originalRequest);
-            });
+            // If we are here, refresh failed or no refresh token (logic fell through)
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login?expired=true';
+            return Promise.reject(error);
         }
 
         return Promise.reject(error);

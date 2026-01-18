@@ -33,20 +33,22 @@ def list_shops(
     user_shop_id = current_user.get("shop_id")
     user_warehouse_id = current_user.get("warehouse_id")
     
-    # 1. Shop Restriction
-    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"] or (user_role and user_shop_id):
-        if not user_shop_id:
-             return {"items": [], "total": 0, "page": page, "size": size}
-        query = query.filter(MedicalShop.id == user_shop_id)
-        
-    # 2. Warehouse Restriction
-    elif user_role in ["warehouse_admin"] or (user_role and user_warehouse_id):
-        if not user_warehouse_id:
-             return {"items": [], "total": 0, "page": page, "size": size}
-        query = query.filter(MedicalShop.warehouse_id == user_warehouse_id)
-        # Verify if request param conflicts
-        if warehouse_id and warehouse_id != user_warehouse_id:
-             return {"items": [], "total": 0, "page": page, "size": size}
+    # Super Admin bypasses all entity isolation
+    if user_role != "super_admin":
+        # 1. Shop Restriction
+        if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"] or (user_role and user_shop_id):
+            if not user_shop_id:
+                 return {"items": [], "total": 0, "page": page, "size": size}
+            query = query.filter(MedicalShop.id == user_shop_id)
+            
+        # 2. Warehouse Restriction
+        elif user_role in ["warehouse_admin"] or (user_role and user_warehouse_id):
+            if not user_warehouse_id:
+                 return {"items": [], "total": 0, "page": page, "size": size}
+            query = query.filter(MedicalShop.warehouse_id == user_warehouse_id)
+            # Verify if request param conflicts
+            if warehouse_id and warehouse_id != user_warehouse_id:
+                 return {"items": [], "total": 0, "page": page, "size": size}
 
     if search:
         query = query.filter(
@@ -280,11 +282,13 @@ def get_shop_stock(
     user_role = current_user.get("role")
     user_shop_id = current_user.get("shop_id")
     
-    # If user is a shop-level role, enforce shop_id match
-    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
-    if user_role in shop_roles or (user_role and user_shop_id):
-        if user_shop_id != shop_id:
-             raise HTTPException(status_code=403, detail="Access denied to this shop's stock")
+    # Super Admin bypasses all entity access control
+    if user_role != "super_admin":
+        # If user is a shop-level role, enforce shop_id match
+        shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+        if user_role in shop_roles or (user_role and user_shop_id):
+            if user_shop_id != shop_id:
+                 raise HTTPException(status_code=403, detail="Access denied to this shop's stock")
 
     query = db.query(ShopStock).join(Medicine, ShopStock.medicine_id == Medicine.id)
     

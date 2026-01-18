@@ -100,7 +100,7 @@ def login(
     
     # Get user permissions from their role
     permissions = get_user_permissions(db, user)
-    role_name = user.role.value if user.role else "user"
+    role_name = user.role.value if hasattr(user.role, 'value') else (str(user.role) if user.role else "user")
     
     # Create tokens with permissions and entity context for RBAC
     token_data = {
@@ -188,7 +188,7 @@ def refresh_token(
         
         # Get fresh permissions from DB
         permissions = get_user_permissions(db, user)
-        role_name = user.role.value if user.role else "user"
+        role_name = user.role.value if hasattr(user.role, 'value') else (str(user.role) if user.role else "user")
         
         # Create new tokens with permissions
         token_data = {

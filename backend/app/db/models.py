@@ -195,7 +195,8 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     phone = Column(String(20))
     # Legacy role field - kept for backward compatibility during migration
-    role = Column(SQLEnum(RoleType), default=RoleType.PHARMACIST)
+    # Changed from SQLEnum to String to avoid uppercase enum name serialization
+    role = Column(String(50), default="pharmacist")
     # NEW: Foreign key to roles table for database-driven permissions
     role_id = Column(String(36), ForeignKey("roles.id"), nullable=True)
     is_active = Column(Boolean, default=True)
@@ -406,6 +407,10 @@ class ShopStock(Base):
     batch_id = Column(String(36), ForeignKey("batches.id"), nullable=False)
     quantity = Column(Integer, default=0, nullable=False)
     reserved_quantity = Column(Integer, default=0)
+    # Physical storage location (Box Name for shops)
+    rack_name = Column(String(100)) 
+    rack_number = Column(String(50))
+    selling_price = Column(Float, default=0.0) # Shop-specific selling price
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     shop = relationship("MedicalShop", back_populates="stock")

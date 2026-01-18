@@ -9,11 +9,13 @@ from datetime import date, timedelta
 from pydantic import BaseModel
 
 from app.models.common import APIResponse
-from app.core.security import get_current_user, require_role
+from app.core.security import get_current_user, require_role, get_auth_context
 from app.db.database import get_db
 from app.db.models import Batch, Medicine
 
 router = APIRouter()
+
+
 
 
 class StockAdjustment(BaseModel):
@@ -157,11 +159,14 @@ def adjust_stock(
 
 # Stock Entry - creates batch implicitly
 class StockEntry(BaseModel):
-    warehouse_id: str
+    warehouse_id: Optional[str] = None
+    shop_id: Optional[str] = None
     medicine_id: str
     batch_number: str  # Batch is created implicitly here
     expiry_date: str   # Batch expiry date (YYYY-MM-DD)
     quantity: int
+    purchase_price: Optional[float] = 0.0 # Purchase price for batch
+    selling_price: Optional[float] = 0.0 # Selling price for shop stock
     rack_name: Optional[str] = None  # Physical storage - e.g., "Painkillers Box"
     rack_number: Optional[str] = None  # Physical rack - e.g., "R-01"
 
@@ -170,43 +175,65 @@ class StockEntry(BaseModel):
 def create_stock_entry(
     entry: StockEntry,
     db: Session = Depends(get_db),
-    current_user = Depends(require_role(["super_admin", "warehouse_admin"]))
+    current_user = Depends(require_role(["super_admin", "warehouse_admin", "warehouse_employee", "shop_owner", "pharmacy_admin", "pharmacist", "pharmacy_employee"]))
 ):
     """
-    Add stock entry to warehouse.
+    Add stock entry to warehouse OR shop.
     Batch is created implicitly - NOT a separate master.
     
     ENTITY CONTEXT RESOLUTION:
-    - Super Admin: can specify any warehouse (explicit selection)
-    - Warehouse Admin: MUST use their assigned warehouse (server enforces)
+    - Super Admin: can specify any warehouse/shop (explicit selection)
+    - Warehouse Admin/Employee: MUST use assigned warehouse
+    - Shop Roles: MUST use assigned shop
     """
     from fastapi import HTTPException
     from datetime import datetime
-    from app.db.models import WarehouseStock, Warehouse
+    from app.db.models import WarehouseStock, ShopStock, Warehouse, MedicalShop
     
     # ENTITY CONTEXT ENFORCEMENT
     user_role = current_user.role
     assigned_warehouse_id = current_user.warehouse_id
+    assigned_shop_id = current_user.shop_id
     
+    # Determine target type
+    target_type = None # "warehouse" or "shop"
+    
+    if entry.warehouse_id:
+        target_type = "warehouse"
+    elif entry.shop_id:
+        target_type = "shop"
+    else:
+        raise HTTPException(status_code=400, detail="Must specify either warehouse_id or shop_id")
+
+    # Permission Check
     if user_role != "super_admin":
-        # Non-Super Admin: MUST use their assigned warehouse
-        if not assigned_warehouse_id:
-            raise HTTPException(status_code=403, detail="User not assigned to any warehouse")
-        if entry.warehouse_id != assigned_warehouse_id:
-            raise HTTPException(
-                status_code=403, 
-                detail="Cannot add stock to another warehouse. You can only operate on your assigned warehouse."
-            )
-    
-    # Validate warehouse
-    warehouse = db.query(Warehouse).filter(Warehouse.id == entry.warehouse_id).first()
-    if not warehouse:
-        raise HTTPException(status_code=404, detail="Warehouse not found")
+        if target_type == "warehouse":
+            # Allow warehouse_admin and warehouse_employee
+            allowed_wh_roles = ["warehouse_admin", "warehouse_employee"]
+            if user_role not in allowed_wh_roles:
+                raise HTTPException(status_code=403, detail="Only Warehouse staff can add stock to warehouses")
+                
+            if assigned_warehouse_id and entry.warehouse_id != assigned_warehouse_id:
+                raise HTTPException(status_code=403, detail="Cannot operate on another warehouse")
+        
+        elif target_type == "shop":
+            # Allow shop owners and employees
+            if assigned_shop_id and entry.shop_id != assigned_shop_id:
+                 raise HTTPException(status_code=403, detail="Cannot operate on another shop")
+
     
     # Validate medicine
     medicine = db.query(Medicine).filter(Medicine.id == entry.medicine_id).first()
     if not medicine:
         raise HTTPException(status_code=404, detail="Medicine not found")
+        
+    # Validate Target Entity
+    if target_type == "warehouse":
+        entity = db.query(Warehouse).filter(Warehouse.id == entry.warehouse_id).first()
+        if not entity: raise HTTPException(status_code=404, detail="Warehouse not found")
+    else:
+        entity = db.query(MedicalShop).filter(MedicalShop.id == entry.shop_id).first()
+        if not entity: raise HTTPException(status_code=404, detail="Shop not found")
     
     # Parse expiry date
     try:
@@ -232,38 +259,61 @@ def create_stock_entry(
             expiry_date=expiry,
             quantity=entry.quantity,
             mrp=medicine.mrp,
-            purchase_price=medicine.purchase_price
+            purchase_price=entry.purchase_price or medicine.purchase_price # Use provided purchase price or medicine default
         )
         db.add(batch)
         db.flush()  # Get batch ID
     
-    # Create or update warehouse stock
-    wh_stock = db.query(WarehouseStock).filter(
-        WarehouseStock.warehouse_id == entry.warehouse_id,
-        WarehouseStock.batch_id == batch.id
-    ).first()
-    
-    if wh_stock:
-        wh_stock.quantity = (wh_stock.quantity or 0) + entry.quantity
-        if entry.rack_name:
-            wh_stock.rack_name = entry.rack_name
-        if entry.rack_number:
-            wh_stock.rack_number = entry.rack_number
-    else:
-        wh_stock = WarehouseStock(
-            warehouse_id=entry.warehouse_id,
-            medicine_id=entry.medicine_id,  # Required field
-            batch_id=batch.id,
-            quantity=entry.quantity,
-            rack_name=entry.rack_name,
-            rack_number=entry.rack_number
-        )
-        db.add(wh_stock)
+    # Create or update STOCK (Warhouse or Shop)
+    if target_type == "warehouse":
+        wh_stock = db.query(WarehouseStock).filter(
+            WarehouseStock.warehouse_id == entry.warehouse_id,
+            WarehouseStock.batch_id == batch.id
+        ).first()
+        
+        if wh_stock:
+            wh_stock.quantity = (wh_stock.quantity or 0) + entry.quantity
+            if entry.rack_name: wh_stock.rack_name = entry.rack_name
+            if entry.rack_number: wh_stock.rack_number = entry.rack_number
+        else:
+            wh_stock = WarehouseStock(
+                warehouse_id=entry.warehouse_id,
+                medicine_id=entry.medicine_id,
+                batch_id=batch.id,
+                quantity=entry.quantity,
+                rack_name=entry.rack_name,
+                rack_number=entry.rack_number
+            )
+            db.add(wh_stock)
+            
+    elif target_type == "shop":
+        shop_stock = db.query(ShopStock).filter(
+            ShopStock.shop_id == entry.shop_id,
+            ShopStock.batch_id == batch.id
+        ).first()
+        
+        if shop_stock:
+            shop_stock.quantity = (shop_stock.quantity or 0) + entry.quantity
+            if entry.rack_name: shop_stock.rack_name = entry.rack_name
+            if entry.rack_number: shop_stock.rack_number = entry.rack_number
+            if entry.selling_price: shop_stock.selling_price = entry.selling_price
+        else:
+            shop_stock = ShopStock(
+                shop_id=entry.shop_id,
+                medicine_id=entry.medicine_id,
+                batch_id=batch.id,
+                quantity=entry.quantity,
+                rack_name=entry.rack_name,
+                rack_number=entry.rack_number,
+                selling_price=entry.selling_price or 0.0 
+                # reserved_quantity=0
+            ) 
+            db.add(shop_stock)
     
     db.commit()
     
     return APIResponse(
-        message="Stock entry added successfully",
+        message=f"Stock added to {target_type} successfully",
         data={
             "batch_id": batch.id,
             "batch_number": batch.batch_number,
