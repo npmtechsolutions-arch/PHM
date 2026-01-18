@@ -101,13 +101,13 @@ def seed_masters_full():
         ]
         seed_generic(ShopTypeMaster, shop_types)
 
-        # 7. Customer Types
+        # 7. Customer Types - MUST be lowercase to match CustomerType enum in app/models/customer.py
         cust_types = [
-            {"code": "REGULAR", "name": "Regular", "discount_percent": 0.0, "sort_order": 1},
-            {"code": "SENIOR", "name": "Senior Citizen", "discount_percent": 10.0, "sort_order": 2},
-            {"code": "VIP", "name": "VIP / Member", "discount_percent": 15.0, "sort_order": 3},
-            {"code": "CORPORATE", "name": "Corporate Account", "discount_percent": 5.0, "credit_limit": 50000.0, "sort_order": 4},
-            {"code": "STAFF", "name": "Staff", "discount_percent": 20.0, "sort_order": 5},
+            {"code": "regular", "name": "Regular", "discount_percent": 0.0, "sort_order": 1},
+            {"code": "senior", "name": "Senior Citizen", "discount_percent": 10.0, "sort_order": 2},
+            {"code": "vip", "name": "VIP / Member", "discount_percent": 15.0, "sort_order": 3},
+            {"code": "corporate", "name": "Corporate Account", "discount_percent": 5.0, "credit_limit": 50000.0, "sort_order": 4},
+            {"code": "insurance", "name": "Insurance", "discount_percent": 0.0, "sort_order": 5},
         ]
         seed_generic(CustomerTypeMaster, cust_types)
 

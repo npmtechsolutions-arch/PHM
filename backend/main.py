@@ -3,9 +3,10 @@ PharmaEC Management System - FastAPI Backend
 Production-grade pharmacy management API
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 import os
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -34,6 +35,21 @@ app = FastAPI(
     openapi_url="/openapi.json",
     lifespan=lifespan
 )
+
+# Custom Validation Error Handler for debugging
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Log detailed validation errors"""
+    print("=" * 80)
+    print("VALIDATION ERROR DETAILS:")
+    print(f"URL: {request.url}")
+    print(f"Method: {request.method}")
+    print(f"Errors: {exc.errors()}")
+    print("=" * 80)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
 
 # CORS Configuration - Allow frontend origins
 app.add_middleware(

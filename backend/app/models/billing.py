@@ -14,6 +14,8 @@ class PaymentMethod(str, Enum):
     WALLET = "wallet"
     CREDIT = "credit"
     INSURANCE = "insurance"
+    CHEQUE = "cheque"
+    NET_BANKING = "net_banking"
 
 
 class PaymentStatus(str, Enum):
@@ -36,7 +38,7 @@ class InvoiceItemBase(BaseModel):
     medicine_id: str
     batch_id: str
     quantity: int = Field(gt=0)
-    unit_price: float = Field(gt=0)
+    unit_price: float = Field(ge=0)
     discount_percent: float = 0.0
     tax_percent: float = 12.0
 
@@ -70,6 +72,10 @@ class InvoiceCreate(InvoiceBase):
     items: list[InvoiceItemCreate]
     discount_percent: float = 0.0
     paid_amount: float = 0.0
+    payment_reference: Optional[str] = None
+    cheque_number: Optional[str] = None
+    cheque_date: Optional[str] = None
+    due_date: Optional[str] = None
 
 
 class InvoiceResponse(InvoiceBase):

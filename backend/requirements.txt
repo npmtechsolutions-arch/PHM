@@ -25,3 +25,4 @@ alembic>=1.13.0,<2.0.0
 
 # Production utilities
 python-dotenv>=1.0.0,<2.0.0
+gunicorn>=21.0.0,<23.0.0

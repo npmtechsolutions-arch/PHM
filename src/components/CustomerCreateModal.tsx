@@ -27,24 +27,36 @@ export default function CustomerCreateModal({ isOpen, onClose, onSuccess, shopId
         e.preventDefault();
         setLoading(true);
         try {
+            console.log('Creating customer with shop_id:', shopId);
             const res = await customersApi.create({
                 ...formData,
                 shop_id: shopId,
-                customer_type: 'regular'
+                customer_type: 'regular'  // Always lowercase to match backend enum
             });
             toast.success('Customer created successfully');
-            // Fetch full customer object if API returns only ID, but usually we prefer full object.
-            // API returns { id: ... }. We might need to construct the object or fetch it.
-            // For now, construct it optimisticly.
+            // API returns { message, data: { id } }
+            const customerId = res.data?.data?.id || res.data?.id;
             onSuccess({
-                id: res.data.id,
+                id: customerId,
                 ...formData,
                 shop_id: shopId
             });
             onClose();
         } catch (error: any) {
-            console.error(error);
-            toast.error(error.response?.data?.detail || 'Failed to create customer');
+            console.error('Failed to save customer:', error);
+            console.error('Error response:', error.response?.data);
+            const detail = error.response?.data?.detail;
+            let errorMessage = 'Failed to create customer';
+
+            if (typeof detail === 'string') {
+                errorMessage = detail;
+            } else if (Array.isArray(detail)) {
+                errorMessage = detail.map((d: any) => d.msg || d.message || 'Validation error').join(', ');
+            } else if (detail) {
+                errorMessage = JSON.stringify(detail);
+            }
+
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }

@@ -12,7 +12,7 @@ from app.models.billing import (
     ReturnCreate, ReturnResponse, PaymentStatus, InvoiceStatus
 )
 from app.models.common import APIResponse
-from app.core.security import get_current_user, require_role
+from app.core.security import get_current_user, require_role, AuthContext
 from app.db.database import get_db
 from app.db.models import (
     Invoice, InvoiceItem, Customer, Medicine, Batch, MedicalShop,
@@ -53,14 +53,18 @@ def list_invoices(
     user_role = current_user.get("role")
     user_shop_id = current_user.get("shop_id")
     
-    # Shop Context: Shop Owner/Employee can ONLY see their shop's invoices
-    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
-    if user_role in shop_roles or (user_role and user_shop_id):
-        if user_shop_id:
-            shop_id = user_shop_id
+    print(f"DEBUG: list_invoices - User: {current_user.get('email')}, Role: {user_role}, Shop: {user_shop_id}")
+    
+    # STRICT ISOLATION: If user is assigned to a shop, they MUST ONLY see that shop's data
+    if user_shop_id:
         query = query.filter(Invoice.shop_id == user_shop_id)
-        # Note: If shop_id passed in query params doesn't match, the code below (filtering by query param) 
-        # would conflict or be redundant. Overwriting shop_id here is safer.
+        # Force the shop_id param to match (for subsequent logic)
+        shop_id = user_shop_id
+    elif user_role != "super_admin" and user_role != "warehouse_admin":
+        # If not super/warehouse admin and no shop_id, they shouldn't see invoices
+        # (e.g. unassigned shop employee)
+        query = query.filter(Invoice.shop_id == "00000000-0000-0000-0000-000000000000")
+
 
     if shop_id:
         query = query.filter(Invoice.shop_id == shop_id)
@@ -105,10 +109,16 @@ def list_invoices(
 def create_invoice(
     invoice_data: InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["shop_owner", "pharmacist", "cashier"]))
+    current_user: AuthContext = Depends(require_role(["shop_owner", "pharmacist", "cashier"]))
 ):
     """Create a new invoice (POS billing)"""
-    user_shop_id = current_user.get("shop_id")
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Invoice creation attempt - Payment Method: {invoice_data.payment_method}")
+    logger.info(f"Invoice data: {invoice_data.dict()}")
+    
+    user_shop_id = current_user.shop_id
     
     # Enforce Shop Scope
     if user_shop_id and invoice_data.shop_id != user_shop_id:
@@ -123,14 +133,94 @@ def create_invoice(
     
     invoice_number = generate_invoice_number(db)
     
+    # Calculate total amount first for validation
+    temp_subtotal = 0
+    temp_total_tax = 0
+    temp_total_discount = 0
+    
+    print(f"\n{'='*60}")
+    print(f"INVOICE CALCULATION DEBUG")
+    print(f"{'='*60}")
+    print(f"Processing {len(invoice_data.items)} items for invoice")
+    
+    for item_data in invoice_data.items:
+        item_subtotal = item_data.quantity * item_data.unit_price
+        item_discount = item_subtotal * (item_data.discount_percent / 100)
+        taxable = item_subtotal - item_discount
+        item_tax = taxable * (item_data.tax_percent / 100)
+        
+        print(f"Item: qty={item_data.quantity}, price={item_data.unit_price}, subtotal={item_subtotal}, tax={item_tax}")
+        
+        temp_subtotal += item_subtotal
+        temp_total_tax += item_tax
+        temp_total_discount += item_discount
+    
+    invoice_discount = temp_subtotal * (invoice_data.discount_percent / 100)
+    temp_total_discount += invoice_discount
+    calculated_total = temp_subtotal - temp_total_discount + temp_total_tax
+    
+    print(f"Calculated: subtotal={temp_subtotal}, tax={temp_total_tax}, discount={temp_total_discount}, total={calculated_total}")
+    print(f"{'='*60}\n")
+    # Payment validation
+    payment_method = invoice_data.payment_method.value if invoice_data.payment_method else "cash"
+    
+    if payment_method == 'credit':
+        # Credit payment requires customer and due date
+        if not invoice_data.customer_id:
+            raise HTTPException(status_code=400, detail="Customer selection required for credit payment")
+        if not invoice_data.due_date:
+            raise HTTPException(status_code=400, detail="Due date required for credit payment")
+        # TODO: Add credit limit check here
+    
+    # Payment reference validation
+    if payment_method in ['upi', 'card', 'net_banking']:
+        if not invoice_data.payment_reference:
+            method_name = payment_method.upper().replace('_', ' ')
+            raise HTTPException(status_code=400, detail=f"{method_name} reference number required")
+    
+    if payment_method == 'cheque':
+        if not invoice_data.cheque_number or not invoice_data.cheque_date:
+            raise HTTPException(status_code=400, detail="Cheque number and date required")
+    
+    # Calculate balance and status
+    paid_amount = invoice_data.paid_amount
+    balance_amount = calculated_total - paid_amount
+    
+    payment_status = PaymentStatus.COMPLETED
+    if balance_amount > 1.0:  # Allow rounding difference up to 1.0
+        if paid_amount == 0:
+            payment_status = PaymentStatus.PENDING
+        else:
+            payment_status = PaymentStatus.PARTIAL
+    elif balance_amount > 0:
+        # Small difference (rounding), treat as fully paid/written off
+        balance_amount = 0
+        payment_status = PaymentStatus.COMPLETED
+    elif balance_amount < 0:
+        # Overpayment (should strictly be handled as change return, so balance is 0)
+        balance_amount = 0
+            
     # Create invoice
     invoice = Invoice(
         invoice_number=invoice_number,
         shop_id=invoice_data.shop_id,
         customer_id=invoice_data.customer_id,
-        payment_method=invoice_data.payment_method.value if invoice_data.payment_method else "cash",
+        payment_method=payment_method,
         notes=invoice_data.notes,
-        billed_by=current_user.get("user_id")
+        billed_by=current_user.user_id,
+        
+        # Amount fields
+        subtotal=temp_subtotal,
+        discount_amount=temp_total_discount,
+        discount_percent=invoice_data.discount_percent,
+        tax_amount=temp_total_tax,
+        total_amount=calculated_total,
+        paid_amount=paid_amount,
+        balance_amount=balance_amount,
+        
+        # Status fields
+        status=InvoiceStatus.COMPLETED,
+        payment_status=payment_status
     )
     db.add(invoice)
     db.flush()  # Get ID
@@ -198,7 +288,7 @@ def create_invoice(
             quantity=item_data.quantity,
             reference_type="sale",
             reference_id=invoice.id,
-            created_by=current_user.get("user_id")
+            created_by=current_user.user_id
         )
         db.add(movement)
         
@@ -230,6 +320,12 @@ def create_invoice(
     invoice.status = "completed" if balance <= 0 else "draft"
     invoice.payment_status = "completed" if balance <= 0 else ("partial" if invoice_data.paid_amount > 0 else "pending")
     
+    print(f"\n{'='*60}")
+    print(f"UPDATING INVOICE WITH RECALCULATED VALUES:")
+    print(f"subtotal={subtotal}, tax={total_tax}, discount={total_discount}")
+    print(f"total_amount={total_amount}, paid={invoice_data.paid_amount}, balance={balance}")
+    print(f"{'='*60}\n")
+    
     # Update customer stats
     if invoice_data.customer_id:
         customer = db.query(Customer).filter(Customer.id == invoice_data.customer_id).first()
@@ -246,7 +342,18 @@ def create_invoice(
         data={
             "id": invoice.id,
             "invoice_number": invoice.invoice_number,
-            "total_amount": total_amount
+            "shop_id": invoice.shop_id,
+            "customer_id": invoice.customer_id,
+            "payment_method": invoice.payment_method,
+            "subtotal": invoice.subtotal,
+            "discount_amount": invoice.discount_amount,
+            "tax_amount": invoice.tax_amount,
+            "total_amount": invoice.total_amount,
+            "paid_amount": invoice.paid_amount,
+            "balance_amount": invoice.balance_amount,
+            "status": invoice.status,
+            "payment_status": invoice.payment_status,
+            "created_at": str(invoice.created_at) if invoice.created_at else None
         }
     )
 
@@ -351,7 +458,7 @@ def process_return(
     invoice_id: str,
     return_data: ReturnCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["shop_owner", "pharmacist"]))
+    current_user: AuthContext = Depends(require_role(["shop_owner", "pharmacist"]))
 ):
     """Process a return for an invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -367,7 +474,7 @@ def process_return(
         shop_id=invoice.shop_id,
         customer_id=invoice.customer_id,
         refund_method=return_data.refund_method.value if return_data.refund_method else "cash",
-        processed_by=current_user.get("user_id")
+        processed_by=current_user.user_id
     )
     db.add(return_record)
     db.flush()
@@ -408,7 +515,7 @@ def process_return(
             reference_type="return",
             reference_id=return_record.id,
             notes=item_data.reason,
-            created_by=current_user.get("user_id")
+            created_by=current_user.user_id
         )
         db.add(movement)
         

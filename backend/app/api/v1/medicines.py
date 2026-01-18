@@ -273,8 +273,8 @@ def get_medicine_batches(
                 "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
                 "quantity": qty, # SHOP QUANTITY
                 "purchase_price": batch.purchase_price,
-                "mrp": price if price else batch.mrp, # Use Shop Specific Selling Price if set, else Batch MRP 
-                # Note: POS uses 'mrp' from this response as unit price. We should return shop's selling price here!
+                "mrp": batch.mrp, # Original Batch MRP
+                "selling_price": price if price else batch.mrp, # Shop Selling Price
                 "is_expired": batch.expiry_date < date.today() if batch.expiry_date else False,
                 "days_to_expiry": (batch.expiry_date - date.today()).days if batch.expiry_date else 0,
                 "created_at": batch.created_at

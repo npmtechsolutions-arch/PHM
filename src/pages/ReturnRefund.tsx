@@ -1,47 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { invoicesApi } from '../services/api';
+import { toast } from '../components/Toast';
 
 export default function ReturnRefund() {
     const [searchInvoice, setSearchInvoice] = useState('');
     const [loading, setLoading] = useState(false);
     const [invoice, setInvoice] = useState<any>(null);
     const [returnItems, setReturnItems] = useState<any[]>([]);
-    const [recentReturns] = useState([
-        { id: 'RET-2024-0012', date: '2024-01-05', customer: 'John Smith', items: 3, total: 450.00, status: 'completed' },
-        { id: 'RET-2024-0011', date: '2024-01-04', customer: 'Sarah Johnson', items: 1, total: 125.00, status: 'completed' },
-        { id: 'RET-2024-0010', date: '2024-01-04', customer: 'Michael Brown', items: 2, total: 280.00, status: 'pending' },
-    ]);
+    const [recentReturns, setRecentReturns] = useState<any[]>([]);
+    const [loadingReturns, setLoadingReturns] = useState(false);
+
+    // Fetch recent returns on component mount
+    useEffect(() => {
+        fetchRecentReturns();
+    }, []);
+
+    const fetchRecentReturns = async () => {
+        try {
+            setLoadingReturns(true);
+            const response = await invoicesApi.getReturns({ page: 1, size: 10 });
+            setRecentReturns(response.data?.data?.items || response.data?.items || []);
+        } catch (err) {
+            console.error('Failed to fetch recent returns:', err);
+            // No mock data - just leave empty
+            setRecentReturns([]);
+        } finally {
+            setLoadingReturns(false);
+        }
+    };
 
     const handleSearchInvoice = async () => {
-        if (!searchInvoice.trim()) return;
+        if (!searchInvoice.trim()) {
+            toast.error('Please enter an invoice number');
+            return;
+        }
 
         try {
             setLoading(true);
             const response = await invoicesApi.get(searchInvoice);
-            setInvoice(response.data);
+            const invoiceData = response.data?.data || response.data;
+
+            if (!invoiceData) {
+                toast.error('Invoice not found');
+                return;
+            }
+
+            setInvoice(invoiceData);
 
             // Get invoice items
             const itemsRes = await invoicesApi.getItems(searchInvoice);
-            setReturnItems(itemsRes.data?.items || []);
-        } catch (err) {
+            const items = itemsRes.data?.data?.items || itemsRes.data?.items || [];
+            setReturnItems(items);
+
+            if (items.length === 0) {
+                toast.info('No items found for this invoice');
+            }
+        } catch (err: any) {
             console.error('Invoice not found:', err);
-            // Use mock data
-            setInvoice({
-                id: 'INV-2024-0005',
-                date: '2024-01-05',
-                customer_name: 'John Smith',
-                customer_phone: '+91-9876543210',
-            });
-            setReturnItems([
-                { id: 1, medicine_name: 'Amoxicillin 500mg', batch_number: 'AMX-2023-0456', quantity: 2, unit_price: 125.00, refund_amount: 250.00 },
-                { id: 2, medicine_name: 'Metformin 500mg', batch_number: 'MET-2023-0892', quantity: 1, unit_price: 85.00, refund_amount: 85.00 },
-            ]);
+            toast.error(err.response?.data?.detail || 'Invoice not found');
+            setInvoice(null);
+            setReturnItems([]);
         } finally {
             setLoading(false);
         }
     };
 
     const handleProcessReturn = async () => {
+        if (returnItems.length === 0) {
+            toast.error('No items to return');
+            return;
+        }
+
         try {
             setLoading(true);
             await invoicesApi.processReturn(invoice.id, {
@@ -52,13 +81,15 @@ export default function ReturnRefund() {
                 })),
                 refund_method: 'cash',
             });
-            alert('Return processed successfully!');
+            toast.success('Return processed successfully!');
             setInvoice(null);
             setReturnItems([]);
             setSearchInvoice('');
-        } catch (err) {
+            // Refresh recent returns
+            fetchRecentReturns();
+        } catch (err: any) {
             console.error('Failed to process return:', err);
-            alert('Return processed (mock)');
+            toast.error(err.response?.data?.detail || 'Failed to process return');
         } finally {
             setLoading(false);
         }
@@ -132,7 +163,7 @@ export default function ReturnRefund() {
                                     </div>
                                     <div className="flex items-center gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                                            {(invoice.customer_name || 'Customer').split(' ').map((n: string) => n[0]).join('')}
+                                            {(invoice.customer_name || 'C').split(' ').map((n: string) => n[0]).join('')}
                                         </div>
                                         <div>
                                             <p className="font-medium text-slate-900 dark:text-white">{invoice.customer_name || 'Walk-in Customer'}</p>
@@ -144,61 +175,70 @@ export default function ReturnRefund() {
                                 {/* Return Items Table */}
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-3">Select Items to Return</label>
-                                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-slate-100 dark:bg-slate-800 text-xs uppercase text-slate-500">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left">
-                                                        <input type="checkbox" className="rounded border-slate-300 text-primary focus:ring-primary" />
-                                                    </th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Medicine</th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Batch</th>
-                                                    <th className="px-4 py-3 text-center font-semibold">Qty</th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Reason</th>
-                                                    <th className="px-4 py-3 text-right font-semibold">Refund</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {returnItems.map((item) => (
-                                                    <tr key={item.id}>
-                                                        <td className="px-4 py-3">
-                                                            <input type="checkbox" defaultChecked className="rounded border-slate-300 text-primary focus:ring-primary" />
-                                                        </td>
-                                                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.medicine_name}</td>
-                                                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{item.batch_number}</td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <input type="number" defaultValue={item.quantity} min="1" className="w-16 text-center rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm" />
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <select className="w-full rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm text-slate-700 dark:text-slate-300">
-                                                                <option>Wrong medication</option>
-                                                                <option>Damaged packaging</option>
-                                                                <option>Expired product</option>
-                                                                <option>Customer changed mind</option>
-                                                            </select>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">₹{(item.refund_amount || item.unit_price * item.quantity).toFixed(2)}</td>
+                                    {returnItems.length === 0 ? (
+                                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                                            <span className="material-symbols-outlined text-4xl mb-2">inventory_2</span>
+                                            <p>No items found for this invoice</p>
+                                        </div>
+                                    ) : (
+                                        <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-slate-100 dark:bg-slate-800 text-xs uppercase text-slate-500">
+                                                    <tr>
+                                                        <th className="px-4 py-3 text-left">
+                                                            <input type="checkbox" className="rounded border-slate-300 text-primary focus:ring-primary" />
+                                                        </th>
+                                                        <th className="px-4 py-3 text-left font-semibold">Medicine</th>
+                                                        <th className="px-4 py-3 text-left font-semibold">Batch</th>
+                                                        <th className="px-4 py-3 text-center font-semibold">Qty</th>
+                                                        <th className="px-4 py-3 text-left font-semibold">Reason</th>
+                                                        <th className="px-4 py-3 text-right font-semibold">Refund</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {returnItems.map((item) => (
+                                                        <tr key={item.id}>
+                                                            <td className="px-4 py-3">
+                                                                <input type="checkbox" defaultChecked className="rounded border-slate-300 text-primary focus:ring-primary" />
+                                                            </td>
+                                                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.medicine_name}</td>
+                                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{item.batch_number}</td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <input type="number" defaultValue={item.quantity} min="1" className="w-16 text-center rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm" />
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <select className="w-full rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm text-slate-700 dark:text-slate-300">
+                                                                    <option>Wrong medication</option>
+                                                                    <option>Damaged packaging</option>
+                                                                    <option>Expired product</option>
+                                                                    <option>Customer changed mind</option>
+                                                                </select>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">₹{(item.refund_amount || item.unit_price * item.quantity).toFixed(2)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Refund Summary */}
-                                <div className="bg-primary/5 dark:bg-primary/10 rounded-lg p-4 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">Total Refund Amount</p>
-                                        <p className="text-2xl font-bold text-primary">₹{totalRefund.toFixed(2)}</p>
+                                {returnItems.length > 0 && (
+                                    <div className="bg-primary/5 dark:bg-primary/10 rounded-lg p-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400">Total Refund Amount</p>
+                                            <p className="text-2xl font-bold text-primary">₹{totalRefund.toFixed(2)}</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <select className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
+                                                <option>Cash Refund</option>
+                                                <option>Store Credit</option>
+                                                <option>Original Payment Method</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-3">
-                                        <select className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
-                                            <option>Cash Refund</option>
-                                            <option>Store Credit</option>
-                                            <option>Original Payment Method</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                )}
 
                                 {/* Action Buttons */}
                                 <div className="flex gap-3 justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -210,7 +250,7 @@ export default function ReturnRefund() {
                                     </button>
                                     <button
                                         onClick={handleProcessReturn}
-                                        disabled={loading}
+                                        disabled={loading || returnItems.length === 0}
                                         className="px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -231,24 +271,36 @@ export default function ReturnRefund() {
                         </h3>
                     </div>
                     <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {recentReturns.map((ret) => (
-                            <div key={ret.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-mono text-sm font-medium text-primary">{ret.id}</span>
-                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ret.status === 'completed'
-                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                        }`}>
-                                        {ret.status}
-                                    </span>
-                                </div>
-                                <p className="text-sm font-medium text-slate-900 dark:text-white">{ret.customer}</p>
-                                <div className="flex items-center justify-between mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                    <span>{ret.date}</span>
-                                    <span>{ret.items} items • ₹{ret.total.toFixed(2)}</span>
-                                </div>
+                        {loadingReturns ? (
+                            <div className="p-8 text-center">
+                                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                                <p className="text-sm text-slate-500 mt-2">Loading...</p>
                             </div>
-                        ))}
+                        ) : recentReturns.length === 0 ? (
+                            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                <span className="material-symbols-outlined text-4xl mb-2">assignment_return</span>
+                                <p>No recent returns</p>
+                            </div>
+                        ) : (
+                            recentReturns.map((ret) => (
+                                <div key={ret.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="font-mono text-sm font-medium text-primary">{ret.return_number || ret.id}</span>
+                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ret.status === 'completed'
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                            }`}>
+                                            {ret.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-900 dark:text-white">{ret.customer_name || 'Walk-in Customer'}</p>
+                                    <div className="flex items-center justify-between mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        <span>{ret.created_at ? new Date(ret.created_at).toLocaleDateString() : 'N/A'}</span>
+                                        <span>{ret.items_count || 0} items • ₹{(ret.refund_amount || 0).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                     <div className="p-4 border-t border-slate-200 dark:border-slate-700 text-center">
                         <button className="text-sm text-primary font-medium hover:text-blue-700">View All Returns</button>

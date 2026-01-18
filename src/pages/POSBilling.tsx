@@ -7,6 +7,7 @@ import { toast } from '../components/Toast';
 import BatchSelectionModal from '../components/BatchSelectionModal';
 import CustomerSelect from '../components/CustomerSelect';
 import CustomerCreateModal from '../components/CustomerCreateModal';
+import Drawer from '../components/Drawer';
 
 interface Medicine {
     id: string;
@@ -26,6 +27,7 @@ interface Batch {
     expiry_date: string;
     quantity: number;
     mrp: number;
+    selling_price?: number;
 }
 
 interface CartItem {
@@ -79,7 +81,16 @@ export default function POSBilling() {
     }
 
     const shopId = activeEntity.id;
-    const paymentMethods = getMaster('payment_methods');
+
+    // Hardcoded payment methods matching backend PaymentMethod enum
+    const paymentMethods = [
+        { code: 'cash', name: 'Cash' },
+        { code: 'card', name: 'Credit/Debit Card' },
+        { code: 'upi', name: 'UPI / QR Code' },
+        { code: 'net_banking', name: 'Net Banking' },
+        { code: 'cheque', name: 'Cheque' },
+        { code: 'credit', name: 'Credit (Postpaid)' }
+    ];
 
     // State
     const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -102,6 +113,12 @@ export default function POSBilling() {
     const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null);
     const [amountReceived, setAmountReceived] = useState('');
 
+    // Payment Reference State
+    const [paymentReference, setPaymentReference] = useState('');
+    const [chequeNumber, setChequeNumber] = useState('');
+    const [chequeDate, setChequeDate] = useState('');
+    const [dueDate, setDueDate] = useState('');
+
     const searchRef = useRef<HTMLInputElement>(null);
 
     // Search Medicines
@@ -118,9 +135,18 @@ export default function POSBilling() {
 
     const searchMedicines = async () => {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
             const res = await medicinesApi.list({ search, shop_id: shopId });
+            clearTimeout(timeoutId);
             setMedicines(res.data?.items || res.data || []);
-        } catch (e) { console.error(e); }
+        } catch (e: any) {
+            console.error('Search error:', e);
+            if (e.name === 'AbortError') {
+                toast.error('Search timed out. Please try again.');
+            }
+        }
     };
 
     // Add to Cart Logic
@@ -222,26 +248,123 @@ export default function POSBilling() {
         setCart(cart.filter((_, i) => i !== index));
     };
 
-    // Calculate per-item GST and totals
-    const getItemSubtotal = (item: CartItem) => item.batch.mrp * item.quantity;
-    const getItemDiscount = (item: CartItem) => item.discount;
-    const getItemTaxable = (item: CartItem) => getItemSubtotal(item) - getItemDiscount(item);
-    const getItemGST = (item: CartItem) => getItemTaxable(item) * (item.tax_rate / 100);
+    // Calculate per-item GST and totals with defensive checks
+    const getItemPrice = (item: CartItem) => {
+        const price = item.batch?.selling_price || item.batch?.mrp || 0;
+        return isNaN(price) ? 0 : price;
+    };
+
+    const getItemSubtotal = (item: CartItem) => {
+        const subtotal = getItemPrice(item) * (item.quantity || 0);
+        return isNaN(subtotal) ? 0 : subtotal;
+    };
+
+    const getItemDiscount = (item: CartItem) => {
+        const discount = item.discount || 0;
+        return isNaN(discount) ? 0 : discount;
+    };
+
+    const getItemTaxable = (item: CartItem) => {
+        const taxable = getItemSubtotal(item) - getItemDiscount(item);
+        return isNaN(taxable) ? 0 : taxable;
+    };
+
+    const getItemGST = (item: CartItem) => {
+        const taxRate = item.tax_rate || 0;
+        const gst = getItemTaxable(item) * (taxRate / 100);
+        return isNaN(gst) ? 0 : gst;
+    };
 
 
-    // Cart totals
-    const getSubtotal = () => cart.reduce((sum, item) => sum + getItemSubtotal(item), 0);
-    const getTotalDiscount = () => cart.reduce((sum, item) => sum + getItemDiscount(item), 0);
-    const getTaxable = () => getSubtotal() - getTotalDiscount();
-    const getGST = () => cart.reduce((sum, item) => sum + getItemGST(item), 0); // Sum of per-item GST
-    const getTotal = () => getTaxable() + getGST();
-    const getChange = () => parseFloat(amountReceived || '0') - getTotal();
+    // Cart totals with NaN safety
+    const getSubtotal = () => {
+        const total = cart.reduce((sum, item) => sum + getItemSubtotal(item), 0);
+        return isNaN(total) ? 0 : total;
+    };
+
+    const getTotalDiscount = () => {
+        const total = cart.reduce((sum, item) => sum + getItemDiscount(item), 0);
+        return isNaN(total) ? 0 : total;
+    };
+
+    const getTaxable = () => {
+        const taxable = getSubtotal() - getTotalDiscount();
+        return isNaN(taxable) ? 0 : taxable;
+    };
+
+    const getGST = () => {
+        const gst = cart.reduce((sum, item) => sum + getItemGST(item), 0);
+        return isNaN(gst) ? 0 : gst;
+    };
+
+    const getTotal = () => {
+        const total = getTaxable() + getGST();
+        return isNaN(total) ? 0 : total;
+    };
+
+    const getChange = () => {
+        const change = parseFloat(amountReceived || '0') - getTotal();
+        return isNaN(change) ? 0 : change;
+    };
 
     const formatCurrency = (v: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v);
+
+    // Payment Validation
+    const validatePayment = (): { valid: boolean; error?: string } => {
+        const total = getTotal();
+        const paid = amountReceived && !isNaN(parseFloat(amountReceived))
+            ? parseFloat(amountReceived)
+            : total;
+
+        // Partial payment validation - for non-cash/non-credit methods only
+        // Cash allows any amount without customer (small shortfalls treated as rounding/discount)
+        if ((total - paid) > 1 && !selectedCustomer && paymentMethod !== 'cash' && paymentMethod !== 'credit') {
+            return {
+                valid: false,
+                error: 'Customer selection required for partial payment'
+            };
+        }
+
+        // Credit payment validation
+        if (paymentMethod === 'credit') {
+            if (!selectedCustomer) {
+                return { valid: false, error: 'Customer selection required for credit payment' };
+            }
+            if (!dueDate) {
+                return { valid: false, error: 'Due date required for credit payment' };
+            }
+            // Credit payments can have any amount (including partial)
+            return { valid: true };
+        }
+
+        // Payment reference validation for digital methods
+        if (['upi', 'net_banking'].includes(paymentMethod) && !paymentReference) {
+            const methodName = paymentMethod === 'upi' ? 'UPI' : 'Net Banking';
+            return { valid: false, error: `${methodName} reference number required` };
+        }
+
+        if (paymentMethod === 'card' && !paymentReference) {
+            return { valid: false, error: 'Card transaction ID required' };
+        }
+
+        if (paymentMethod === 'cheque') {
+            if (!chequeNumber) return { valid: false, error: 'Cheque number required' };
+            if (!chequeDate) return { valid: false, error: 'Cheque date required' };
+        }
+
+        return { valid: true };
+    };
 
     // Checkout with prescription check
     const handleCheckout = async () => {
         if (cart.length === 0) return toast.warning('Cart is empty');
+
+        // Validate payment
+        const validation = validatePayment();
+        if (!validation.valid) {
+            toast.error(validation.error!);
+            return;
+        }
 
         // Check if any medicine requires prescription
         const prescriptionRequired = cart.some(item => item.medicine.is_prescription_required);
@@ -252,32 +375,81 @@ export default function POSBilling() {
 
         setLoading(true);
         try {
+            const totalAmount = getTotal();
+            const paidAmount = amountReceived && !isNaN(parseFloat(amountReceived))
+                ? parseFloat(amountReceived)
+                : totalAmount;
+
             const payload = {
                 shop_id: shopId,
                 customer_id: selectedCustomer?.id,
-                items: cart.map(item => ({
-                    medicine_id: item.medicine.id,
-                    batch_id: item.batch.id,
-                    quantity: item.quantity,
-                    unit_price: item.batch.mrp,
-                    discount_percent: ((item.discount / (item.batch.mrp * item.quantity)) * 100) || 0,
-                    tax_percent: item.tax_rate // Use per-item tax rate
-                })),
+                items: cart.map(item => {
+                    const price = getItemPrice(item) * item.quantity;
+                    const discountPercent = price > 0 ? (item.discount / price) * 100 : 0;
+                    const unitPrice = item.batch?.selling_price || item.batch?.mrp || 0;
+                    const taxRate = item.tax_rate || 12.0;
+
+                    return {
+                        medicine_id: item.medicine.id,
+                        batch_id: item.batch.id,
+                        quantity: Math.floor(item.quantity) || 1,
+                        unit_price: isNaN(unitPrice) ? 0 : unitPrice,
+                        discount_percent: Number.isFinite(discountPercent) ? discountPercent : 0,
+                        tax_percent: isNaN(taxRate) ? 12.0 : taxRate
+                    };
+                }),
                 payment_method: paymentMethod,
-                paid_amount: parseFloat(amountReceived) || getTotal(),
-                discount_percent: 0 // Invoice level discount
+                paid_amount: isNaN(paidAmount) ? 0 : paidAmount,
+                discount_percent: 0,
+                // Payment Details
+                payment_reference: paymentReference || undefined,
+                cheque_number: chequeNumber || undefined,
+                cheque_date: chequeDate || undefined,
+                due_date: dueDate || undefined
             };
 
+            console.log('=== Invoice Payload ===');
+            console.log('Total from getTotal():', totalAmount);
+            console.log('Paid Amount:', paidAmount);
+            console.log('Items count:', payload.items.length);
+            console.log('Full Payload:', JSON.stringify(payload, null, 2));
+            console.log('======================');
+
             const res = await invoicesApi.create(payload);
-            setLastInvoice(res.data);
+
+            // API returns { message, data: {...invoice...} }
+            const invoiceData = res.data?.data || res.data;
+            console.log('=== Invoice Response ===');
+            console.log('Full response:', res.data);
+            console.log('Invoice data:', invoiceData);
+            console.log('========================');
+
+            setLastInvoice(invoiceData);
             setShowReceipt(true);
             setCart([]);
             setSelectedCustomer(null);
             setAmountReceived('');
             toast.success('Invoice created successfully');
         } catch (e: any) {
-            console.error(e);
-            toast.error(e.response?.data?.detail || 'Failed to create invoice');
+            console.error('Invoice creation error:', e);
+            let msg = 'Failed to create invoice';
+
+            if (e.code === 'ECONNABORTED' || e.message?.includes('timeout')) {
+                msg = 'Request timed out. Please check your connection and try again.';
+            } else if (e.response?.data?.detail) {
+                const detail = e.response.data.detail;
+                if (Array.isArray(detail)) {
+                    // Handle Pydantic validation errors
+                    msg = detail.map((d: any) => d.msg || 'Validation error').join(', ');
+                } else if (typeof detail === 'object') {
+                    msg = detail.msg || JSON.stringify(detail);
+                } else {
+                    msg = String(detail);
+                }
+            } else if (!e.response) {
+                msg = 'Network error. Please check your connection.';
+            }
+            toast.error(msg);
         } finally { setLoading(false); }
     };
 
@@ -408,7 +580,14 @@ export default function POSBilling() {
                                                 <button onClick={() => updateQuantity(index, item.quantity + 1)} className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center">+</button>
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300 text-sm">{formatCurrency(item.batch.mrp)}</td>
+                                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300 text-sm">
+                                            {item.batch.selling_price && item.batch.selling_price !== item.batch.mrp && (
+                                                <div className="text-xs text-slate-400 line-through mr-1 inline-block">
+                                                    {formatCurrency(item.batch.mrp)}
+                                                </div>
+                                            )}
+                                            {formatCurrency(item.batch.selling_price || item.batch.mrp)}
+                                        </td>
                                         <td className="px-4 py-3 text-right">
                                             <input
                                                 type="number"
@@ -419,7 +598,7 @@ export default function POSBilling() {
                                             />
                                         </td>
                                         <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white text-sm">
-                                            {formatCurrency((item.batch.mrp * item.quantity) - item.discount)}
+                                            {formatCurrency(((item.batch.selling_price || item.batch.mrp) * item.quantity) - item.discount)}
                                         </td>
                                         <td className="px-2">
                                             <button onClick={() => removeItem(index)} className="text-slate-400 hover:text-red-500 rounded p-1 transition-colors">
@@ -435,7 +614,7 @@ export default function POSBilling() {
             </div>
 
             {/* Right Panel - Checkout */}
-            <div className="w-96 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 flex flex-col shadow-sm h-full">
+            <div className="w-96 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 flex flex-col shadow-sm max-h-[calc(100vh-120px)] overflow-y-auto">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">Checkout Details</h2>
                     <span className="text-xs px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full font-medium">
@@ -479,28 +658,88 @@ export default function POSBilling() {
                     </div>
                 </div>
 
-                {/* Amount Received (for cash) */}
-                {paymentMethod === 'cash' && (
-                    <div className="mb-6 space-y-2">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Amount Received</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
-                            <input
-                                type="number"
-                                value={amountReceived}
-                                onChange={(e) => setAmountReceived(e.target.value)}
-                                placeholder="0.00"
-                                className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-lg font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                            />
-                        </div>
-                        {parseFloat(amountReceived) >= getTotal() && getTotal() > 0 && (
-                            <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-3 py-2 rounded-lg text-sm font-medium flex justify-between">
-                                <span>Change to Return:</span>
-                                <span>{formatCurrency(getChange())}</span>
-                            </div>
-                        )}
+                {/* Payment Reference Fields */}
+                {['upi', 'card', 'net_banking'].includes(paymentMethod) && (
+                    <div className="mb-4 space-y-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {paymentMethod === 'card' ? 'Transaction ID' : 'Reference Number'} *
+                        </label>
+                        <input
+                            type="text"
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
+                            placeholder={`Enter ${paymentMethod === 'card' ? 'transaction ID' : 'reference number'}`}
+                            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
                     </div>
                 )}
+
+                {/* Cheque Fields */}
+                {paymentMethod === 'cheque' && (
+                    <>
+                        <div className="mb-4 space-y-2">
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cheque Number *</label>
+                            <input
+                                type="text"
+                                value={chequeNumber}
+                                onChange={(e) => setChequeNumber(e.target.value)}
+                                placeholder="Enter cheque number"
+                                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                        </div>
+                        <div className="mb-4 space-y-2">
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cheque Date *</label>
+                            <input
+                                type="date"
+                                value={chequeDate}
+                                onChange={(e) => setChequeDate(e.target.value)}
+                                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                        </div>
+                    </>
+                )}
+
+                {/* Credit Due Date */}
+                {paymentMethod === 'credit' && (
+                    <div className="mb-4 space-y-2">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Due Date *</label>
+                        <input
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+                )}
+
+                {/* Amount Received */}
+                <div className="mb-6 space-y-2">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        {paymentMethod === 'cash' ? 'Amount Received' : 'Amount Paid'}
+                        {paymentMethod === 'credit' && ' (Optional)'}
+                    </label>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium z-10 pointer-events-none">₹</span>
+                        <input
+                            type="number"
+                            value={amountReceived}
+                            onChange={(e) => setAmountReceived(e.target.value)}
+                            placeholder={getTotal().toFixed(2)}
+                            disabled={!['cash', 'credit'].includes(paymentMethod)}
+                            className={`w-full pl-8 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-lg font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${!['cash', 'credit'].includes(paymentMethod)
+                                ? 'bg-slate-100 dark:bg-slate-900/50 cursor-not-allowed'
+                                : 'bg-slate-50 dark:bg-slate-900'
+                                }`}
+                        />
+                    </div>
+                    {paymentMethod === 'cash' && parseFloat(amountReceived) >= getTotal() && getTotal() > 0 && (
+                        <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-3 py-2 rounded-lg text-sm font-medium flex justify-between">
+                            <span>Change to Return:</span>
+                            <span>{formatCurrency(getChange())}</span>
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex-1"></div>
 
@@ -517,7 +756,10 @@ export default function POSBilling() {
                         </div>
                     )}
                     <div className="flex justify-between text-slate-600 dark:text-slate-400 text-sm">
-                        <span>GST (12%)</span>
+                        <span className="flex items-center gap-1">
+                            GST (12%)
+                            <span className="text-[10px] text-slate-400">(Auto)</span>
+                        </span>
                         <span className="font-medium">{formatCurrency(getGST())}</span>
                     </div>
                     <div className="flex justify-between items-end pt-2">
@@ -545,50 +787,89 @@ export default function POSBilling() {
                 </button>
             </div>
 
-            {/* Receipt Modal */}
-            {showReceipt && lastInvoice && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md text-center p-8 animate-scaleIn">
-                        <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-6">
-                            <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-3xl">check_circle</span>
+            {/* Receipt Drawer */}
+            <Drawer
+                isOpen={showReceipt}
+                onClose={() => {
+                    setShowReceipt(false);
+                    setLastInvoice(null);
+                }}
+                title="Payment Receipt"
+                width="w-[400px]"
+            >
+                {lastInvoice && (
+                    <div className="space-y-6">
+                        <div className="text-center py-8">
+                            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">check_circle</span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Payment Successful!</h3>
+                            <p className="text-slate-500">Invoice #{lastInvoice.invoice_number || 'N/A'}</p>
                         </div>
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Payment Successful!</h2>
-                        <p className="text-slate-500 mb-8">Invoice #{lastInvoice.invoice_number || lastInvoice.id?.slice(0, 8)}</p>
 
-                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-5 mb-8 text-left space-y-3">
-                            <div className="flex justify-between text-sm">
+                        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-6 space-y-4">
+                            <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700">
                                 <span className="text-slate-500">Customer</span>
-                                <span className="font-medium text-slate-900 dark:text-white">{lastInvoice.customer_name}</span>
+                                <span className="font-medium text-slate-900 dark:text-white">
+                                    {lastInvoice.customer_id ? selectedCustomer?.name : 'Walk-in Customer'}
+                                </span>
                             </div>
-                            <div className="flex justify-between text-sm">
+
+                            <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700">
                                 <span className="text-slate-500">Payment Method</span>
-                                <span className="font-medium capitalize text-slate-900 dark:text-white">{paymentMethod}</span>
+                                <span className="font-medium text-slate-900 dark:text-white capitalize">
+                                    {String(lastInvoice.payment_method || '').replace('_', ' ')}
+                                </span>
                             </div>
-                            <div className="flex justify-between text-sm pt-3 border-t border-slate-200 dark:border-slate-700">
-                                <span className="text-slate-500">Amount Paid</span>
-                                <span className="font-bold text-slate-900 dark:text-white text-lg">{formatCurrency(lastInvoice.total_amount || getTotal())}</span>
+
+                            <div className="pt-2 space-y-3">
+                                <div className="flex justify-between items-center text-lg">
+                                    <span className="text-slate-600 dark:text-slate-300">Total Amount</span>
+                                    <span className="font-bold text-slate-900 dark:text-white">
+                                        {formatCurrency(Number(lastInvoice.total_amount) || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-lg">
+                                    <span className="text-slate-600 dark:text-slate-300">Amount Paid</span>
+                                    <span className="font-bold text-green-600">
+                                        {formatCurrency(Number(lastInvoice.paid_amount) || 0)}
+                                    </span>
+                                </div>
+                                {(Number(lastInvoice.balance_amount) || 0) > 0 && (
+                                    <div className="flex justify-between items-center text-lg text-red-600 font-bold">
+                                        <span>Balance Due</span>
+                                        <span>{formatCurrency(Number(lastInvoice.balance_amount) || 0)}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             <button
-                                onClick={() => window.print()} // In real app, this would print the receipt component
-                                className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors"
+                                onClick={() => window.print()}
+                                className="flex items-center justify-center gap-2 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                             >
                                 <span className="material-symbols-outlined">print</span>
                                 Print Receipt
                             </button>
                             <button
-                                onClick={handleNewSale}
-                                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
+                                onClick={() => {
+                                    setShowReceipt(false);
+                                    setLastInvoice(null);
+                                    setCart([]);
+                                    setSelectedCustomer(null);
+                                    setAmountReceived('');
+                                    setPaymentMethod('cash');
+                                }}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 dark:shadow-blue-900/20"
                             >
                                 <span className="material-symbols-outlined">add</span>
                                 New Sale
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Drawer>
         </div>
     );
 }

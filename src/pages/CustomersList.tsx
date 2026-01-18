@@ -106,7 +106,8 @@ export default function CustomersList() {
 
                 await customersApi.create({
                     ...formData,
-                    shop_id: shopId
+                    shop_id: shopId,
+                    customer_type: (formData.customer_type || 'regular').toLowerCase()
                 });
             }
             setShowModal(false);
