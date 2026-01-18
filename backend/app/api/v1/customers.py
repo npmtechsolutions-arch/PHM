@@ -31,6 +31,17 @@ def list_customers(
     """List all customers"""
     query = db.query(Customer)
     
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    # Shop Roles must be isolated
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"] or (user_role and user_shop_id):
+        if not user_shop_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(Customer.shop_id == user_shop_id)
+        shop_id = user_shop_id # Override param
+
     if search:
         query = query.filter(
             (Customer.name.ilike(f"%{search}%")) |
@@ -78,6 +89,16 @@ def create_customer(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new customer"""
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"]:
+        if not user_shop_id:
+             raise HTTPException(status_code=400, detail="User not assigned to any shop")
+        if customer_data.shop_id != user_shop_id:
+             raise HTTPException(status_code=403, detail="Cannot create customer for another shop")
+
     # Check if phone already exists for shop
     existing = db.query(Customer).filter(
         Customer.phone == customer_data.phone,
@@ -122,6 +143,14 @@ def get_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"]:
+         if customer.shop_id != user_shop_id:
+              raise HTTPException(status_code=403, detail="Access denied to this customer record")
+
     return {
         "id": customer.id,
         "name": customer.name,

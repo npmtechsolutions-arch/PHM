@@ -338,6 +338,7 @@ class Medicine(Base):
     gst_rate = Column(Float, default=12.0)
     mrp = Column(Float, nullable=False)
     purchase_price = Column(Float, nullable=False)
+    selling_price = Column(Float, default=0.0)
     is_prescription_required = Column(Boolean, default=False)
     is_controlled = Column(Boolean, default=False)
     storage_conditions = Column(Text)

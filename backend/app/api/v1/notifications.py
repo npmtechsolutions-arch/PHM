@@ -32,19 +32,39 @@ def list_notifications(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """List all notifications with pagination"""
-    query = db.query(Notification).order_by(Notification.created_at.desc())
+    """List all notifications for the current user or their shop"""
+    from sqlalchemy import or_
     
+    # Filter by User OR Shop
+    user_id = current_user.get("user_id")
+    shop_id = current_user.get("shop_id")
+    
+    query = db.query(Notification)
+    
+    # User can see:
+    # 1. Notifications explicitly for them (user_id)
+    # 2. Notifications for their shop (shop_id) - e.g. "Low Stock" for shop
+    # 3. Global notifications? (Maybe user_id=None and shop_id=None? Unsafe unless specified)
+    
+    filters = [Notification.user_id == user_id]
+    if shop_id:
+        filters.append(Notification.shop_id == shop_id)
+        
+    query = query.filter(or_(*filters))
+
     if is_read is not None:
         query = query.filter(Notification.is_read == is_read)
     
     if notification_type:
         query = query.filter(Notification.type == notification_type)
     
+    # Calculate unread count specifically for this user context
+    unread_query = db.query(Notification).filter(or_(*filters)).filter(Notification.is_read == False)
+    unread_count = unread_query.count()
+    
+    query = query.order_by(Notification.created_at.desc())
     total = query.count()
     notifications = query.offset((page - 1) * size).limit(size).all()
-    
-    unread_count = db.query(Notification).filter(Notification.is_read == False).count()
     
     return {
         "notifications": [
@@ -72,7 +92,9 @@ def create_notification(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new notification"""
+    """Create a new notification (Internal use or Admin)"""
+    # Ideally should limit who can create notifications, but assumed internal/admin for now
+    
     notification = Notification(
         type=notification_data.type,
         title=notification_data.title,
@@ -97,9 +119,23 @@ def mark_notification_read(
     current_user: dict = Depends(get_current_user)
 ):
     """Mark a notification as read"""
+    from sqlalchemy import or_
+    user_id = current_user.get("user_id")
+    shop_id = current_user.get("shop_id")
+    
     notification = db.query(Notification).filter(Notification.id == notification_id).first()
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
+    
+    # Verify ownership
+    has_access = False
+    if notification.user_id == user_id:
+        has_access = True
+    elif shop_id and notification.shop_id == shop_id:
+        has_access = True
+        
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Access denied to this notification")
     
     notification.is_read = True
     db.commit()
@@ -112,8 +148,16 @@ def mark_all_read(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Mark all notifications as read"""
-    db.query(Notification).filter(Notification.is_read == False).update({"is_read": True})
+    """Mark all notifications as read for current user"""
+    from sqlalchemy import or_
+    user_id = current_user.get("user_id")
+    shop_id = current_user.get("shop_id")
+    
+    filters = [Notification.user_id == user_id]
+    if shop_id:
+        filters.append(Notification.shop_id == shop_id)
+    
+    db.query(Notification).filter(or_(*filters)).filter(Notification.is_read == False).update({"is_read": True})
     db.commit()
     
     return APIResponse(message="All notifications marked as read")
@@ -126,10 +170,24 @@ def delete_notification(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a notification"""
+    from sqlalchemy import or_
+    user_id = current_user.get("user_id")
+    shop_id = current_user.get("shop_id")
+
     notification = db.query(Notification).filter(Notification.id == notification_id).first()
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     
+    # Verify ownership
+    has_access = False
+    if notification.user_id == user_id:
+        has_access = True
+    elif shop_id and notification.shop_id == shop_id:
+        has_access = True
+        
+    if not has_access:
+         raise HTTPException(status_code=403, detail="Access denied to this notification")
+
     db.delete(notification)
     db.commit()
     

@@ -27,6 +27,19 @@ def list_warehouses(
     """List all warehouses with pagination"""
     query = db.query(Warehouse)
     
+    # ENTITY ISOLATION
+    # current_user is AuthContext object in require_role, but Depends(require_role) returns dict or object? 
+    # Depends(require_role) returns AuthContext object typically in this codebase but defined as dict in type hint?
+    # Actually require_role returns AuthContext.
+    
+    user_role = getattr(current_user, "role", current_user.get("role") if isinstance(current_user, dict) else None)
+    user_warehouse_id = getattr(current_user, "warehouse_id", current_user.get("warehouse_id") if isinstance(current_user, dict) else None)
+
+    if user_role == "warehouse_admin":
+        if not user_warehouse_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(Warehouse.id == user_warehouse_id)
+
     if search:
         query = query.filter(
             (Warehouse.name.ilike(f"%{search}%")) |
@@ -74,6 +87,14 @@ def get_warehouse(
     warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
     if not warehouse:
         raise HTTPException(status_code=404, detail="Warehouse not found")
+    
+    # ENTITY ISOLATION
+    user_role = getattr(current_user, "role", current_user.get("role") if isinstance(current_user, dict) else None)
+    user_warehouse_id = getattr(current_user, "warehouse_id", current_user.get("warehouse_id") if isinstance(current_user, dict) else None)
+
+    if user_role == "warehouse_admin":
+         if warehouse_id != user_warehouse_id:
+              raise HTTPException(status_code=403, detail="Access denied to this warehouse")
     
     shop_count = db.query(func.count(MedicalShop.id)).filter(MedicalShop.warehouse_id == warehouse_id).scalar()
     

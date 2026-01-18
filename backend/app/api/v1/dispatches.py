@@ -42,6 +42,25 @@ def list_dispatches(
     """List all dispatches"""
     query = db.query(Dispatch).order_by(Dispatch.created_at.desc())
     
+    # ENTITY ISOLATION ENFORCEMENT
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    # 1. Shop Context: Shop Owner/Employee can ONLY see their shop's dispatches
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    if user_role in shop_roles or (user_role and user_shop_id):
+        if user_shop_id:
+            shop_id = user_shop_id 
+        query = query.filter(Dispatch.shop_id == user_shop_id)
+        
+    # 2. Warehouse Context: Warehouse Admin can ONLY see their warehouse's dispatches
+    if user_role == "warehouse_admin" or (user_role and user_warehouse_id):
+         if user_warehouse_id:
+            warehouse_id = user_warehouse_id
+         query = query.filter(Dispatch.warehouse_id == user_warehouse_id)
+    
+    # Standard filters
     if status:
         query = query.filter(Dispatch.status == status)
     
@@ -86,6 +105,17 @@ def create_dispatch(
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
     """Create a new dispatch"""
+    # current_user is AuthContext object here
+    user_role = current_user.role
+    user_warehouse_id = current_user.warehouse_id
+    
+    # Enforce Warehouse Admin scope
+    if user_role == "warehouse_admin":
+        if not user_warehouse_id:
+            raise HTTPException(status_code=403, detail="User not assigned to any warehouse")
+        if dispatch_data.warehouse_id != user_warehouse_id:
+             raise HTTPException(status_code=403, detail="Cannot create dispatch from another warehouse")
+
     # Validate warehouse and shop
     warehouse = db.query(Warehouse).filter(Warehouse.id == dispatch_data.warehouse_id).first()
     if not warehouse:
@@ -126,7 +156,11 @@ def create_dispatch(
             WarehouseStock.batch_id == item_data.batch_id
         ).first()
         
+        # Fallback to batch quantity if no wh_stock record (legacy/global behavior), 
+        # but in strict entity mode we should probably rely on wh_stock.
+        # However, to avoid breakage if data isn't fully migrated:
         available = wh_stock.quantity if wh_stock else batch.quantity
+        
         if item_data.quantity > available:
             raise HTTPException(
                 status_code=400,
@@ -167,6 +201,21 @@ def get_dispatch(
     dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch not found")
+    
+    # ENTITY ACCESS CONTROL
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    
+    if user_role in shop_roles:
+        if dispatch.shop_id != user_shop_id:
+            raise HTTPException(status_code=403, detail="Access denied to this dispatch")
+            
+    if user_role == "warehouse_admin":
+        if dispatch.warehouse_id != user_warehouse_id:
+             raise HTTPException(status_code=403, detail="Access denied to this dispatch")
     
     shop = db.query(MedicalShop).filter(MedicalShop.id == dispatch.shop_id).first()
     warehouse = db.query(Warehouse).filter(Warehouse.id == dispatch.warehouse_id).first()

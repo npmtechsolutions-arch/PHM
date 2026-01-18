@@ -202,6 +202,35 @@ export default function UsersList() {
             )
         },
         {
+            header: 'Location',
+            key: 'assigned_shop_id', // pseudo-key
+            render: (user) => {
+                if (user.role === 'super_admin') return <span className="text-slate-400 italic">Global Access</span>;
+
+                if (user.assigned_shop_id) {
+                    const shop = shops.find(s => s.id === user.assigned_shop_id);
+                    return (
+                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                            <span className="material-symbols-outlined text-[16px] text-blue-500">store</span>
+                            <span className="text-sm font-medium truncate max-w-[150px]" title={shop?.name}>{shop?.name || 'Unknown Shop'}</span>
+                        </div>
+                    );
+                }
+
+                if (user.assigned_warehouse_id) {
+                    const wh = warehouses.find(w => w.id === user.assigned_warehouse_id);
+                    return (
+                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                            <span className="material-symbols-outlined text-[16px] text-amber-500">warehouse</span>
+                            <span className="text-sm font-medium truncate max-w-[150px]" title={wh?.name}>{wh?.name || 'Unknown Warehouse'}</span>
+                        </div>
+                    );
+                }
+
+                return <span className="text-slate-400">-</span>;
+            }
+        },
+        {
             header: 'Status',
             key: 'is_active',
             render: (user) => (

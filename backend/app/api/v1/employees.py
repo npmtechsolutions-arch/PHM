@@ -513,6 +513,8 @@ def get_employee_performance(
 
 # ==================== GENERIC EMPLOYEE CRUD (Moved to bottom) ====================
 
+# ==================== GENERIC EMPLOYEE CRUD (Moved to bottom) ====================
+
 @router.get("")
 def list_employees(
     page: int = Query(1, ge=1),
@@ -532,6 +534,25 @@ def list_employees(
     """
     query = db.query(Employee)
     
+    # ENTITY ISOLATION ENFORCEMENT
+    # 1. Warehouse Admin
+    if auth.role == "warehouse_admin":
+        if not auth.warehouse_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(Employee.warehouse_id == auth.warehouse_id)
+        # Prevent snooping on other params
+        warehouse_id = auth.warehouse_id
+        shop_id = None 
+
+    # 2. Shop Owner / Pharmacy Admin
+    elif auth.role in ["shop_owner", "pharmacy_admin", "pharmacist", "cashier"]: # Including staff just in case
+        if not auth.shop_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(Employee.shop_id == auth.shop_id)
+        shop_id = auth.shop_id
+        warehouse_id = None
+        
+    
     if search:
         query = query.filter(
             (Employee.name.ilike(f"%{search}%")) |
@@ -550,9 +571,11 @@ def list_employees(
     
     if status:
         if status == "terminated":
-            # Only Super Admin can view terminated employees
-            if not auth.is_super_admin:
-                 # Return empty list for non-super admins trying to access terminated
+            # Only Super Admin (and maybe HR Manager?) can view terminated employees
+            # Warehouse/Shop admins might need to see terminated staff history? 
+            # Letting HR/Super/Warehouse/Shop admin see terminated if it belongs to their entity.
+            if not (auth.is_super_admin or auth.role in ["hr_manager", "warehouse_admin", "shop_owner", "pharmacy_admin"]):
+                 # Regular employees cannot see terminated colleagues
                 return {
                     "items": [],
                     "total": 0,
@@ -561,7 +584,7 @@ def list_employees(
                 }
         query = query.filter(Employee.status == status)
     else:
-        # Default: hide terminated employees unless explicitly requested (and authorized above)
+        # Default: hide terminated employees unless explicitly requested
         query = query.filter(Employee.status != "terminated")
     
     # Sort by creation date descending (newest first)
@@ -582,7 +605,7 @@ def list_employees(
                 "department": e.department,
                 "employment_type": e.employment_type,
                 "date_of_joining": e.date_of_joining.isoformat() if e.date_of_joining else None,
-                "basic_salary": e.basic_salary,
+                "basic_salary": e.basic_salary, # Consider hiding this for basic lists?
                 "shop_id": e.shop_id,
                 "warehouse_id": e.warehouse_id,
                 "status": e.status,
@@ -600,7 +623,7 @@ def list_employees(
 def create_employee(
     employee_data: EmployeeCreate,
     db: Session = Depends(get_db),
-    auth: AuthContext = Depends(require_role(["super_admin", "hr_manager", "warehouse_admin"]))
+    auth: AuthContext = Depends(require_role(["super_admin", "hr_manager", "warehouse_admin", "shop_owner", "pharmacy_admin"]))
 ):
     """Create a new employee and automatically create a User account"""
     from app.db.models import User, Role, RoleType
@@ -608,10 +631,19 @@ def create_employee(
     import secrets
     import string
     
-    # For Warehouse Admin, enforce warehouse binding
+    # ENTITY ENFORCEMENT FOR CREATION
     if auth.role == "warehouse_admin":
+        if not auth.warehouse_id:
+            raise HTTPException(status_code=400, detail="Action requires warehouse assignment")
         employee_data.warehouse_id = auth.warehouse_id
+        employee_data.shop_id = None # Correct strictness
         
+    elif auth.role in ["shop_owner", "pharmacy_admin"]:
+        if not auth.shop_id:
+            raise HTTPException(status_code=400, detail="Action requires shop assignment")
+        employee_data.shop_id = auth.shop_id
+        employee_data.warehouse_id = None # Correct strictness
+
     employee_code = generate_employee_code(db)
     
     # Auto-generate email if missing to ensure User account creation
@@ -764,12 +796,36 @@ def create_employee(
 def get_employee(
     employee_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    auth: AuthContext = Depends(get_auth_context)
 ):
-    """Get employee by ID"""
+    """Get employee by ID details"""
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
+    
+    # ACCESS CONTROL
+    allow_access = False
+    
+    # 1. Super Admin / HR - Full access
+    if auth.role in ["super_admin", "hr_manager"]:
+        allow_access = True
+    
+    # 2. Warehouse Admin - Only their warehouse
+    elif auth.role == "warehouse_admin":
+        if employee.warehouse_id == auth.warehouse_id:
+            allow_access = True
+            
+    # 3. Shop Owner/Admin - Only their shop
+    elif auth.role in ["shop_owner", "pharmacy_admin"]:
+        if employee.shop_id == auth.shop_id:
+            allow_access = True
+    
+    # 4. Self - Can view own details
+    elif auth.user_id == employee.user_id:
+        allow_access = True
+        
+    if not allow_access:
+        raise HTTPException(status_code=403, detail="Access denied to employee records")
     
     return {
         "id": employee.id,

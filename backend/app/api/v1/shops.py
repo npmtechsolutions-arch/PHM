@@ -28,6 +28,26 @@ def list_shops(
     """List all medical shops with pagination"""
     query = db.query(MedicalShop)
     
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    # 1. Shop Restriction
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"] or (user_role and user_shop_id):
+        if not user_shop_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(MedicalShop.id == user_shop_id)
+        
+    # 2. Warehouse Restriction
+    elif user_role in ["warehouse_admin"] or (user_role and user_warehouse_id):
+        if not user_warehouse_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(MedicalShop.warehouse_id == user_warehouse_id)
+        # Verify if request param conflicts
+        if warehouse_id and warehouse_id != user_warehouse_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+
     if search:
         query = query.filter(
             (MedicalShop.name.ilike(f"%{search}%")) |
@@ -38,7 +58,8 @@ def list_shops(
     if status:
         query = query.filter(MedicalShop.status == status)
     
-    if warehouse_id:
+    # Allow filtering by warehouse_id if not already restricted/conflicted above
+    if warehouse_id and not (user_role in ["warehouse_admin"] or user_warehouse_id):
         query = query.filter(MedicalShop.warehouse_id == warehouse_id)
     
     total = query.count()
@@ -232,3 +253,76 @@ def delete_shop(
     db.commit()
     
     return APIResponse(message="Shop deleted successfully")
+
+
+@router.get("/{shop_id}/stock")
+def get_shop_stock(
+    shop_id: str,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get shop stock with pagination and search"""
+    # Import related models
+    from app.db.models import Medicine, Batch, ShopStock
+    
+    # Check if shop exists
+    shop = db.query(MedicalShop).filter(MedicalShop.id == shop_id).first()
+    if not shop:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    # Access control: Shop Owner/Employee can only see their own shop
+    # Using the logic from security.py helpers would be cleaner, but we are inside the route
+    # current_user is a dict here, so check keys directly
+    
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    # If user is a shop-level role, enforce shop_id match
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    if user_role in shop_roles or (user_role and user_shop_id):
+        if user_shop_id != shop_id:
+             raise HTTPException(status_code=403, detail="Access denied to this shop's stock")
+
+    query = db.query(ShopStock).join(Medicine, ShopStock.medicine_id == Medicine.id)
+    
+    query = query.filter(ShopStock.shop_id == shop_id)
+
+    if search:
+        query = query.filter(
+            (Medicine.name.ilike(f"%{search}%")) |
+            (Medicine.brand.ilike(f"%{search}%"))
+        )
+    
+    # Order by medicine name
+    query = query.order_by(Medicine.name.asc())
+
+    total = query.count()
+    stocks = query.offset((page - 1) * size).limit(size).all()
+
+    items = []
+    for stock in stocks:
+        try:
+            medicine = db.query(Medicine).filter(Medicine.id == stock.medicine_id).first()
+            batch = db.query(Batch).filter(Batch.id == stock.batch_id).first()
+            
+            items.append({
+                "id": stock.id,
+                "medicine_id": stock.medicine_id,
+                "medicine_name": medicine.name if medicine else "Unknown",
+                "medicine_code": medicine.hsn_code if medicine else "",
+                "brand": medicine.brand if medicine else "",
+                "batch_id": stock.batch_id,
+                "batch_number": batch.batch_number if batch else "Unknown",
+                "expiry_date": batch.expiry_date.isoformat() if batch and batch.expiry_date else None,
+                "quantity": stock.quantity,
+                "reserved_quantity": stock.reserved_quantity,
+                "updated_at": stock.updated_at
+            })
+        except Exception as e:
+            # print(f"Error processing stock item {stock.id}: {str(e)}")
+            continue
+
+    return {"items": items, "total": total, "page": page, "size": size}

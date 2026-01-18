@@ -41,12 +41,44 @@ def list_purchase_requests(
     """List all purchase requests"""
     query = db.query(PurchaseRequest).order_by(PurchaseRequest.created_at.desc())
     
+    # ENTITY ISOLATION ENFORCEMENT
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    # 1. Shop Context: Shop Owner/Employee can ONLY see their shop's requests
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    if user_role in shop_roles or (user_role and user_shop_id):
+        # Force filter by assigned shop
+        if user_shop_id:
+            shop_id = user_shop_id 
+        # (If user has role but no shop_id, they see nothing or error? 
+        # For now, let's assume they might be setup incorrectly, but we shouldn't show ALL data.
+        # But if shop_id is overridden here, it protects the data.)
+        
+        # If they tried to request another shop's data (search param), it gets overridden or we can error.
+        # Overriding is safer/simpler: they just see their data.
+        query = query.filter(PurchaseRequest.shop_id == user_shop_id)
+        
+    # 2. Warehouse Context: Warehouse Admin can ONLY see their warehouse's requests
+    if user_role == "warehouse_admin" or (user_role and user_warehouse_id):
+         if user_warehouse_id:
+            warehouse_id = user_warehouse_id
+         query = query.filter(PurchaseRequest.warehouse_id == user_warehouse_id)
+    
+    # Standard filters (from query params)
+    # Note: If shop_id/warehouse_id were set above by auth logic, they are effectively enforced.
+    # But we should apply the filter ONLY if it wasn't already applied or if we want to allow 
+    # Super Admin to filter.
+    
     if status:
         query = query.filter(PurchaseRequest.status == status)
     
+    # Apply shop_id filter if set (either by param OR by auth enforcement)
     if shop_id:
         query = query.filter(PurchaseRequest.shop_id == shop_id)
     
+    # Apply warehouse_id filter if set (either by param OR by auth enforcement)
     if warehouse_id:
         query = query.filter(PurchaseRequest.warehouse_id == warehouse_id)
     
@@ -142,6 +174,21 @@ def get_purchase_request(
     if not pr:
         raise HTTPException(status_code=404, detail="Purchase request not found")
     
+    # ENTITY ACCESS CONTROL
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    
+    if user_role in shop_roles:
+        if pr.shop_id != user_shop_id:
+            raise HTTPException(status_code=403, detail="Access denied to this purchase request")
+            
+    if user_role == "warehouse_admin":
+        if pr.warehouse_id != user_warehouse_id:
+             raise HTTPException(status_code=403, detail="Access denied to this purchase request")
+
     shop = db.query(MedicalShop).filter(MedicalShop.id == pr.shop_id).first()
     warehouse = db.query(Warehouse).filter(Warehouse.id == pr.warehouse_id).first()
     

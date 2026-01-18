@@ -49,6 +49,19 @@ def list_invoices(
     """List all invoices"""
     query = db.query(Invoice).order_by(Invoice.created_at.desc())
     
+    # ENTITY ISOLATION ENFORCEMENT
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    # Shop Context: Shop Owner/Employee can ONLY see their shop's invoices
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    if user_role in shop_roles or (user_role and user_shop_id):
+        if user_shop_id:
+            shop_id = user_shop_id
+        query = query.filter(Invoice.shop_id == user_shop_id)
+        # Note: If shop_id passed in query params doesn't match, the code below (filtering by query param) 
+        # would conflict or be redundant. Overwriting shop_id here is safer.
+
     if shop_id:
         query = query.filter(Invoice.shop_id == shop_id)
     
@@ -95,6 +108,14 @@ def create_invoice(
     current_user: dict = Depends(require_role(["shop_owner", "pharmacist", "cashier"]))
 ):
     """Create a new invoice (POS billing)"""
+    user_shop_id = current_user.get("shop_id")
+    
+    # Enforce Shop Scope
+    if user_shop_id and invoice_data.shop_id != user_shop_id:
+        # Allow if super admin, but route requires shop roles.
+        # If user has a shop_id, they MUST use it.
+        raise HTTPException(status_code=403, detail="Cannot create invoice for another shop")
+
     # Validate shop
     shop = db.query(MedicalShop).filter(MedicalShop.id == invoice_data.shop_id).first()
     if not shop:
@@ -240,6 +261,15 @@ def get_invoice(
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # ENTITY ACCESS CONTROL
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    if user_role in shop_roles:
+        if invoice.shop_id != user_shop_id:
+             raise HTTPException(status_code=403, detail="Access denied to this invoice")
     
     customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first() if invoice.customer_id else None
     items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()

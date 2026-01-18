@@ -278,10 +278,58 @@ export function MasterDataProvider({ children }: MasterDataProviderProps) {
             { id: 'mfr-2', code: 'CIPLA', name: 'Cipla Ltd', is_active: true },
             { id: 'mfr-3', code: 'SUN', name: 'Sun Pharmaceutical Industries', is_active: true }
         ],
-        suppliers: [], payment_methods: [], shop_types: [],
-        customer_types: [], genders: [], employment_types: [], urgency_levels: [],
-        statuses: [], designations: [], departments: [], roles: [], warehouses: [],
-        shops: [], racks: [], adjustment_reasons: []
+        genders: [
+            { id: 'gen-1', code: 'male', name: 'Male', is_active: true },
+            { id: 'gen-2', code: 'female', name: 'Female', is_active: true },
+            { id: 'gen-3', code: 'other', name: 'Other', is_active: true }
+        ],
+        employment_types: [
+            { id: 'emp-1', code: 'full_time', name: 'Full Time', is_active: true },
+            { id: 'emp-2', code: 'part_time', name: 'Part Time', is_active: true },
+            { id: 'emp-3', code: 'contract', name: 'Contract', is_active: true },
+            { id: 'emp-4', code: 'intern', name: 'Intern', is_active: true }
+        ],
+        departments: [
+            { id: 'dept-1', code: 'pharmacy', name: 'Pharmacy', is_active: true },
+            { id: 'dept-2', code: 'warehouse', name: 'Warehouse', is_active: true },
+            { id: 'dept-3', code: 'admin', name: 'Administration', is_active: true },
+            { id: 'dept-4', code: 'hr', name: 'Human Resources', is_active: true },
+            { id: 'dept-5', code: 'accounts', name: 'Accounts', is_active: true }
+        ],
+        designations: [
+            { id: 'des-1', code: 'pharmacist', name: 'Pharmacist', is_active: true, level: 3 },
+            { id: 'des-2', code: 'cashier', name: 'Cashier', is_active: true, level: 2 },
+            { id: 'des-3', code: 'manager', name: 'Manager', is_active: true, level: 4 },
+            { id: 'des-4', code: 'assistant', name: 'Assistant', is_active: true, level: 1 },
+            { id: 'des-5', code: 'supervisor', name: 'Supervisor', is_active: true, level: 3 }
+        ],
+        urgency_levels: [
+            { id: 'urg-1', code: 'low', name: 'Low', is_active: true, color: 'green' },
+            { id: 'urg-2', code: 'medium', name: 'Medium', is_active: true, color: 'yellow' },
+            { id: 'urg-3', code: 'high', name: 'High', is_active: true, color: 'orange' },
+            { id: 'urg-4', code: 'critical', name: 'Critical', is_active: true, color: 'red' }
+        ],
+        payment_methods: [
+            { id: 'pm-1', code: 'cash', name: 'Cash', is_active: true, icon: '💵' },
+            { id: 'pm-2', code: 'card', name: 'Card', is_active: true, icon: '💳' },
+            { id: 'pm-3', code: 'upi', name: 'UPI', is_active: true, icon: '📱' },
+            { id: 'pm-4', code: 'credit', name: 'Credit', is_active: true, icon: '📋' }
+        ],
+        shop_types: [
+            { id: 'st-1', code: 'retail', name: 'Retail Pharmacy', is_active: true },
+            { id: 'st-2', code: 'hospital', name: 'Hospital Pharmacy', is_active: true }
+        ],
+        customer_types: [
+            { id: 'ct-1', code: 'regular', name: 'Regular', is_active: true, discount_percent: 0, credit_limit: 0 },
+            { id: 'ct-2', code: 'vip', name: 'VIP', is_active: true, discount_percent: 10, credit_limit: 50000 }
+        ],
+        suppliers: [],
+        statuses: [],
+        roles: [],
+        warehouses: [],
+        shops: [],
+        racks: [],
+        adjustment_reasons: []
     });
 
     // Load masters on mount and when user logs in

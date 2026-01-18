@@ -67,6 +67,17 @@ def get_tax_summary(
     """Get tax summary for a period"""
     query = db.query(Invoice).filter(Invoice.status == "completed")
     
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    # Shop Roles must be isolated
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"] or (user_role and user_shop_id):
+        if not user_shop_id:
+             raise HTTPException(status_code=403, detail="No shop assigned to user")
+        query = query.filter(Invoice.shop_id == user_shop_id)
+        shop_id = user_shop_id # Force override
+    
     if shop_id:
         query = query.filter(Invoice.shop_id == shop_id)
     
@@ -124,6 +135,16 @@ def get_gst_report(
         extract('year', Invoice.created_at) == year
     )
     
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"] or (user_role and user_shop_id):
+        if not user_shop_id:
+             raise HTTPException(status_code=403, detail="No shop assigned")
+        query = query.filter(Invoice.shop_id == user_shop_id)
+        shop_id = user_shop_id
+
     if shop_id:
         query = query.filter(Invoice.shop_id == shop_id)
     
@@ -164,6 +185,16 @@ def get_vat_report(
         extract('year', Invoice.created_at) == year
     )
     
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"] or (user_role and user_shop_id):
+         if not user_shop_id:
+             raise HTTPException(status_code=403, detail="No shop assigned")
+         query = query.filter(Invoice.shop_id == user_shop_id)
+         shop_id = user_shop_id
+
     if shop_id:
         query = query.filter(Invoice.shop_id == shop_id)
     
@@ -191,10 +222,47 @@ def get_period_tax_report(
     current_user: dict = Depends(get_current_user)
 ):
     """Get detailed tax report for a specific period"""
-    # Get summary
-    summary = get_tax_summary(shop_id, month, year, db)
+    # Note: We rely on the get_tax_summary function's internal isolation now?
+    # No, get_tax_summary is a route handler called directly?
+    # Python calling route handler directly: we must manually pass dependencies or call logic separately.
+    # However, here we call `get_tax_summary(shop_id, month, year, db)`.
+    # Wait, `get_tax_summary` expects `current_user`! If we call it as a function, we must pass it.
     
-    # Get breakdowns by HSN code
+    # Let's fix this call pattern. It's better to refactor `get_tax_summary` logic or just replicate strictness here.
+    
+    # ENTITY ISOLATION
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"] or (user_role and user_shop_id):
+         shop_id = user_shop_id # Force override
+         
+    # Generate summary logic inline or call corrected handler if possible (but we'd need to mock current_user)
+    # Replicating logic is safer.
+    
+    # 1. Summary Calculation
+    query = db.query(Invoice).filter(Invoice.status == "completed")
+    if shop_id:
+        query = query.filter(Invoice.shop_id == shop_id)
+    query = query.filter(
+        extract('month', Invoice.created_at) == month,
+        extract('year', Invoice.created_at) == year
+    )
+    invoices = query.all()
+    total_sales = sum(inv.total_amount for inv in invoices)
+    total_tax = sum(inv.tax_amount for inv in invoices)
+    net_taxable = sum(inv.subtotal for inv in invoices)
+    summary = TaxSummary(
+        total_sales=total_sales,
+        total_tax_collected=total_tax,
+        gst_amount=total_tax,
+        vat_amount=0.0,
+        net_taxable_value=net_taxable,
+        period_start=date(year, month, 1),
+        period_end=date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    )
+    
+    # 2. Breakdowns
     query = db.query(
         InvoiceItem.tax_percent,
         func.sum(InvoiceItem.subtotal).label('taxable_value'),

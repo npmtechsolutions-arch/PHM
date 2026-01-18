@@ -25,6 +25,7 @@ export default function StockAdjustment() {
 
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [batches, setBatches] = useState<Batch[]>([]);
+    const [batchesLoading, setBatchesLoading] = useState(false);
 
     // Form State
     const [selectedMedicine, setSelectedMedicine] = useState('');
@@ -35,14 +36,6 @@ export default function StockAdjustment() {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
-
-    // Enforce Context (even if backend is global, we want to simulate proper UX)
-    // Note: The backend currently allows global adjustment via batch ID. 
-    // In a future update, we should enforce warehouse/shop constraints.
-    useEffect(() => {
-        // If needed, we can restrict this page to specific roles or contexts
-        // for now, we allow access but warn if no context is active (though optional)
-    }, [activeEntity]);
 
     // Load Medicines on mount
     useEffect(() => {
@@ -56,6 +49,7 @@ export default function StockAdjustment() {
             setSelectedBatch('');
         } else {
             setBatches([]);
+            setBatchesLoading(false);
         }
     }, [selectedMedicine]);
 
@@ -69,14 +63,31 @@ export default function StockAdjustment() {
     };
 
     const loadBatches = async (medicineId: string) => {
+        setBatchesLoading(true);
         try {
+            console.log('Loading batches for medicine:', medicineId);
             const response = await medicinesApi.getBatches(medicineId);
+            console.log('Batches API response:', response.data);
             // API returns: { medicine_id: "...", batches: [...] }
             const batchesData = response.data?.batches || [];
+            console.log('Extracted batches:', batchesData);
             setBatches(batchesData);
-        } catch (error) {
+
+            if (batchesData.length === 0) {
+                setMessage({ type: 'error', text: 'No batches found for this medicine. Please add stock first.' });
+            } else {
+                // Clear any previous error messages
+                if (message.type === 'error' && message.text.includes('No batches')) {
+                    setMessage({ type: '', text: '' });
+                }
+            }
+        } catch (error: any) {
             console.error('Error loading batches:', error);
+            console.error('Error details:', error.response?.data);
             setBatches([]);
+            setMessage({ type: 'error', text: error.response?.data?.detail || 'Failed to load batches' });
+        } finally {
+            setBatchesLoading(false);
         }
     };
 
@@ -176,15 +187,17 @@ export default function StockAdjustment() {
                                 value={selectedBatch}
                                 onChange={(e) => setSelectedBatch(e.target.value)}
                                 required
-                                disabled={!selectedMedicine || batches.length === 0}
+                                disabled={!selectedMedicine || batchesLoading}
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                             >
                                 <option value="">
                                     {!selectedMedicine
                                         ? 'Select medicine first'
-                                        : batches.length === 0
-                                            ? 'No batches available'
-                                            : 'Select Batch'}
+                                        : batchesLoading
+                                            ? 'Loading batches...'
+                                            : batches.length === 0
+                                                ? 'No batches available'
+                                                : 'Select Batch'}
                                 </option>
                                 {batches.map(batch => (
                                     <option key={batch.id} value={batch.id}>
@@ -192,7 +205,7 @@ export default function StockAdjustment() {
                                     </option>
                                 ))}
                             </select>
-                            {selectedMedicine && batches.length === 0 && (
+                            {selectedMedicine && batches.length === 0 && !batchesLoading && (
                                 <p className="mt-2 text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1">
                                     <span className="material-symbols-outlined text-[16px]">info</span>
                                     No batches found for this medicine. Add stock first.

@@ -105,6 +105,8 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     is_active: Optional[bool] = None
     role_id: Optional[str] = None
+    assigned_warehouse_id: Optional[str] = None
+    assigned_shop_id: Optional[str] = None
 
 
 class UserResponse(UserBase):

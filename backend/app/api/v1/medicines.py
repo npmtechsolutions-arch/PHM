@@ -63,6 +63,7 @@ def list_medicines(
             "category": med.category,
             "mrp": med.mrp,
             "purchase_price": med.purchase_price,
+            "selling_price": med.selling_price,
             "gst_rate": med.gst_rate,
             "is_prescription_required": med.is_prescription_required,
             "total_stock": total_stock,
@@ -100,6 +101,7 @@ def get_medicine(
         "gst_rate": medicine.gst_rate,
         "mrp": medicine.mrp,
         "purchase_price": medicine.purchase_price,
+        "selling_price": medicine.selling_price,
         "is_prescription_required": medicine.is_prescription_required,
         "is_controlled": medicine.is_controlled,
         "storage_conditions": medicine.storage_conditions,
@@ -131,6 +133,7 @@ def create_medicine(
         gst_rate=medicine_data.gst_rate or 12.0,
         mrp=medicine_data.mrp,
         purchase_price=medicine_data.purchase_price,
+        selling_price=medicine_data.selling_price,
         is_prescription_required=medicine_data.is_prescription_required or False,
         is_controlled=medicine_data.is_controlled or False,
         storage_conditions=medicine_data.storage_conditions

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { warehousesApi, shopsApi } from '../services/api';
 
 export default function Header() {
     const [darkMode, setDarkMode] = useState(() => {
@@ -10,6 +11,8 @@ export default function Header() {
         return false;
     });
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [entityName, setEntityName] = useState<string>('');
+    const [entityType, setEntityType] = useState<'warehouse' | 'shop' | null>(null);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const { user, logout } = useUser();
@@ -23,6 +26,39 @@ export default function Header() {
             localStorage.setItem('theme', 'light');
         }
     }, [darkMode]);
+
+    // Fetch entity name when user changes
+    useEffect(() => {
+        const fetchEntityName = async () => {
+            if (!user) {
+                setEntityName('');
+                setEntityType(null);
+                return;
+            }
+
+            try {
+                if (user.shop_id) {
+                    const response = await shopsApi.get(user.shop_id);
+                    setEntityName(response.data.name || 'Unknown Shop');
+                    setEntityType('shop');
+                } else if (user.warehouse_id) {
+                    const response = await warehousesApi.get(user.warehouse_id);
+                    setEntityName(response.data.name || 'Unknown Warehouse');
+                    setEntityType('warehouse');
+                } else {
+                    // Super admin or unassigned
+                    setEntityName('');
+                    setEntityType(null);
+                }
+            } catch (error) {
+                console.error('Failed to fetch entity name:', error);
+                setEntityName('');
+                setEntityType(null);
+            }
+        };
+
+        fetchEntityName();
+    }, [user]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -78,7 +114,26 @@ export default function Header() {
     };
 
     return (
-        <header className="flex h-14 items-center justify-end border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 sticky top-0 z-10">
+        <header className="flex h-14 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 sticky top-0 z-10">
+            {/* Left: Entity Name */}
+            <div className="flex items-center gap-2">
+                {entityName && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800">
+                        <span className={`material-symbols-outlined text-[18px] ${entityType === 'shop' ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                            {entityType === 'shop' ? 'store' : 'warehouse'}
+                        </span>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold leading-none">
+                                {entityType === 'shop' ? 'Shop' : 'Warehouse'}
+                            </span>
+                            <span className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                                {entityName}
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
                 {/* Theme Toggle */}

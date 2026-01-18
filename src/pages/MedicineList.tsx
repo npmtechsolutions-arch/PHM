@@ -22,9 +22,10 @@ interface Medicine {
     unit?: string;
     pack_size?: number;
     hsn_code?: string;
-    gst_rate?: number;
+    gst_rate: number;
     mrp: number;
     purchase_price: number;
+    selling_price: number;
     total_stock: number;
     is_active: boolean;
     rack_number?: string;
@@ -104,28 +105,37 @@ export default function MedicineList() {
             )
         },
         {
-            header: 'Brand',
-            key: 'brand',
-            className: 'hidden md:table-cell',
-            render: (m) => <span className="font-medium text-slate-700 dark:text-slate-300">{m.brand || '-'}</span>
-        },
-        {
-            header: 'Manufacturer',
+            header: 'Mfg',
             key: 'manufacturer',
             className: 'hidden md:table-cell',
             render: (m) => <span className="text-slate-600 dark:text-slate-400 text-sm">{m.manufacturer}</span>
         },
         {
-            header: 'Type',
-            key: 'medicine_type',
-            className: 'hidden sm:table-cell',
-            render: (m) => <Badge variant="secondary" className="capitalize">{m.medicine_type}</Badge>
+            header: 'Purchase',
+            key: 'purchase_price',
+            align: 'right',
+            className: 'hidden lg:table-cell',
+            render: (m) => <span className="font-medium text-slate-700 dark:text-slate-300">₹{m.purchase_price?.toFixed(2)}</span>
         },
         {
             header: 'MRP',
             key: 'mrp',
             align: 'right',
-            render: (m) => <span className="font-medium text-slate-700 dark:text-slate-300">₹{m.mrp.toFixed(2)}</span>
+            className: 'hidden sm:table-cell',
+            render: (m) => <span className="text-slate-500 dark:text-slate-400 line-through text-xs mr-2">₹{m.mrp.toFixed(2)}</span>
+        },
+        {
+            header: 'Sale Value',
+            key: 'selling_price',
+            align: 'right',
+            render: (m) => <span className="font-bold text-slate-900 dark:text-white">₹{(m.selling_price || m.mrp).toFixed(2)}</span>
+        },
+        {
+            header: 'GST',
+            key: 'gst_rate',
+            align: 'center',
+            className: 'hidden xl:table-cell',
+            render: (m) => <Badge variant="secondary">{m.gst_rate}%</Badge>
         },
         {
             header: 'Stock',
@@ -141,6 +151,7 @@ export default function MedicineList() {
             header: 'Status',
             key: 'is_active',
             align: 'center',
+            className: 'hidden sm:table-cell',
             render: (m) => (
                 <Badge variant={m.is_active ? 'success' : 'secondary'}>
                     {m.is_active ? 'Active' : 'Inactive'}

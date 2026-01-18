@@ -46,7 +46,8 @@ class MedicineBase(BaseModel):
     hsn_code: Optional[str] = None
     gst_rate: float = 12.0
     mrp: float = Field(gt=0)
-    purchase_price: float = Field(ge=0, default=0)  # Allow 0
+    purchase_price: float = Field(ge=0, default=0)
+    selling_price: float = Field(ge=0, default=0.0) # Added Sale Value
     is_prescription_required: bool = False
     is_controlled: bool = False
     storage_conditions: Optional[str] = None
@@ -74,6 +75,7 @@ class MedicineUpdate(BaseModel):
     gst_rate: Optional[float] = None
     mrp: Optional[float] = None
     purchase_price: Optional[float] = None
+    selling_price: Optional[float] = None
     is_prescription_required: Optional[bool] = None
     is_controlled: Optional[bool] = None
     storage_conditions: Optional[str] = None

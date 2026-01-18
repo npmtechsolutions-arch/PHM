@@ -50,25 +50,34 @@ def list_users(
     """List all users with pagination - scoped by user's permissions"""
     query = db.query(User)
     
-    # Apply warehouse scope filtering for Warehouse Admin
+    # ENTITY ISOLATION ENFORCEMENT
     user_role = current_user.get("role")
-    print(f"DEBUG: list_users called by {user_role}. Filters: warehouse={current_user.get('warehouse_id')}, active={is_active}")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
     
+    # 1. Warehouse Admin Scope
     if user_role == "warehouse_admin":
-        # Warehouse Admin can only see users from their warehouse
-        warehouse_id = current_user.get("warehouse_id")
-        if warehouse_id:
-            query = query.filter(User.assigned_warehouse_id == warehouse_id)
+        if not user_warehouse_id:
+            return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(
+            (User.assigned_warehouse_id == user_warehouse_id) | 
+            (User.assigned_warehouse_id == None)
+        )
+        
+    # 2. Shop Scope (Owners/Managers)
+    elif user_role in ["shop_owner", "pharmacist", "pharmacy_admin"]:
+        if not user_shop_id:
+             return {"items": [], "total": 0, "page": page, "size": size}
+        query = query.filter(User.assigned_shop_id == user_shop_id)
+        
+    # 3. Regular Employees (Can only see themselves? Or their shop?)
+    # Usually regular employees shouldn't be listing users, but if they do, restrict to self or shop
+    elif user_role in ["cashier", "pharmacy_employee"]:
+        if user_shop_id:
+             query = query.filter(User.assigned_shop_id == user_shop_id)
         else:
-            # If no warehouse assigned, return empty list
-            return {
-                "items": [],
-                "total": 0,
-                "page": page,
-                "size": size
-            }
-    # Super Admin sees all users (no filter applied)
-    
+             query = query.filter(User.id == current_user.get("user_id"))
+
     # Only apply filter if explicitly provided
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
@@ -118,16 +127,11 @@ def create_user(
 ):
     """Create a new user with permission-based role assignment"""
     try:
-        print(f"=== USER CREATION START ===")
-        print(f"User data received: {user_data.model_dump()}")
-        print(f"Current user: {current_user}")
-        
         # Get current user's role and warehouse
         user_role = current_user.get("role") if isinstance(current_user, dict) else current_user.role
         user_warehouse_id = current_user.get("warehouse_id") if isinstance(current_user, dict) else current_user.warehouse_id
+        user_shop_id = current_user.get("shop_id") if isinstance(current_user, dict) else current_user.shop_id
         
-        print(f"User role: {user_role}, Warehouse ID: {user_warehouse_id}")
-    
         # Determine the role to assign
         role = None
         if user_data.role_id:
@@ -143,70 +147,54 @@ def create_user(
             
             # Warehouse Admin restrictions
             if user_role == "warehouse_admin":
-                # Cannot assign warehouse_admin or super_admin roles
                 if role.name in ["warehouse_admin", "super_admin"]:
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"You cannot assign '{role.name}' role. Contact Super Admin."
-                    )
-                # Cannot assign shop-level roles
+                    raise HTTPException(status_code=403, detail=f"You cannot assign '{role.name}' role.")
                 if role.entity_type == "shop":
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Warehouse Admin cannot assign shop-level roles. Contact Super Admin."
-                    )
-                    
-        elif user_data.role:
-            # Legacy approach: role sent as string name
-            role_name = user_data.role
+                     # Maybe Warehouse Admin CAN create shop users? Usually not. Assuming strict.
+                    raise HTTPException(status_code=403, detail="Warehouse Admin cannot assign shop-level roles.")
             
-            # Validate against RoleType enum values
+            # Shop Owner restrictions
+            if user_role in ["shop_owner", "pharmacy_admin"]:
+                 if role.entity_type != "shop":
+                      raise HTTPException(status_code=403, detail="You can only create shop-level users")
+        
+        elif user_data.role:
+            # Legacy approach
+            role_name = user_data.role
             valid_roles = [r.value for r in RoleType]
             if role_name not in valid_roles:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
-                )
+                raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
             
-            # Prevent super_admin creation via API
             if role_name == RoleType.SUPER_ADMIN.value:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Super Admin cannot be created through the API. Contact system administrator."
-                )
+                raise HTTPException(status_code=403, detail="Super Admin cannot be created through the API.")
             
-            # Find the role in database
             role = db.query(Role).filter(Role.name == role_name).first()
-            
-            # Convert string to RoleType enum for database storage
             try:
                 role_enum = RoleType(role_name)
             except ValueError:
                 role_enum = None
         
+        # Enforce Entity Assignment
+        
         # Warehouse Admin must assign users to their own warehouse
         if user_role == "warehouse_admin":
             if not user_warehouse_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Warehouse Admin must be assigned to a warehouse"
-                )
-            # Force the new user to be assigned to the same warehouse
+                raise HTTPException(status_code=400, detail="Warehouse Admin must be assigned to a warehouse")
             user_data.assigned_warehouse_id = user_warehouse_id
+            
+        # Shop Owner must assign users to their own shop
+        if user_role in ["shop_owner", "pharmacy_admin"]:
+            if not user_shop_id:
+                raise HTTPException(status_code=400, detail="Shop Admin must be assigned to a shop")
+            user_data.assigned_shop_id = user_shop_id
         
-        # Validate entity assignment based on role entity_type
+        # Validate entity assignment based on role entity_type (General check)
         if role and role.entity_type == "warehouse":
             if not user_data.assigned_warehouse_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Role '{role.name}' requires assignment to a warehouse"
-                )
+                raise HTTPException(status_code=400, detail=f"Role '{role.name}' requires assignment to a warehouse")
         elif role and role.entity_type == "shop":
             if not user_data.assigned_shop_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Role '{role.name}' requires assignment to a medical shop"
-                )
+                raise HTTPException(status_code=400, detail=f"Role '{role.name}' requires assignment to a medical shop")
         
         # Check if email exists
         existing = db.query(User).filter(User.email == user_data.email).first()
@@ -216,7 +204,6 @@ def create_user(
         # Determine the role enum value for legacy field
         role_enum_value = None
         if user_data.role:
-            # role_enum was set in the elif block above
             role_enum_value = role_enum if 'role_enum' in locals() else None
         
         user = User(
@@ -224,8 +211,8 @@ def create_user(
             password_hash=get_password_hash(user_data.password),
             full_name=user_data.full_name,
             phone=user_data.phone,
-            role=role_enum_value,  # Legacy enum field
-            role_id=role.id if role else None,  # New FK
+            role=role_enum_value,
+            role_id=role.id if role else None,
             assigned_warehouse_id=user_data.assigned_warehouse_id if user_data.assigned_warehouse_id else None,
             assigned_shop_id=user_data.assigned_shop_id if user_data.assigned_shop_id else None,
             is_active=True
@@ -234,8 +221,6 @@ def create_user(
         db.add(user)
         db.commit()
         db.refresh(user)
-        
-        logger.info(f"User created successfully: {user.id}")
         
         return APIResponse(
             message="User created successfully",
@@ -250,10 +235,8 @@ def create_user(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating user: {str(e)}")
-        print(f"Error type: {type(e)}")
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")
+        logger.error(f"Error creating user: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -268,6 +251,30 @@ def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # PERMISSION CHECK
+    current_user_id = current_user.get("user_id")
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    # 1. Self Access (Always Allowed)
+    if current_user_id == user_id:
+        pass
+    # 2. Super Admin (Always Allowed)
+    elif user_role == "super_admin":
+        pass
+    # 3. Warehouse Admin (Allowed if user in same warehouse)
+    elif user_role == "warehouse_admin":
+        if user.assigned_warehouse_id != user_warehouse_id:
+             raise HTTPException(status_code=403, detail="Access denied to users outside your warehouse")
+    # 4. Shop Owner/Admin (Allowed if user in same shop)
+    elif user_role in ["shop_owner", "pharmacy_admin", "pharmacist"]:
+         if user.assigned_shop_id != user_shop_id:
+             raise HTTPException(status_code=403, detail="Access denied to users outside your shop")
+    # 5. Others (Denied)
+    else:
+        raise HTTPException(status_code=403, detail="Access denied to user details")
+            
     return {
         "id": user.id,
         "email": user.email,
@@ -327,6 +334,9 @@ def update_user(
         if field == "password" and value:
             setattr(user, "password_hash", get_password_hash(value))
         elif field not in ["password", "role_id"]:  # role_id already handled above
+            # Convert empty strings to None for foreign key fields to avoid constraint violations
+            if field in ["assigned_warehouse_id", "assigned_shop_id"] and value == "":
+                value = None
             setattr(user, field, value)
     
     db.commit()

@@ -61,6 +61,13 @@ def get_stock_movements(
             ((StockMovement.source_type == "warehouse") & (StockMovement.source_id == wh_id)) |
             ((StockMovement.destination_type == "warehouse") & (StockMovement.destination_id == wh_id))
         )
+        
+    if current_user["role"] in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"] and current_user.get("shop_id"):
+        shop_id = current_user["shop_id"]
+        query = query.filter(
+            ((StockMovement.source_type == "shop") & (StockMovement.source_id == shop_id)) |
+            ((StockMovement.destination_type == "shop") & (StockMovement.destination_id == shop_id))
+        )
 
     if movement_type:
         query = query.filter(StockMovement.movement_type == movement_type)
@@ -273,75 +280,205 @@ def get_stock_alerts(
     current_user: dict = Depends(get_current_user)
 ):
     """Get stock alerts (low stock, expiring, expired)"""
+    # Import necessary models
+    from app.db.models import WarehouseStock, ShopStock
+    
     today = date.today()
     expiry_warning_days = 60
     low_stock_threshold = 50
     
     alerts = []
+    user_role = current_user.get("role")
     
-    # Get low stock items
-    if not alert_type or alert_type == "low_stock":
-        batches = db.query(Batch).join(Medicine).filter(
-            Batch.quantity <= low_stock_threshold,
-            Batch.quantity > 0,
-            Batch.expiry_date > today
-        ).all()
+    # === STRATEGY SELECTION ===
+    # 1. Shop Owner or Employee -> Check ShopStock
+    if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin"]:
+        shop_id = current_user.get("shop_id")
+        if not shop_id:
+             return {"alerts": [], "total": 0} # No assigned shop
+             
+        # Low Stock
+        if not alert_type or alert_type == "low_stock":
+             stocks = db.query(ShopStock).filter(
+                 ShopStock.shop_id == shop_id,
+                 ShopStock.quantity <= low_stock_threshold,
+                 ShopStock.quantity > 0
+             ).all()
+             for s in stocks:
+                 med = db.query(Medicine).filter(Medicine.id == s.medicine_id).first()
+                 batch = db.query(Batch).filter(Batch.id == s.batch_id).first()
+                 if batch and batch.expiry_date > today:
+                     alerts.append({
+                         "id": f"low_{s.id}",
+                         "type": "low_stock",
+                         "medicine_name": med.name if med else "Unknown",
+                         "batch_number": batch.batch_number if batch else "Unknown",
+                         "current_quantity": s.quantity,
+                         "threshold": low_stock_threshold,
+                         "created_at": today # placeholder
+                     })
+                     
+        # Expiring/Expired (Check Batch Dates linked to ShopStock)
+        if not alert_type or alert_type in ["expiring", "expired"]:
+             stocks = db.query(ShopStock).filter(ShopStock.shop_id == shop_id, ShopStock.quantity > 0).all()
+             for s in stocks:
+                 batch = db.query(Batch).filter(Batch.id == s.batch_id).first()
+                 if not batch: continue
+                 
+                 med = db.query(Medicine).filter(Medicine.id == s.medicine_id).first()
+                 days_to_expiry = (batch.expiry_date - today).days
+                 
+                 is_expiring = 0 <= days_to_expiry <= expiry_warning_days
+                 is_expired = days_to_expiry < 0
+                 
+                 if (alert_type == "expiring" or not alert_type) and is_expiring:
+                      alerts.append({
+                         "id": f"exp_{s.id}",
+                         "type": "expiring",
+                         "medicine_name": med.name if med else "Unknown",
+                         "batch_number": batch.batch_number,
+                         "expiry_date": batch.expiry_date.isoformat(),
+                         "days_to_expiry": days_to_expiry,
+                         "quantity": s.quantity,
+                         "created_at": today
+                     })
+                 elif (alert_type == "expired" or not alert_type) and is_expired:
+                      alerts.append({
+                         "id": f"expd_{s.id}",
+                         "type": "expired",
+                         "medicine_name": med.name if med else "Unknown",
+                         "batch_number": batch.batch_number,
+                         "quantity": s.quantity,
+                         "created_at": today
+                     })
+
+    # 2. Warehouse Admin -> Check WarehouseStock
+    elif user_role == "warehouse_admin":
+        wh_id = current_user.get("warehouse_id")
+        if not wh_id:
+             return {"alerts": [], "total": 0}
+             
+        # Low Stock
+        if not alert_type or alert_type == "low_stock":
+             stocks = db.query(WarehouseStock).filter(
+                 WarehouseStock.warehouse_id == wh_id,
+                 WarehouseStock.quantity <= low_stock_threshold,
+                 WarehouseStock.quantity > 0
+             ).all()
+             for s in stocks:
+                 med = db.query(Medicine).filter(Medicine.id == s.medicine_id).first()
+                 batch = db.query(Batch).filter(Batch.id == s.batch_id).first()
+                 if batch and batch.expiry_date > today:
+                     alerts.append({
+                         "id": f"low_{s.id}",
+                         "type": "low_stock",
+                         "medicine_name": med.name if med else "Unknown",
+                         "batch_number": batch.batch_number if batch else "Unknown",
+                         "current_quantity": s.quantity,
+                         "threshold": low_stock_threshold,
+                         "created_at": today
+                     })
+                     
+        # Expiring/Expired (Check Batch Dates linked to WarehouseStock)
+        if not alert_type or alert_type in ["expiring", "expired"]:
+             stocks = db.query(WarehouseStock).filter(WarehouseStock.warehouse_id == wh_id, WarehouseStock.quantity > 0).all()
+             for s in stocks:
+                 batch = db.query(Batch).filter(Batch.id == s.batch_id).first()
+                 if not batch: continue
+                 
+                 med = db.query(Medicine).filter(Medicine.id == s.medicine_id).first()
+                 days_to_expiry = (batch.expiry_date - today).days
+                 
+                 is_expiring = 0 <= days_to_expiry <= expiry_warning_days
+                 is_expired = days_to_expiry < 0
+                 
+                 if (alert_type == "expiring" or not alert_type) and is_expiring:
+                      alerts.append({
+                         "id": f"exp_{s.id}",
+                         "type": "expiring",
+                         "medicine_name": med.name if med else "Unknown",
+                         "batch_number": batch.batch_number,
+                         "expiry_date": batch.expiry_date.isoformat(),
+                         "days_to_expiry": days_to_expiry,
+                         "quantity": s.quantity,
+                         "created_at": today
+                     })
+                 elif (alert_type == "expired" or not alert_type) and is_expired:
+                      alerts.append({
+                         "id": f"expd_{s.id}",
+                         "type": "expired",
+                         "medicine_name": med.name if med else "Unknown",
+                         "batch_number": batch.batch_number,
+                         "quantity": s.quantity,
+                         "created_at": today
+                     })
+
+    # 3. Super Admin -> Global Check (fallback to Batch if desired, or check all WarehouseStock? 
+    # Usually global Batch quantity is sufficient for Super Admin if it tracks total)
+    else:
+        # Get low stock items
+        if not alert_type or alert_type == "low_stock":
+            batches = db.query(Batch).join(Medicine).filter(
+                Batch.quantity <= low_stock_threshold,
+                Batch.quantity > 0,
+                Batch.expiry_date > today
+            ).all()
+            
+            for batch in batches:
+                medicine = db.query(Medicine).filter(Medicine.id == batch.medicine_id).first()
+                alerts.append({
+                    "id": f"low_{batch.id}",
+                    "type": "low_stock",
+                    "medicine_id": batch.medicine_id,
+                    "medicine_name": medicine.name if medicine else "Unknown",
+                    "batch_number": batch.batch_number,
+                    "current_quantity": batch.quantity,
+                    "threshold": low_stock_threshold,
+                    "created_at": batch.created_at
+                })
         
-        for batch in batches:
-            medicine = db.query(Medicine).filter(Medicine.id == batch.medicine_id).first()
-            alerts.append({
-                "id": f"low_{batch.id}",
-                "type": "low_stock",
-                "medicine_id": batch.medicine_id,
-                "medicine_name": medicine.name if medicine else "Unknown",
-                "batch_number": batch.batch_number,
-                "current_quantity": batch.quantity,
-                "threshold": low_stock_threshold,
-                "created_at": batch.created_at
-            })
-    
-    # Get expiring items
-    if not alert_type or alert_type == "expiring":
-        future_date = today + timedelta(days=expiry_warning_days)
-        batches = db.query(Batch).join(Medicine).filter(
-            Batch.expiry_date >= today,
-            Batch.expiry_date <= future_date,
-            Batch.quantity > 0
-        ).all()
+        # Get expiring items
+        if not alert_type or alert_type == "expiring":
+            future_date = today + timedelta(days=expiry_warning_days)
+            batches = db.query(Batch).join(Medicine).filter(
+                Batch.expiry_date >= today,
+                Batch.expiry_date <= future_date,
+                Batch.quantity > 0
+            ).all()
+            
+            for batch in batches:
+                medicine = db.query(Medicine).filter(Medicine.id == batch.medicine_id).first()
+                days_to_expiry = (batch.expiry_date - today).days if batch.expiry_date else 0
+                alerts.append({
+                    "id": f"exp_{batch.id}",
+                    "type": "expiring",
+                    "medicine_id": batch.medicine_id,
+                    "medicine_name": medicine.name if medicine else "Unknown",
+                    "batch_number": batch.batch_number,
+                    "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
+                    "days_to_expiry": days_to_expiry,
+                    "quantity": batch.quantity,
+                    "created_at": batch.created_at
+                })
         
-        for batch in batches:
-            medicine = db.query(Medicine).filter(Medicine.id == batch.medicine_id).first()
-            days_to_expiry = (batch.expiry_date - today).days if batch.expiry_date else 0
-            alerts.append({
-                "id": f"exp_{batch.id}",
-                "type": "expiring",
-                "medicine_id": batch.medicine_id,
-                "medicine_name": medicine.name if medicine else "Unknown",
-                "batch_number": batch.batch_number,
-                "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
-                "days_to_expiry": days_to_expiry,
-                "quantity": batch.quantity,
-                "created_at": batch.created_at
-            })
-    
-    # Get expired items
-    if not alert_type or alert_type == "expired":
-        batches = db.query(Batch).join(Medicine).filter(
-            Batch.expiry_date < today,
-            Batch.quantity > 0
-        ).all()
-        
-        for batch in batches:
-            medicine = db.query(Medicine).filter(Medicine.id == batch.medicine_id).first()
-            alerts.append({
-                "id": f"expd_{batch.id}",
-                "type": "expired",
-                "medicine_id": batch.medicine_id,
-                "medicine_name": medicine.name if medicine else "Unknown",
-                "batch_number": batch.batch_number,
-                "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
-                "quantity": batch.quantity,
-                "created_at": batch.created_at
-            })
+        # Get expired items
+        if not alert_type or alert_type == "expired":
+            batches = db.query(Batch).join(Medicine).filter(
+                Batch.expiry_date < today,
+                Batch.quantity > 0
+            ).all()
+            
+            for batch in batches:
+                medicine = db.query(Medicine).filter(Medicine.id == batch.medicine_id).first()
+                alerts.append({
+                    "id": f"expd_{batch.id}",
+                    "type": "expired",
+                    "medicine_id": batch.medicine_id,
+                    "medicine_name": medicine.name if medicine else "Unknown",
+                    "batch_number": batch.batch_number,
+                    "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
+                    "quantity": batch.quantity,
+                    "created_at": batch.created_at
+                })
     
     return {"alerts": alerts, "total": len(alerts)}

@@ -1,0 +1,16 @@
+Sending Payload to /shops:
+{
+  "name": "Test Shop Debug 3",
+  "code": "DBG003",
+  "shop_type": "retail",
+  "license_number": "LIC-12345",
+  "address": "",
+  "city": "Chennai",
+  "state": "Tamil Nadu",
+  "pincode": "",
+  "phone": "",
+  "warehouse_id": "c71855e2-a815-4bac-949e-dee4987cb9f4"
+}
+
+Status Code: 200
+Response Body: {"success":true,"message":"Shop created successfully","data":{"id":"188b688c-0f03-4038-8c09-952cd25694fb"}}

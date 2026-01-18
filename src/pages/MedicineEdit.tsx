@@ -28,6 +28,7 @@ export default function MedicineEdit() {
         gst_rate: 12,
         mrp: 0,
         purchase_price: 0,
+        selling_price: 0,
         is_prescription_required: false,
         is_controlled: false,
         storage_conditions: '',
@@ -64,6 +65,7 @@ export default function MedicineEdit() {
                 gst_rate: data.gst_rate || 12,
                 mrp: data.mrp || 0,
                 purchase_price: data.purchase_price || 0,
+                selling_price: data.selling_price || 0,
                 is_prescription_required: data.is_prescription_required || false,
                 is_controlled: data.is_controlled || false,
                 storage_conditions: data.storage_conditions || '',
@@ -231,6 +233,14 @@ export default function MedicineEdit() {
                                     step="0.01"
                                     value={formData.purchase_price}
                                     onChange={(e) => setFormData({ ...formData, purchase_price: parseFloat(e.target.value) || 0 })}
+                                    min="0"
+                                />
+                                <Input
+                                    label="Sale Value (₹)"
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.selling_price}
+                                    onChange={(e) => setFormData({ ...formData, selling_price: parseFloat(e.target.value) || 0 })}
                                     min="0"
                                 />
                                 <div>

@@ -1,0 +1,35 @@
+﻿python : Traceback (most 
+recent call last):
+At line:1 char:1
++ python test_login.py 2>&1 
+| Out-File -FilePath 
+test_login_result.txt  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (Traceba  
+  ck (most recent call las   
+ t)::String) [], RemoteEx    
+ception
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+  File "C:\github\phm\backend
+\test_login.py", line 96, in 
+<module>
+    print("\n\U0001f510 
+Backend Login Test Script")
+  File "C:\Users\dpdhi\AppDat
+a\Local\Programs\Python\Pytho
+n311\Lib\encodings\cp1252.py"
+, line 19, in encode
+    return codecs.charmap_enc
+ode(input,self.errors,encodin
+g_table)[0]
+           ^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^
+UnicodeEncodeError: 
+'charmap' codec can't encode 
+character '\U0001f510' in 
+position 2: character maps 
+to <undefined>
