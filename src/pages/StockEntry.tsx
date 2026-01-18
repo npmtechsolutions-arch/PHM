@@ -18,6 +18,7 @@ interface Medicine {
     brand?: string;
     mrp: number;
     purchase_price: number;
+    selling_price?: number;
 }
 
 interface Batch {

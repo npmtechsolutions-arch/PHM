@@ -41,9 +41,13 @@ interface CartItem {
 interface Invoice {
     id: string;
     invoice_number: string;
-    customer_name: string;
+    customer_name?: string;
     total_amount: number;
     created_at: string;
+    customer_id?: string;
+    payment_method?: string;
+    paid_amount?: number;
+    balance_amount?: number;
 }
 
 interface Customer {
@@ -58,7 +62,7 @@ interface Customer {
 export default function POSBilling() {
     const navigate = useNavigate();
     const { activeEntity } = useOperationalContext();
-    const { getMaster, isLoading: mastersLoading } = useMasterData();
+    const { isLoading: mastersLoading } = useMasterData();
 
     // Enforce Shop Context
     useEffect(() => {
@@ -453,11 +457,7 @@ export default function POSBilling() {
         } finally { setLoading(false); }
     };
 
-    const handleNewSale = () => {
-        setShowReceipt(false);
-        setLastInvoice(null);
-        searchRef.current?.focus();
-    };
+
 
     return (
         <div className="flex h-[calc(100vh-120px)] gap-6">

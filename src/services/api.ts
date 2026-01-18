@@ -201,11 +201,14 @@ export const inventoryApi = {
 
     // Stock Entry - creates batch implicitly
     stockEntry: (data: {
-        warehouse_id: string;
+        warehouse_id?: string;
+        shop_id?: string;
         medicine_id: string;
         batch_number: string;
         expiry_date: string;
         quantity: number;
+        purchase_price: number;
+        selling_price: number;
         rack_name?: string;
         rack_number?: string;
     }) => api.post('/stock/entry', data),
@@ -252,6 +255,9 @@ export const invoicesApi = {
     create: (data: any) => api.post('/invoices', data),
 
     getItems: (id: string) => api.get(`/invoices/${id}/items`),
+
+    getReturns: (params?: { page?: number; size?: number; shop_id?: string; status?: string }) =>
+        api.get('/invoices/returns', { params }),
 
     processReturn: (id: string, data: any) => api.post(`/invoices/${id}/returns`, data),
 };

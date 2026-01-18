@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dispatchesApi } from '../services/api';
 import { useOperationalContext } from '../contexts/OperationalContext';
-import UniversalListPage from '../components/UniversalListPage';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 
