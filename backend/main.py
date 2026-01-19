@@ -51,17 +51,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors()},
     )
 
-# CORS Configuration - Allow frontend origins
+# CORS Configuration - Allow all origins (temporary for testing)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://pmsmdu.netlify.app",
-        "https://www.pmsmdu.netlify.app",
-        "https://pms.npmtech.in",
-        "https://phm-r3th.onrender.com",
-    ],
+    allow_origin_regex=".*",  # Allow all origins temporarily
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -115,4 +108,4 @@ if __name__ == "__main__":
     import os
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False, proxy_headers=True, forwarded_allow_ips="*")
