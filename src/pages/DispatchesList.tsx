@@ -31,14 +31,14 @@ export default function DispatchesList() {
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(15);
 
     // Action state
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchDispatches();
-    }, [currentPage, search, statusFilter]);
+    }, [currentPage, pageSize, search, statusFilter]);
 
     const fetchDispatches = async () => {
         try {
@@ -228,7 +228,8 @@ export default function DispatchesList() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

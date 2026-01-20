@@ -78,7 +78,7 @@ export default function EmployeesList() {
     const [deptFilter, setDeptFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(15);
 
     // Modal states
     const [showModal, setShowModal] = useState(false);
@@ -97,7 +97,7 @@ export default function EmployeesList() {
 
     useEffect(() => {
         fetchEmployees();
-    }, [deptFilter, currentPage, search, statusFilter]);
+    }, [deptFilter, currentPage, pageSize, search, statusFilter]);
 
     const fetchEmployees = async () => {
         try {
@@ -382,7 +382,8 @@ export default function EmployeesList() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

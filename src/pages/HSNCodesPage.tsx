@@ -33,6 +33,9 @@ export default function HSNCodesPage() {
     const { getMaster, isLoading: mastersLoading } = useMasterData();
     const gstSlabs = getMaster('gst_slabs');
 
+    // Debug log to identify why GST slabs might not be loading
+    console.log('GST Slabs Debug:', { mastersLoading, gstSlabs, count: gstSlabs?.length });
+
     const [hsnCodes, setHsnCodes] = useState<HSN[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -49,7 +52,7 @@ export default function HSNCodesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const pageSize = 15;
+    const [pageSize, setPageSize] = useState(15);
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
@@ -255,7 +258,8 @@ export default function HSNCodesPage() {
                     totalPages: Math.ceil(filtered.length / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: filtered.length,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls
@@ -293,7 +297,9 @@ export default function HSNCodesPage() {
                             >
                                 <option value="">Select GST Slab</option>
                                 {gstSlabs.map((slab: any) => (
-                                    <option key={slab.id} value={slab.id}>{slab.rate}% - {slab.description}</option>
+                                    <option key={slab.id} value={slab.id}>
+                                        {slab.rate}% GST{slab.description ? ` - ${slab.description}` : ''}
+                                    </option>
                                 ))}
                             </select>
                         </div>

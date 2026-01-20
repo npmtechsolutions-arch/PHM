@@ -1,0 +1,85 @@
+
+============================================================
+                 Backend API & CORS Testing                 
+============================================================
+
+
+============================================================
+                  1. Health Check Endpoint                  
+============================================================
+
+[ERROR] Health check failed: 404 - {'detail': 'Not Found'}
+
+============================================================
+          2. CORS Preflight Test (Login Endpoint)           
+============================================================
+
+CORS Headers for http://localhost:5173:
+  Access-Control-Allow-Origin: http://localhost:5173
+  Access-Control-Allow-Methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Allow-Credentials: true
+[SUCCESS] CORS enabled for origin: http://localhost:5173
+
+============================================================
+          3. Actual Login Test (admin@example.com)          
+============================================================
+
+Login Status Code: 401
+[ERROR] Login failed with status: 401
+Response: {"detail":"Invalid email or password"}
+[SUCCESS] CORS Header: http://localhost:5173
+
+============================================================
+                5. Multiple Origin CORS Test                
+============================================================
+
+
+Testing origin: http://localhost:5173
+CORS Headers for http://localhost:5173:
+  Access-Control-Allow-Origin: http://localhost:5173
+  Access-Control-Allow-Methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Allow-Credentials: true
+[SUCCESS] CORS enabled for origin: http://localhost:5173
+
+Testing origin: http://localhost:3000
+CORS Headers for http://localhost:3000:
+  Access-Control-Allow-Origin: http://localhost:3000
+  Access-Control-Allow-Methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Allow-Credentials: true
+[SUCCESS] CORS enabled for origin: http://localhost:3000
+
+Testing origin: https://pmsmdu.netlify.app
+CORS Headers for https://pmsmdu.netlify.app:
+  Access-Control-Allow-Origin: https://pmsmdu.netlify.app
+  Access-Control-Allow-Methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Allow-Credentials: true
+[SUCCESS] CORS enabled for origin: https://pmsmdu.netlify.app
+
+Testing origin: https://pms.npmtech.in
+CORS Headers for https://pms.npmtech.in:
+  Access-Control-Allow-Origin: https://pms.npmtech.in
+  Access-Control-Allow-Methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Allow-Credentials: true
+[SUCCESS] CORS enabled for origin: https://pms.npmtech.in
+
+Testing origin: https://random-domain.com
+CORS Headers for https://random-domain.com:
+  Access-Control-Allow-Origin: https://random-domain.com
+  Access-Control-Allow-Methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Allow-Credentials: true
+[SUCCESS] CORS enabled for origin: https://random-domain.com
+
+============================================================
+                        Test Summary                        
+============================================================
+
+Backend URL: https://host.app.npmtech.in
+API Base: https://host.app.npmtech.in/api/v1
+[SUCCESS] All tests completed!
+

@@ -34,7 +34,7 @@ export default function CustomersList() {
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageSize = 15;
+    const [pageSize, setPageSize] = useState(15);
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
@@ -50,7 +50,7 @@ export default function CustomersList() {
 
     useEffect(() => {
         fetchCustomers();
-    }, [currentPage, search]);
+    }, [currentPage, pageSize, search]);
 
     const fetchCustomers = async () => {
         try {
@@ -227,7 +227,8 @@ export default function CustomersList() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

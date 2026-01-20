@@ -31,6 +31,8 @@ interface PaginationProps {
     totalItems: number;
     pageSize: number;
     onPageChange: (page: number) => void;
+    onPageSizeChange?: (size: number) => void;
+    pageSizeOptions?: number[];
 }
 
 interface TableProps<T> {
@@ -164,23 +166,95 @@ export default function Table<T extends Record<string, any>>({
 
             {/* Pagination Footer */}
             {pagination && !loading && !error && data.length > 0 && (
-                <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 px-4 py-3 flex items-center justify-between">
-                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                        Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.pageSize + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)}</span> of <span className="font-medium">{pagination.totalItems}</span>
+                <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                    {/* Left side: Items info and page size selector */}
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
+                            Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.pageSize + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)}</span> of <span className="font-medium">{pagination.totalItems}</span>
+                        </div>
+                        {pagination.onPageSizeChange && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-500 dark:text-slate-400">Show:</span>
+                                <select
+                                    value={pagination.pageSize}
+                                    onChange={(e) => pagination.onPageSizeChange?.(Number(e.target.value))}
+                                    className="px-2 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    {(pagination.pageSizeOptions || [10, 15, 25, 50]).map((size) => (
+                                        <option key={size} value={size}>{size}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Right side: Page navigation */}
+                    <div className="flex items-center gap-1">
+                        {/* Previous button */}
                         <button
                             onClick={() => pagination.onPageChange(Math.max(1, pagination.currentPage - 1))}
                             disabled={pagination.currentPage === 1}
-                            className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                            className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent transition-all"
                             title="Previous Page"
                         >
                             <span className="material-symbols-outlined text-[20px]">chevron_left</span>
                         </button>
+
+                        {/* Page number buttons */}
+                        {(() => {
+                            const { currentPage, totalPages } = pagination;
+                            const pages: (number | string)[] = [];
+
+                            if (totalPages <= 7) {
+                                // Show all pages if 7 or less
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                // Always show first page
+                                pages.push(1);
+
+                                if (currentPage > 3) {
+                                    pages.push('...');
+                                }
+
+                                // Pages around current
+                                const start = Math.max(2, currentPage - 1);
+                                const end = Math.min(totalPages - 1, currentPage + 1);
+
+                                for (let i = start; i <= end; i++) {
+                                    if (!pages.includes(i)) pages.push(i);
+                                }
+
+                                if (currentPage < totalPages - 2) {
+                                    pages.push('...');
+                                }
+
+                                // Always show last page
+                                if (!pages.includes(totalPages)) pages.push(totalPages);
+                            }
+
+                            return pages.map((page, idx) => (
+                                page === '...' ? (
+                                    <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>
+                                ) : (
+                                    <button
+                                        key={page}
+                                        onClick={() => pagination.onPageChange(page as number)}
+                                        className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-all ${currentPage === page
+                                                ? 'bg-blue-600 text-white shadow-sm'
+                                                : 'hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent hover:border-slate-200 dark:hover:border-slate-700'
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
+                                )
+                            ));
+                        })()}
+
+                        {/* Next button */}
                         <button
                             onClick={() => pagination.onPageChange(Math.min(pagination.totalPages, pagination.currentPage + 1))}
                             disabled={pagination.currentPage === pagination.totalPages}
-                            className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                            className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent transition-all"
                             title="Next Page"
                         >
                             <span className="material-symbols-outlined text-[20px]">chevron_right</span>

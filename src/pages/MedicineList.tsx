@@ -45,11 +45,11 @@ export default function MedicineList() {
     const [categoryFilter, setCategoryFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageSize = 15;
+    const [pageSize, setPageSize] = useState(15);
 
     useEffect(() => {
         fetchMedicines();
-    }, [currentPage, search, categoryFilter]);
+    }, [currentPage, pageSize, search, categoryFilter]);
 
     const fetchMedicines = async () => {
         try {
@@ -232,7 +232,8 @@ export default function MedicineList() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

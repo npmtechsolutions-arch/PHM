@@ -73,7 +73,7 @@ export default function SalaryManagement() {
     const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
-    const pageSize = 15;
+    const [pageSize, setPageSize] = useState(15);
 
     useEffect(() => {
         loadEmployees();
@@ -403,7 +403,8 @@ export default function SalaryManagement() {
                     totalPages: Math.ceil(filteredBreakdowns.length / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: filteredBreakdowns.length,
-                    pageSize
+                    pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

@@ -54,7 +54,7 @@ export default function InventoryPage() {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageSize = 20;
+    const [pageSize, setPageSize] = useState(20);
 
     useEffect(() => {
         if (viewMode === 'stock') {
@@ -62,7 +62,7 @@ export default function InventoryPage() {
         } else {
             fetchMovements();
         }
-    }, [viewMode, currentPage, selectedWarehouseId, movementType, searchQuery, activeEntity]);
+    }, [viewMode, currentPage, pageSize, selectedWarehouseId, movementType, searchQuery, activeEntity]);
 
     const fetchStock = async () => {
         setLoading(true);
@@ -335,7 +335,8 @@ export default function InventoryPage() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

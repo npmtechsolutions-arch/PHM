@@ -38,7 +38,7 @@ export default function PurchaseRequestsList() {
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(15);
 
     // Create/Edit State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -53,7 +53,7 @@ export default function PurchaseRequestsList() {
 
     useEffect(() => {
         fetchRequests();
-    }, [currentPage, search, statusFilter]);
+    }, [currentPage, pageSize, search, statusFilter]);
 
     // Load medicines for create modal
     useEffect(() => {
@@ -315,7 +315,8 @@ export default function PurchaseRequestsList() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

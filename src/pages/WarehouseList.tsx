@@ -39,7 +39,7 @@ export default function WarehouseList() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [activeCount, setActiveCount] = useState(0); // For KPI
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(15);
 
     // View details modal
     const [viewingWarehouse, setViewingWarehouse] = useState<Warehouse | null>(null);
@@ -49,7 +49,7 @@ export default function WarehouseList() {
     useEffect(() => {
         fetchWarehouses();
         fetchStats();
-    }, [currentPage, search, statusFilter]);
+    }, [currentPage, pageSize, search, statusFilter]);
 
     const fetchStats = async () => {
         try {
@@ -251,7 +251,8 @@ export default function WarehouseList() {
                     totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: totalItems,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

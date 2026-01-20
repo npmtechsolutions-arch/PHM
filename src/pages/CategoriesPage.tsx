@@ -37,7 +37,7 @@ export default function CategoriesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const pageSize = 15;
+    const [pageSize, setPageSize] = useState(15);
     const [currentPage, setCurrentPage] = useState(1);
 
     // Access Control: Check permission
@@ -246,7 +246,8 @@ export default function CategoriesPage() {
                     totalPages: Math.ceil(filtered.length / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: filtered.length,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls

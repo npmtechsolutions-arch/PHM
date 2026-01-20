@@ -36,6 +36,11 @@ export default function UsersList() {
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
     const [roleFilter, setRoleFilter] = useState<string>('all');
 
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [pageSize, setPageSize] = useState(15);
+
     const [formData, setFormData] = useState({
         email: '',
         full_name: '',
@@ -55,7 +60,7 @@ export default function UsersList() {
     useEffect(() => {
         fetchUsers();
         fetchEntities();
-    }, [statusFilter, roleFilter]); // Re-fetch when filters change
+    }, [statusFilter, roleFilter, currentPage, pageSize]); // Re-fetch when filters or pagination change
 
     const fetchEntities = async () => {
         try {
@@ -78,12 +83,13 @@ export default function UsersList() {
         try {
             setLoading(true);
             // Construct query params
-            const params: any = { search };
+            const params: any = { search, page: currentPage, size: pageSize };
             if (statusFilter !== 'all') params.is_active = statusFilter === 'active';
             if (roleFilter !== 'all') params.role = roleFilter;
 
             const response = await usersApi.list(params);
             setUsers(response.data?.items || response.data?.data || response.data || []);
+            setTotalItems(response.data?.total || (response.data?.items || response.data?.data || response.data || []).length);
         } catch (error) {
             console.error('Failed to fetch users:', error);
         } finally {
@@ -174,9 +180,9 @@ export default function UsersList() {
         }
     };
 
-    // User stats
+    // User stats - use totalItems for accurate count when using server-side pagination
     const stats = {
-        total: users.length,
+        total: totalItems || users.length,
         active: users.filter(u => u.is_active).length,
         inactive: users.filter(u => !u.is_active).length,
         admins: users.filter(u => u.role === 'admin' || u.role === 'super_admin').length,
@@ -186,6 +192,7 @@ export default function UsersList() {
     const applyFilter = (status: 'all' | 'active' | 'inactive', role: string = 'all') => {
         setStatusFilter(status);
         setRoleFilter(role);
+        setCurrentPage(1); // Reset to page 1 when filters change
     };
 
     const columns: Column<User>[] = [
@@ -337,19 +344,26 @@ export default function UsersList() {
                 />
             </UniversalListPage.KPICards>
 
-            {/* Zone 3 & 4 Merged: List Controls Embedded in Table */}
             <UniversalListPage.DataTable
                 columns={columns}
                 data={users}
                 loading={loading}
                 emptyMessage="No users found matching your criteria."
+                pagination={{
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(totalItems / pageSize),
+                    onPageChange: setCurrentPage,
+                    totalItems: totalItems,
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
+                }}
                 headerSlot={
                     <UniversalListPage.ListControls
                         title="User List"
-                        count={users.length}
+                        count={totalItems || users.length}
                         searchProps={{
                             value: search,
-                            onChange: (val) => { setSearch(val); fetchUsers(); }
+                            onChange: (val) => { setSearch(val); setCurrentPage(1); fetchUsers(); }
                         }}
                         onFilterClick={fetchUsers}
                         embedded={true}

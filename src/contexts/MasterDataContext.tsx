@@ -209,7 +209,9 @@ export function MasterDataProvider({ children }: MasterDataProviderProps) {
 
     const loadMasters = useCallback(async () => {
         const token = localStorage.getItem('access_token');
+        console.log('[MasterData] Loading masters, token exists:', !!token);
         if (!token) {
+            console.warn('[MasterData] No access token, skipping load');
             setIsLoading(false);
             return;
         }
@@ -217,17 +219,27 @@ export function MasterDataProvider({ children }: MasterDataProviderProps) {
         try {
             setIsLoading(true);
             setError(null);
+            console.log('[MasterData] Fetching /unified-masters/all...');
             const response = await api.get('/unified-masters/all');
+            console.log('[MasterData] API Response:', {
+                status: response.status,
+                hasData: !!response.data,
+                keys: response.data ? Object.keys(response.data) : [],
+                categoriesCount: response.data?.categories?.length || 0,
+                unitsCount: response.data?.units?.length || 0,
+                gstSlabsCount: response.data?.gst_slabs?.length || 0
+            });
 
             // Check if response has data, otherwise use fallback
             if (response.data && response.data.categories && response.data.categories.length > 0) {
+                console.log('[MasterData] Using API data');
                 setMasters(response.data);
             } else {
-                console.warn('Master data API returned empty, using fallback.');
+                console.warn('[MasterData] API returned empty, using fallback');
                 setMasters(getFallbackData());
             }
         } catch (err: any) {
-            console.error('Failed to load master data, using fallback:', err);
+            console.error('[MasterData] Failed to load:', err.response?.status, err.message);
             // On error, use fallback data so the app remains usable
             setMasters(getFallbackData());
             // Only set error if we want to show a warning, but still let app function

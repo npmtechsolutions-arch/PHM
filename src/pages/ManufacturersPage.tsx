@@ -35,7 +35,7 @@ export default function ManufacturersPage() {
     // Pagination & Search
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(15);
 
     useEffect(() => {
         if (user && !hasPermission('manufacturers.view')) {
@@ -212,7 +212,8 @@ export default function ManufacturersPage() {
                     totalPages: Math.ceil(filtered.length / pageSize),
                     onPageChange: setCurrentPage,
                     totalItems: filtered.length,
-                    pageSize: pageSize
+                    pageSize: pageSize,
+                    onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls
