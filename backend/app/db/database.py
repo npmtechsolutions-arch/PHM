@@ -5,12 +5,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
-# Create database engine
+# Create database engine with high-concurrency pool settings
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=50,           # Increased from 10 for high concurrency
+    max_overflow=100,       # Increased from 20 - allows burst traffic
+    pool_recycle=3600,      # Recycle connections after 1 hour
+    pool_timeout=30,        # Wait max 30 seconds for connection
     echo=settings.DEBUG
 )
 

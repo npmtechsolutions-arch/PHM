@@ -366,10 +366,6 @@ def get_all_masters(
             return query.order_by(model.sort_order)
         return query
 
-    shops = db.query(MedicalShop).all()
-    print(f"DEBUG: Unified Masters - Found {len(shops)} shops")
-    for shop in shops:
-        print(f"Shop: {shop.name}, Status: {shop.status}")
 
     return AllMastersResponse(
         categories=filter_active(db.query(MedicineCategory), MedicineCategory).order_by(MedicineCategory.name).all(),
