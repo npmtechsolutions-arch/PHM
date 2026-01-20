@@ -1,0 +1,49 @@
+# ===================================================
+# Docker Ignore - Reduce build context size
+# ===================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.eggs/
+*.egg-info/
+*.egg
+
+# Development
+.git/
+.gitignore
+.env
+.env.local
+*.md
+!requirements.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests
+tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local scripts
+deploy-local.sh
+run-local.sh
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
