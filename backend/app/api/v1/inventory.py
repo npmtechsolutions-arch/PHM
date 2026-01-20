@@ -29,7 +29,7 @@ class StockAdjustment(BaseModel):
 @router.get("/movements")
 def get_stock_movements(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     location_type: Optional[str] = None,
     location_id: Optional[str] = None,
     movement_type: Optional[str] = None,

@@ -31,7 +31,7 @@ def generate_pr_number(db: Session) -> str:
 @router.get("")
 def list_purchase_requests(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     status: Optional[str] = None,
     shop_id: Optional[str] = None,
     warehouse_id: Optional[str] = None,

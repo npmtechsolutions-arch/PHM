@@ -1552,3 +1552,6 @@ class AdjustmentReasonMaster(Base):
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+

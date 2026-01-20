@@ -67,7 +67,7 @@ export default function RolesPermissionsPage() {
             const [rolesRes, permissionsRes, usersRes] = await Promise.all([
                 rolesApi.list(),
                 permissionsApi.list(),
-                usersApi.list({ size: 100 })
+                usersApi.list({ size: 500 })
             ]);
 
             let fetchedRoles = rolesRes.data.items || [];

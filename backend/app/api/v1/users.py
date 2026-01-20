@@ -40,7 +40,7 @@ def get_user_permissions(db: Session, user: User) -> List[str]:
 @router.get("")
 def list_users(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     search: Optional[str] = None,
     role: Optional[str] = None,
     is_active: Optional[bool] = Query(None, description="Filter by active status. Default is None (all users)"),

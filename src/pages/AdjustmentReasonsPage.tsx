@@ -41,7 +41,7 @@ export default function AdjustmentReasonsPage() {
     // Pagination & Search
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         if (user && !hasPermission('adjustment_reasons.view')) {
@@ -55,7 +55,7 @@ export default function AdjustmentReasonsPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listAdjustmentReasons();
-            setItems(res.data || []);
+            setItems(res.data.items || []);
         } catch (err) {
             console.error('Failed to load adjustment reasons:', err);
             // Fallback for demo if API fails

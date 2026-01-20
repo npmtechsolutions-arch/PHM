@@ -51,7 +51,7 @@ export default function SuppliersPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
@@ -66,7 +66,7 @@ export default function SuppliersPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listSuppliers();
-            setSuppliers(res.data || []);
+            setSuppliers(res.data.items || []);
         } catch (err) {
             console.error('Failed to load suppliers:', err);
             setSuppliers([]);

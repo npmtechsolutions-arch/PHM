@@ -49,8 +49,8 @@ export function OperationalProvider({ children }: { children: ReactNode }) {
                 if (user.role === 'super_admin') {
                     // Fetch generic lists for dropdowns (limited to recent/search in real app, but here simple list)
                     const [wRes, sRes] = await Promise.all([
-                        warehousesApi.list({ size: 100 }), // Limit to 100 for context switcher
-                        shopsApi.list({ size: 100 })
+                        warehousesApi.list({ size: 500 }), // Limit to 100 for context switcher
+                        shopsApi.list({ size: 500 })
                     ]);
                     warehouses = wRes.data?.items || [];
                     shops = sRes.data?.items || [];

@@ -33,7 +33,7 @@ export default function UnitsPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
     // Access Control: Check permission
@@ -49,7 +49,7 @@ export default function UnitsPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listUnits();
-            setUnits(res.data || []);
+            setUnits(res.data.items || []);
         } catch (err) {
             console.error('Failed to load units:', err);
         } finally {

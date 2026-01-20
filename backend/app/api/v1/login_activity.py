@@ -43,7 +43,7 @@ class LoginActivityListResponse(BaseModel):
 @router.get("", response_model=LoginActivityListResponse)
 def list_login_activity(
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     action: Optional[str] = None,
     user_id: Optional[str] = None,
     status: Optional[str] = None,  # success, failed

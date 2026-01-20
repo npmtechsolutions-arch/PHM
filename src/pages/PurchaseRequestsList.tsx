@@ -38,7 +38,7 @@ export default function PurchaseRequestsList() {
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     // Create/Edit State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -58,7 +58,7 @@ export default function PurchaseRequestsList() {
     // Load medicines for create modal
     useEffect(() => {
         if (showCreateModal && medicines.length === 0) {
-            medicinesApi.list({ size: 1000 }).then(medRes => {
+            medicinesApi.list({ size: 5000 }).then(medRes => {
                 setMedicines(medRes.data?.items || medRes.data || []);
             });
         }

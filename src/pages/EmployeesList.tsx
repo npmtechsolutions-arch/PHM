@@ -78,7 +78,7 @@ export default function EmployeesList() {
     const [deptFilter, setDeptFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     // Modal states
     const [showModal, setShowModal] = useState(false);

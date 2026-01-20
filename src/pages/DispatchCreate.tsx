@@ -97,7 +97,7 @@ export default function DispatchCreate() {
 
     const fetchWarehouses = async () => {
         try {
-            const res = await warehousesApi.list({ size: 100 });
+            const res = await warehousesApi.list({ size: 500 });
             setWarehouses(res.data?.items || res.data || []);
         } catch (e) {
             console.error('Failed to fetch warehouses', e);
@@ -106,7 +106,7 @@ export default function DispatchCreate() {
 
     const fetchShops = async () => {
         try {
-            const res = await shopsApi.list({ size: 100 });
+            const res = await shopsApi.list({ size: 500 });
             setShops(res.data?.items || res.data || []);
         } catch (e) {
             console.error('Failed to fetch shops', e);
@@ -115,7 +115,7 @@ export default function DispatchCreate() {
 
     const fetchMedicines = async () => {
         try {
-            const res = await medicinesApi.list({ size: 100 });
+            const res = await medicinesApi.list({ size: 500 });
             setMedicines(res.data?.items || res.data || []);
         } catch (e) {
             console.error('Failed to fetch medicines', e);

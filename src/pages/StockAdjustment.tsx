@@ -55,7 +55,7 @@ export default function StockAdjustment() {
 
     const loadMedicines = async () => {
         try {
-            const response = await medicinesApi.list({ size: 100 });
+            const response = await medicinesApi.list({ size: 500 });
             setMedicines(response.data.items || response.data);
         } catch (error) {
             console.error('Error loading medicines:', error);

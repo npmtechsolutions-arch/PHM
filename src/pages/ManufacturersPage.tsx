@@ -35,7 +35,7 @@ export default function ManufacturersPage() {
     // Pagination & Search
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         if (user && !hasPermission('manufacturers.view')) {
@@ -49,7 +49,7 @@ export default function ManufacturersPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listManufacturers();
-            setItems(res.data || []);
+            setItems(res.data.items || []);
         } catch (err) {
             console.error('Failed to load manufacturers:', err);
         } finally {

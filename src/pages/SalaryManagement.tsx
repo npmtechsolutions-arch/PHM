@@ -73,7 +73,7 @@ export default function SalaryManagement() {
     const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         loadEmployees();

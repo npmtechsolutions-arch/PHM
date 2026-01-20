@@ -39,7 +39,7 @@ export default function WarehouseList() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [activeCount, setActiveCount] = useState(0); // For KPI
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     // View details modal
     const [viewingWarehouse, setViewingWarehouse] = useState<Warehouse | null>(null);

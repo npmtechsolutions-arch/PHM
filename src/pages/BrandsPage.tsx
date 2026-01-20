@@ -35,7 +35,7 @@ export default function BrandsPage() {
     // Pagination & Search
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         if (user && !hasPermission('brands.view')) {
@@ -49,7 +49,7 @@ export default function BrandsPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listBrands();
-            setItems(res.data || []);
+            setItems(res.data.items || []);
         } catch (err) {
             console.error('Failed to load brands:', err);
         } finally {

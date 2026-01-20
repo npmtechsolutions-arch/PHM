@@ -82,7 +82,7 @@ export default function Dashboard() {
                 reportsApi.getSales(),
                 inventoryApi.getAlerts(),
                 purchaseRequestsApi.list({ status: 'pending', size: 1, ...params }),
-                dispatchesApi.list({ size: 100, ...params }) // Fetch recent dispatches for daily count
+                dispatchesApi.list({ size: 500, ...params }) // Fetch recent dispatches for daily count
             ]);
 
             const getVal = (res: PromiseSettledResult<any>, key: string) =>

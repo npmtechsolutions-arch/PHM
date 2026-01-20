@@ -37,7 +37,7 @@ export default function SalesReports() {
 
     const loadShops = async () => {
         try {
-            const response = await shopsApi.list();
+            const response = await shopsApi.list({ size: 500 });
             setShops(response.data.items || response.data);
         } catch (error) {
             console.error('Error loading shops:', error);

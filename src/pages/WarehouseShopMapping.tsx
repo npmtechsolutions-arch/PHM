@@ -53,8 +53,8 @@ export default function WarehouseShopMapping() {
         try {
             setLoading(true);
             const [warehouseRes, shopRes] = await Promise.all([
-                warehousesApi.list({ size: 100 }),
-                shopsApi.list({ size: 100 })
+                warehousesApi.list({ size: 500 }),
+                shopsApi.list({ size: 500 })
             ]);
             setWarehouses(warehouseRes.data.items || []);
             setShops(shopRes.data.items || []);

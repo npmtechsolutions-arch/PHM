@@ -46,7 +46,7 @@ class AuditLogListResponse(BaseModel):
 @router.get("", response_model=AuditLogListResponse)
 def list_audit_logs(
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     action: Optional[str] = None,
     entity_type: Optional[str] = None,
     user_id: Optional[str] = None,

@@ -53,11 +53,11 @@ export default function EntitySelector({
         setLoading(true);
         try {
             if (type === 'warehouse' || type === 'both') {
-                const res = await warehousesApi.list({ size: 100 });
+                const res = await warehousesApi.list({ size: 500 });
                 setWarehouses(res.data?.items || res.data || []);
             }
             if (type === 'shop' || type === 'both') {
-                const res = await shopsApi.list({ size: 100 });
+                const res = await shopsApi.list({ size: 500 });
                 setShops(res.data?.items || res.data || []);
             }
         } catch (error) {

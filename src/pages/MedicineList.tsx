@@ -45,7 +45,7 @@ export default function MedicineList() {
     const [categoryFilter, setCategoryFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         fetchMedicines();

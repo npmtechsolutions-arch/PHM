@@ -35,7 +35,7 @@ export default function RackMaster() {
     const [newRack, setNewRack] = useState({ rack_name: '', rack_number: '', warehouse_id: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
@@ -52,8 +52,8 @@ export default function RackMaster() {
         setLoading(true);
         try {
             const [warehouseRes, racksRes] = await Promise.all([
-                warehousesApi.list({ size: 100 }),
-                racksApi.list({ size: 100 })
+                warehousesApi.list({ size: 500 }),
+                racksApi.list({ size: 500 })
             ]);
             setWarehouses(warehouseRes.data.items?.map((w: any) => ({ id: w.id, name: w.name })) || []);
             setRacks(racksRes.data.items || []);

@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("")
 def list_shops(
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     search: Optional[str] = None,
     status: Optional[str] = None,
     warehouse_id: Optional[str] = None,
@@ -63,6 +63,9 @@ def list_shops(
     # Allow filtering by warehouse_id if not already restricted/conflicted above
     if warehouse_id and not (user_role in ["warehouse_admin"] or user_warehouse_id):
         query = query.filter(MedicalShop.warehouse_id == warehouse_id)
+    
+    # Sort by creation date descending (newest first)
+    query = query.order_by(MedicalShop.created_at.desc())
     
     total = query.count()
     shops = query.offset((page - 1) * size).limit(size).all()
@@ -261,7 +264,7 @@ def delete_shop(
 def get_shop_stock(
     shop_id: str,
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)

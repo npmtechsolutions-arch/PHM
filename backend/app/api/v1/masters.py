@@ -86,17 +86,32 @@ class HSNResponse(HSNBase):
 
 # ==================== CATEGORY ENDPOINTS ====================
 
-@router.get("/categories", response_model=List[CategoryResponse])
+@router.get("/categories")
 def list_categories(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["categories.view"]))
 ):
-    """List all medicine categories"""
+    """List all medicine categories with pagination"""
     query = db.query(MedicineCategory)
     if is_active is not None:
         query = query.filter(MedicineCategory.is_active == is_active)
-    return query.order_by(MedicineCategory.name).all()
+    if search:
+        query = query.filter(MedicineCategory.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(MedicineCategory.name).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/categories", response_model=CategoryResponse)
@@ -155,17 +170,32 @@ def delete_category(
 
 # ==================== UNIT ENDPOINTS ====================
 
-@router.get("/units", response_model=List[UnitResponse])
+@router.get("/units")
 def list_units(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["units.view"]))
 ):
-    """List all units of measurement"""
+    """List all units of measurement with pagination"""
     query = db.query(UnitMaster)
     if is_active is not None:
         query = query.filter(UnitMaster.is_active == is_active)
-    return query.order_by(UnitMaster.name).all()
+    if search:
+        query = query.filter(UnitMaster.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(UnitMaster.name).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/units", response_model=UnitResponse)
@@ -224,17 +254,35 @@ def delete_unit(
 
 # ==================== HSN ENDPOINTS ====================
 
-@router.get("/hsn", response_model=List[HSNResponse])
+@router.get("/hsn")
 def list_hsn_codes(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["hsn.view"]))
 ):
-    """List all HSN codes"""
+    """List all HSN codes with pagination"""
     query = db.query(HSNMaster)
     if is_active is not None:
         query = query.filter(HSNMaster.is_active == is_active)
-    return query.order_by(HSNMaster.hsn_code).all()
+    if search:
+        query = query.filter(
+            (HSNMaster.hsn_code.ilike(f"%{search}%")) | 
+            (HSNMaster.description.ilike(f"%{search}%"))
+        )
+    
+    total = query.count()
+    items = query.order_by(HSNMaster.hsn_code).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/hsn", response_model=HSNResponse)
@@ -313,17 +361,29 @@ class GSTSlabResponse(GSTSlabBase):
 
 # ==================== GST SLAB ENDPOINTS ====================
 
-@router.get("/gst-slabs", response_model=List[GSTSlabResponse])
+@router.get("/gst-slabs")
 def list_gst_slabs(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.view"]))
 ):
-    """List all GST slabs"""
+    """List all GST slabs with pagination"""
     query = db.query(GSTSlabMaster)
     if is_active is not None:
         query = query.filter(GSTSlabMaster.is_active == is_active)
-    return query.order_by(GSTSlabMaster.rate).all()
+    
+    total = query.count()
+    items = query.order_by(GSTSlabMaster.rate).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/gst-slabs", response_model=GSTSlabResponse)
@@ -427,17 +487,32 @@ class MedicineTypeResponse(MedicineTypeBase):
 
 # ==================== MEDICINE TYPE ENDPOINTS ====================
 
-@router.get("/medicine-types", response_model=List[MedicineTypeResponse])
+@router.get("/medicine-types")
 def list_medicine_types(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.view"]))
 ):
-    """List all medicine types"""
+    """List all medicine types with pagination"""
     query = db.query(MedicineTypeMaster)
     if is_active is not None:
         query = query.filter(MedicineTypeMaster.is_active == is_active)
-    return query.order_by(MedicineTypeMaster.sort_order).all()
+    if search:
+        query = query.filter(MedicineTypeMaster.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(MedicineTypeMaster.sort_order).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/medicine-types", response_model=MedicineTypeResponse)
@@ -527,17 +602,32 @@ class BrandResponse(BrandBase):
 
 # ==================== BRAND ENDPOINTS ====================
 
-@router.get("/brands", response_model=List[BrandResponse])
+@router.get("/brands")
 def list_brands(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["brands.view"]))
 ):
-    """List all brands"""
+    """List all brands with pagination"""
     query = db.query(BrandMaster)
     if is_active is not None:
         query = query.filter(BrandMaster.is_active == is_active)
-    return query.order_by(BrandMaster.name).all()
+    if search:
+        query = query.filter(BrandMaster.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(BrandMaster.name).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/brands", response_model=BrandResponse)
@@ -631,17 +721,32 @@ class ManufacturerResponse(ManufacturerBase):
 
 # ==================== MANUFACTURER ENDPOINTS ====================
 
-@router.get("/manufacturers", response_model=List[ManufacturerResponse])
+@router.get("/manufacturers")
 def list_manufacturers(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["manufacturers.view"]))
 ):
-    """List all manufacturers"""
+    """List all manufacturers with pagination"""
     query = db.query(ManufacturerMaster)
     if is_active is not None:
         query = query.filter(ManufacturerMaster.is_active == is_active)
-    return query.order_by(ManufacturerMaster.name).all()
+    if search:
+        query = query.filter(ManufacturerMaster.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(ManufacturerMaster.name).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/manufacturers", response_model=ManufacturerResponse)
@@ -731,17 +836,32 @@ class PaymentMethodResponse(PaymentMethodBase):
 
 # ==================== PAYMENT METHOD ENDPOINTS ====================
 
-@router.get("/payment-methods", response_model=List[PaymentMethodResponse])
+@router.get("/payment-methods")
 def list_payment_methods(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["payment_methods.view"]))
 ):
-    """List all payment methods"""
+    """List all payment methods with pagination"""
     query = db.query(PaymentMethodMaster)
     if is_active is not None:
         query = query.filter(PaymentMethodMaster.is_active == is_active)
-    return query.order_by(PaymentMethodMaster.sort_order).all()
+    if search:
+        query = query.filter(PaymentMethodMaster.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(PaymentMethodMaster.sort_order).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/payment-methods", response_model=PaymentMethodResponse)
@@ -839,17 +959,35 @@ class SupplierResponse(SupplierBase):
 
 # ==================== SUPPLIER ENDPOINTS ====================
 
-@router.get("/suppliers", response_model=List[SupplierResponse])
+@router.get("/suppliers")
 def list_suppliers(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["suppliers.view"]))
 ):
-    """List all suppliers"""
+    """List all suppliers with pagination"""
     query = db.query(SupplierMaster)
     if is_active is not None:
         query = query.filter(SupplierMaster.is_active == is_active)
-    return query.order_by(SupplierMaster.name).all()
+    if search:
+        query = query.filter(
+            (SupplierMaster.name.ilike(f"%{search}%")) |
+            (SupplierMaster.code.ilike(f"%{search}%"))
+        )
+    
+    total = query.count()
+    items = query.order_by(SupplierMaster.name).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/suppliers", response_model=SupplierResponse)
@@ -939,20 +1077,35 @@ class AdjustmentReasonResponse(AdjustmentReasonBase):
 
 # ==================== ADJUSTMENT REASON ENDPOINTS ====================
 
-@router.get("/adjustment-reasons", response_model=List[AdjustmentReasonResponse])
+@router.get("/adjustment-reasons")
 def list_adjustment_reasons(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=1000),
+    search: Optional[str] = None,
     is_active: Optional[bool] = True,
     adjustment_type: Optional[str] = None,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["adjustment_reasons.view"]))
 ):
-    """List all adjustment reasons"""
+    """List all adjustment reasons with pagination"""
     query = db.query(AdjustmentReasonMaster)
     if is_active is not None:
         query = query.filter(AdjustmentReasonMaster.is_active == is_active)
     if adjustment_type:
         query = query.filter(AdjustmentReasonMaster.adjustment_type == adjustment_type)
-    return query.order_by(AdjustmentReasonMaster.sort_order).all()
+    if search:
+        query = query.filter(AdjustmentReasonMaster.name.ilike(f"%{search}%"))
+    
+    total = query.count()
+    items = query.order_by(AdjustmentReasonMaster.sort_order).offset((page - 1) * size).limit(size).all()
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": (total + size - 1) // size if size > 0 else 0
+    }
 
 
 @router.post("/adjustment-reasons", response_model=AdjustmentReasonResponse)

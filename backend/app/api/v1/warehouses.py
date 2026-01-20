@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("")
 def list_warehouses(
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     search: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -57,6 +57,9 @@ def list_warehouses(
     
     if status:
         query = query.filter(Warehouse.status == status)
+    
+    # Sort by creation date descending (newest first)
+    query = query.order_by(Warehouse.created_at.desc())
     
     total = query.count()
     warehouses = query.offset((page - 1) * size).limit(size).all()
@@ -269,7 +272,7 @@ def get_warehouse_shops(
 def get_warehouse_stock(
     warehouse_id: str,
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)

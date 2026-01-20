@@ -47,7 +47,7 @@ export default function GSTSlabsPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listGSTSlabs();
-            setSlabs(res.data || []);
+            setSlabs(res.data.items || []);
         } catch (err) {
             console.error('Failed to load GST slabs:', err);
         } finally {

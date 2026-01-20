@@ -52,8 +52,9 @@ export default function HSNCodesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
 
     useEffect(() => {
         if (user && !hasPermission('hsn.view')) {
@@ -61,15 +62,27 @@ export default function HSNCodesPage() {
         }
     }, [user, navigate, hasPermission]);
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => { loadData(); }, [currentPage, pageSize, searchTerm]);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const res = await mastersApi.listHSN();
-            setHsnCodes(res.data || []);
+            const res = await mastersApi.listHSN({
+                page: currentPage,
+                size: pageSize,
+                search: searchTerm
+            });
+            if (res.data && Array.isArray(res.data.items)) {
+                setHsnCodes(res.data.items);
+                setTotalItems(res.data.total || 0);
+            } else {
+                // Fallback for safety
+                setHsnCodes([]);
+                setTotalItems(0);
+            }
         } catch (err) {
             console.error('Failed to load HSN codes:', err);
+            setHsnCodes([]);
         } finally {
             setLoading(false);
         }
@@ -154,13 +167,10 @@ export default function HSNCodesPage() {
         }
     };
 
-    const filtered = hsnCodes.filter(h =>
-        h.hsn_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        h.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+
 
     const stats = {
-        total: hsnCodes.length,
+        total: totalItems,
         gst5: hsnCodes.filter(h => h.gst_rate === 5).length,
         gst12: hsnCodes.filter(h => h.gst_rate === 12).length
     };
@@ -221,7 +231,7 @@ export default function HSNCodesPage() {
         }
     ];
 
-    const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
 
     return (
         <UniversalListPage loading={mastersLoading}>
@@ -250,21 +260,21 @@ export default function HSNCodesPage() {
 
             <UniversalListPage.DataTable
                 columns={columns}
-                data={paginatedData}
+                data={hsnCodes}
                 loading={loading}
                 emptyMessage="No HSN codes found."
                 pagination={{
                     currentPage: currentPage,
-                    totalPages: Math.ceil(filtered.length / pageSize),
+                    totalPages: Math.ceil(totalItems / pageSize),
                     onPageChange: setCurrentPage,
-                    totalItems: filtered.length,
+                    totalItems: totalItems,
                     pageSize: pageSize,
                     onPageSizeChange: (size) => { setPageSize(size); setCurrentPage(1); }
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls
                         title="HSN List"
-                        count={filtered.length}
+                        count={totalItems}
                         searchProps={{
                             value: searchTerm,
                             onChange: (val) => { setSearchTerm(val); setCurrentPage(1); },

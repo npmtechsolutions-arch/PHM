@@ -37,7 +37,7 @@ export default function CategoriesPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
     // Access Control: Check permission
@@ -55,7 +55,7 @@ export default function CategoriesPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listCategories();
-            setCategories(res.data || []);
+            setCategories(res.data.items || []);
         } catch (err) {
             console.error('Failed to load categories:', err);
         } finally {

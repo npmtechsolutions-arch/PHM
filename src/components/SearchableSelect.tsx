@@ -68,9 +68,23 @@ export default function SearchableSelect({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef, value, options]);
 
-    const filteredOptions = options.filter(opt =>
-        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Smart word-based filter: each word in searchTerm should match somewhere in the label
+    // Also normalizes numbers by removing spaces (so "shop2" matches "shop 2")
+    const filteredOptions = options.filter(opt => {
+        const normalizedLabel = opt.label.toLowerCase().replace(/\s+/g, ''); // Remove all spaces
+        const normalizedSearch = searchTerm.toLowerCase().replace(/\s+/g, ''); // Remove all spaces
+
+        // Method 1: Direct match after normalizing spaces
+        if (normalizedLabel.includes(normalizedSearch)) {
+            return true;
+        }
+
+        // Method 2: All words in search term should exist in label
+        const searchWords = searchTerm.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        const labelLower = opt.label.toLowerCase();
+
+        return searchWords.every(word => labelLower.includes(word));
+    });
 
     return (
         <div className={`w-full ${className}`} ref={wrapperRef}>

@@ -83,7 +83,7 @@ export default function StockEntry() {
 
     const loadMedicines = async () => {
         try {
-            const response = await medicinesApi.list({ size: 100 });
+            const response = await medicinesApi.list({ size: 500 });
             setMedicines(response.data.items || response.data);
         } catch (error) {
             console.error('Error loading medicines:', error);
@@ -112,7 +112,7 @@ export default function StockEntry() {
 
     const loadRacks = async () => {
         try {
-            const response = await racksApi.list({ size: 100 });
+            const response = await racksApi.list({ size: 500 });
             setRacks(response.data.items || []);
         } catch (error) {
             console.error('Error loading racks:', error);

@@ -459,61 +459,71 @@ export const loginActivityApi = {
 // Masters API (Categories, Units, HSN)
 export const mastersApi = {
     // Categories
-    listCategories: () => api.get('/masters/categories'),
+    listCategories: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/categories', { params }),
     createCategory: (data: any) => api.post('/masters/categories', data),
     updateCategory: (id: string, data: any) => api.put(`/masters/categories/${id}`, data),
     deleteCategory: (id: string) => api.delete(`/masters/categories/${id}`),
 
     // Units
-    listUnits: () => api.get('/masters/units'),
+    listUnits: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/units', { params }),
     createUnit: (data: any) => api.post('/masters/units', data),
     updateUnit: (id: string, data: any) => api.put(`/masters/units/${id}`, data),
     deleteUnit: (id: string) => api.delete(`/masters/units/${id}`),
 
     // HSN Codes
-    listHSN: () => api.get('/masters/hsn'),
+    listHSN: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/hsn', { params }),
     createHSN: (data: any) => api.post('/masters/hsn', data),
     updateHSN: (id: string, data: any) => api.put(`/masters/hsn/${id}`, data),
     deleteHSN: (id: string) => api.delete(`/masters/hsn/${id}`),
 
     // GST Slabs
-    listGSTSlabs: () => api.get('/masters/gst-slabs'),
+    listGSTSlabs: (params?: { page?: number; size?: number }) =>
+        api.get('/masters/gst-slabs', { params }),
     createGSTSlab: (data: any) => api.post('/masters/gst-slabs', data),
     updateGSTSlab: (id: string, data: any) => api.put(`/masters/gst-slabs/${id}`, data),
     deleteGSTSlab: (id: string) => api.delete(`/masters/gst-slabs/${id}`),
 
     // Suppliers
-    listSuppliers: () => api.get('/masters/suppliers'),
+    listSuppliers: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/suppliers', { params }),
     createSupplier: (data: any) => api.post('/masters/suppliers', data),
     updateSupplier: (id: string, data: any) => api.put(`/masters/suppliers/${id}`, data),
     deleteSupplier: (id: string) => api.delete(`/masters/suppliers/${id}`),
 
     // Adjustment Reasons
-    listAdjustmentReasons: () => api.get('/masters/adjustment-reasons'),
+    listAdjustmentReasons: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/adjustment-reasons', { params }),
     createAdjustmentReason: (data: any) => api.post('/masters/adjustment-reasons', data),
     updateAdjustmentReason: (id: string, data: any) => api.put(`/masters/adjustment-reasons/${id}`, data),
     deleteAdjustmentReason: (id: string) => api.delete(`/masters/adjustment-reasons/${id}`),
 
     // Payment Methods
-    listPaymentMethods: () => api.get('/masters/payment-methods'),
+    listPaymentMethods: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/payment-methods', { params }),
     createPaymentMethod: (data: any) => api.post('/masters/payment-methods', data),
     updatePaymentMethod: (id: string, data: any) => api.put(`/masters/payment-methods/${id}`, data),
     deletePaymentMethod: (id: string) => api.delete(`/masters/payment-methods/${id}`),
 
     // Medicine Types
-    listMedicineTypes: () => api.get('/masters/medicine-types'),
+    listMedicineTypes: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/medicine-types', { params }),
     createMedicineType: (data: any) => api.post('/masters/medicine-types', data),
     updateMedicineType: (id: string, data: any) => api.put(`/masters/medicine-types/${id}`, data),
     deleteMedicineType: (id: string) => api.delete(`/masters/medicine-types/${id}`),
 
     // Brands
-    listBrands: () => api.get('/masters/brands'),
+    listBrands: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/brands', { params }),
     createBrand: (data: any) => api.post('/masters/brands', data),
     updateBrand: (id: string, data: any) => api.put(`/masters/brands/${id}`, data),
     deleteBrand: (id: string) => api.delete(`/masters/brands/${id}`),
 
     // Manufacturers
-    listManufacturers: () => api.get('/masters/manufacturers'),
+    listManufacturers: (params?: { page?: number; size?: number; search?: string }) =>
+        api.get('/masters/manufacturers', { params }),
     createManufacturer: (data: any) => api.post('/masters/manufacturers', data),
     updateManufacturer: (id: string, data: any) => api.put(`/masters/manufacturers/${id}`, data),
     deleteManufacturer: (id: string) => api.delete(`/masters/manufacturers/${id}`),

@@ -26,7 +26,7 @@ class NotificationCreate(BaseModel):
 @router.get("")
 def list_notifications(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     is_read: Optional[bool] = None,
     notification_type: Optional[str] = None,
     db: Session = Depends(get_db),

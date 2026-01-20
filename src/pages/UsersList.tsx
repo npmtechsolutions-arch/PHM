@@ -5,6 +5,7 @@ import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
 import Button from '../components/Button';
+import SearchableSelect from '../components/SearchableSelect';
 
 interface User {
     id: string;
@@ -39,7 +40,7 @@ export default function UsersList() {
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
 
     const [formData, setFormData] = useState({
         email: '',
@@ -65,8 +66,8 @@ export default function UsersList() {
     const fetchEntities = async () => {
         try {
             const [warehouseRes, shopRes, rolesRes] = await Promise.all([
-                warehousesApi.list(),
-                shopsApi.list(),
+                warehousesApi.list({ size: 500 }),  // Fetch all warehouses for dropdown
+                shopsApi.list({ size: 500 }),        // Fetch all shops for dropdown
                 rolesApi.listAssignable()
             ]);
             setWarehouses(warehouseRes.data?.items || warehouseRes.data || []);
@@ -435,40 +436,24 @@ export default function UsersList() {
                             </div>
 
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'warehouse' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Assign to Warehouse *
-                                    </label>
-                                    <select
-                                        value={formData.assigned_warehouse_id}
-                                        onChange={(e) => setFormData({ ...formData, assigned_warehouse_id: e.target.value })}
-                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                                        required
-                                    >
-                                        <option value="">Select Warehouse</option>
-                                        {warehouses.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SearchableSelect
+                                    label="Assign to Warehouse"
+                                    value={formData.assigned_warehouse_id}
+                                    onChange={(val) => setFormData({ ...formData, assigned_warehouse_id: val })}
+                                    options={warehouses.map(w => ({ value: w.id, label: w.name }))}
+                                    placeholder="Search and select warehouse..."
+                                    required
+                                />
                             )}
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'shop' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Assign to Medical Shop *
-                                    </label>
-                                    <select
-                                        value={formData.assigned_shop_id}
-                                        onChange={(e) => setFormData({ ...formData, assigned_shop_id: e.target.value })}
-                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                                        required
-                                    >
-                                        <option value="">Select Medical Shop</option>
-                                        {shops.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SearchableSelect
+                                    label="Assign to Medical Shop"
+                                    value={formData.assigned_shop_id}
+                                    onChange={(val) => setFormData({ ...formData, assigned_shop_id: val })}
+                                    options={shops.map(s => ({ value: s.id, label: s.name }))}
+                                    placeholder="Search and select shop..."
+                                    required
+                                />
                             )}
 
                             {!editingUser && (

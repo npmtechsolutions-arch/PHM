@@ -47,7 +47,7 @@ export default function PaymentMethodsPage() {
         setLoading(true);
         try {
             const res = await mastersApi.listPaymentMethods();
-            setItems(res.data || []);
+            setItems(res.data.items || []);
         } catch (err) {
             console.error('Failed to load payment methods:', err);
             // Provide defaults if API doesn't exist yet
