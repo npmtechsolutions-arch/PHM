@@ -30,7 +30,7 @@ export default function GSTSlabsPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingSlab, setEditingSlab] = useState<GSTSlab | null>(null);
-    const [formData, setFormData] = useState({ rate: 0, description: '' });
+    const [formData, setFormData] = useState({ rate: 0, description: '', is_active: true });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -57,16 +57,27 @@ export default function GSTSlabsPage() {
 
     const openCreateModal = () => {
         setEditingSlab(null);
-        setFormData({ rate: 0, description: '' });
+        setFormData({ rate: 0, description: '', is_active: true });
         setError('');
         setShowModal(true);
     };
 
     const openEditModal = (slab: GSTSlab) => {
         setEditingSlab(slab);
-        setFormData({ rate: slab.rate, description: slab.description || '' });
+        setFormData({ rate: slab.rate, description: slab.description || '', is_active: slab.is_active });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (slab: GSTSlab) => {
+        try {
+            await mastersApi.updateGSTSlab(slab.id, { is_active: !slab.is_active });
+            window.toast?.success(`GST ${slab.rate}% ${slab.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+            refresh();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -230,6 +241,18 @@ export default function GSTSlabsPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex justify-center gap-1">
                                                 {hasPermission('gst.edit') && (
+                                                    <Button
+                                                        variant="secondary"
+                                                        onClick={() => handleToggleStatus(slab)}
+                                                        className={`!p-1.5 ${slab.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                                                        title={slab.is_active ? 'Deactivate' : 'Activate'}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            {slab.is_active ? 'toggle_on' : 'toggle_off'}
+                                                        </span>
+                                                    </Button>
+                                                )}
+                                                {hasPermission('gst.edit') && (
                                                     <Button variant="secondary" onClick={() => openEditModal(slab)} className="!p-1.5">
                                                         <span className="material-symbols-outlined text-[18px]">edit</span>
                                                     </Button>
@@ -295,6 +318,19 @@ export default function GSTSlabsPage() {
                                 <p className="text-xs text-slate-500">SGST</p>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">

@@ -28,7 +28,7 @@ export default function ManufacturersPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Manufacturer | null>(null);
-    const [formData, setFormData] = useState({ code: '', name: '', description: '' });
+    const [formData, setFormData] = useState({ code: '', name: '', description: '', is_active: true });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -59,16 +59,26 @@ export default function ManufacturersPage() {
 
     const openCreate = () => {
         setEditing(null);
-        setFormData({ code: '', name: '', description: '' });
+        setFormData({ code: '', name: '', description: '', is_active: true });
         setError('');
         setShowModal(true);
     };
 
     const openEdit = (item: Manufacturer) => {
         setEditing(item);
-        setFormData({ code: item.code, name: item.name, description: item.description || '' });
+        setFormData({ code: item.code, name: item.name, description: item.description || '', is_active: item.is_active });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (item: Manufacturer) => {
+        try {
+            await mastersApi.updateManufacturer(item.id, { is_active: !item.is_active });
+            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -167,6 +177,18 @@ export default function ManufacturersPage() {
             render: (item) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('manufacturers.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleToggleStatus(item)}
+                            className={`!p-1.5 h-8 w-8 ${item.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                            title={item.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                {item.is_active ? 'toggle_on' : 'toggle_off'}
+                            </span>
+                        </Button>
+                    )}
+                    {hasPermission('manufacturers.edit') && (
                         <Button variant="ghost" onClick={() => openEdit(item)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>
@@ -252,6 +274,18 @@ export default function ManufacturersPage() {
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         placeholder="Manufacturer description"
                     />
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
+                    </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                         <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
                         <Button variant="primary" type="submit" loading={saving}>

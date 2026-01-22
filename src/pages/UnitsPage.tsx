@@ -29,7 +29,7 @@ export default function UnitsPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
-    const [formData, setFormData] = useState({ name: '', short_name: '', description: '' });
+    const [formData, setFormData] = useState({ name: '', short_name: '', description: '', is_active: true });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,16 +59,26 @@ export default function UnitsPage() {
 
     const openCreateModal = () => {
         setEditingUnit(null);
-        setFormData({ name: '', short_name: '', description: '' });
+        setFormData({ name: '', short_name: '', description: '', is_active: true });
         setError('');
         setShowModal(true);
     };
 
     const openEditModal = (unit: Unit) => {
         setEditingUnit(unit);
-        setFormData({ name: unit.name, short_name: unit.short_name, description: unit.description || '' });
+        setFormData({ name: unit.name, short_name: unit.short_name, description: unit.description || '', is_active: unit.is_active });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (unit: Unit) => {
+        try {
+            await mastersApi.updateUnit(unit.id, { is_active: !unit.is_active });
+            window.toast?.success(`${unit.name} ${unit.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -163,6 +173,18 @@ export default function UnitsPage() {
             render: (unit) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('units.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleToggleStatus(unit)}
+                            className={`!p-1.5 h-8 w-8 ${unit.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                            title={unit.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                {unit.is_active ? 'toggle_on' : 'toggle_off'}
+                            </span>
+                        </Button>
+                    )}
+                    {hasPermission('units.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(unit)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>
@@ -250,6 +272,19 @@ export default function UnitsPage() {
                             rows={2}
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">

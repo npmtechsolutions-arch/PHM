@@ -10,8 +10,8 @@ from dataclasses import dataclass, field
 from typing import List
 
 # Configuration
-BASE_URL = "http://localhost:8000/api/v1"
-CONCURRENT_USERS = 50        # Reduced from 500 - realistic for pool size 150
+BASE_URL = "https://host.app.npmtech.in/api/v1"
+CONCURRENT_USERS = 1350        # Reduced from 500 - realistic for pool size 150
 REQUESTS_PER_USER = 3
 REQUEST_DELAY = 0.1          # 100ms delay between requests per user
 

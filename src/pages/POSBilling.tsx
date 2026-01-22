@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { medicinesApi, invoicesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { shopsApi } from '../services/api';
+import { PrintBill } from '../components/PrintBill';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import { toast } from '../components/Toast';
 import BatchSelectionModal from '../components/BatchSelectionModal';
@@ -61,6 +64,7 @@ interface Customer {
 
 export default function POSBilling() {
     const navigate = useNavigate();
+    const { user } = useUser();
     const { activeEntity } = useOperationalContext();
     const { isLoading: mastersLoading } = useMasterData();
 
@@ -97,6 +101,7 @@ export default function POSBilling() {
     ];
 
     // State
+    const [shopDetails, setShopDetails] = useState<any>(null);
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [search, setSearch] = useState('');
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -115,6 +120,7 @@ export default function POSBilling() {
     // Invoice/Receipt State
     const [showReceipt, setShowReceipt] = useState(false);
     const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null);
+    const [lastSoldItems, setLastSoldItems] = useState<any[]>([]);
     const [amountReceived, setAmountReceived] = useState('');
 
     // Payment Reference State
@@ -136,6 +142,15 @@ export default function POSBilling() {
         }, 300);
         return () => clearTimeout(timer);
     }, [search]);
+
+    // Fetch Shop Details
+    useEffect(() => {
+        if (shopId) {
+            shopsApi.get(shopId).then(res => {
+                setShopDetails(res.data);
+            }).catch(err => console.error('Failed to fetch shop details', err));
+        }
+    }, [shopId]);
 
     const searchMedicines = async () => {
         try {
@@ -429,6 +444,21 @@ export default function POSBilling() {
             console.log('========================');
 
             setLastInvoice(invoiceData);
+
+            // Prepare items for print
+            const billItems = cart.map(item => ({
+                medicine_name: item.medicine.name,
+                batch_number: item.batch.batch_number,
+                expiry_date: item.batch.expiry_date,
+                quantity: item.quantity,
+                unit_price: item.batch.selling_price || item.batch.mrp,
+                mrp: item.batch.mrp,
+                gst_rate: item.tax_rate,
+                discount_amount: item.discount,
+                total_amount: ((item.batch.selling_price || item.batch.mrp) * item.quantity) - item.discount
+            }));
+            setLastSoldItems(billItems);
+
             setShowReceipt(true);
             setCart([]);
             setSelectedCustomer(null);
@@ -870,6 +900,19 @@ export default function POSBilling() {
                     </div>
                 )}
             </Drawer>
+
+            {/* Hidden Print Bill Component */}
+            {lastInvoice && (
+                <PrintBill
+                    shop={shopDetails}
+                    invoice={lastInvoice}
+                    items={lastSoldItems}
+                    customer={selectedCustomer}
+                    user={user}
+                />
+            )}
         </div>
     );
 }
+
+

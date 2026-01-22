@@ -5,7 +5,7 @@ import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
 import Button from '../components/Button';
-import SearchableSelect from '../components/SearchableSelect';
+
 
 interface User {
     id: string;
@@ -42,6 +42,17 @@ export default function UsersList() {
     const [totalItems, setTotalItems] = useState(0);
     const [pageSize, setPageSize] = useState(10);
 
+    // Stats from API (not calculated from paginated data)
+    const [stats, setStats] = useState<{
+        total: number;
+        active: number;
+        inactive: number;
+        admins: number;
+        by_role: Record<string, number>;
+    }>({
+        total: 0, active: 0, inactive: 0, admins: 0, by_role: {}
+    });
+
     const [formData, setFormData] = useState({
         email: '',
         full_name: '',
@@ -62,6 +73,19 @@ export default function UsersList() {
         fetchUsers();
         fetchEntities();
     }, [statusFilter, roleFilter, currentPage, pageSize]); // Re-fetch when filters or pagination change
+
+    useEffect(() => {
+        fetchStats();
+    }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await usersApi.getStats();
+            setStats(response.data);
+        } catch (error) {
+            console.error('Failed to fetch user stats:', error);
+        }
+    };
 
     const fetchEntities = async () => {
         try {
@@ -134,6 +158,7 @@ export default function UsersList() {
             }
             setShowModal(false);
             fetchUsers();
+            fetchStats(); // Refresh stats after create/update
         } catch (error: any) {
             console.error('Failed to save user:', error);
             console.error('Error response:', error.response?.data);
@@ -162,6 +187,7 @@ export default function UsersList() {
             await usersApi.delete(userToDelete.id);
             window.toast?.success('User deleted successfully');
             fetchUsers();
+            fetchStats(); // Refresh stats after delete
         } catch (error: any) {
             console.error('Failed to delete user:', error);
             const errorMessage = error.response?.data?.detail || 'Failed to delete user';
@@ -179,14 +205,6 @@ export default function UsersList() {
             case 'manager': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
             default: return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
         }
-    };
-
-    // User stats - use totalItems for accurate count when using server-side pagination
-    const stats = {
-        total: totalItems || users.length,
-        active: users.filter(u => u.is_active).length,
-        inactive: users.filter(u => !u.is_active).length,
-        admins: users.filter(u => u.role === 'admin' || u.role === 'super_admin').length,
     };
 
     // Filter handlers
@@ -325,23 +343,50 @@ export default function UsersList() {
                     icon="check_circle"
                     onClick={() => applyFilter('active')}
                     isActive={statusFilter === 'active'}
-                    change={((stats.active / stats.total) * 100).toFixed(0) + '%'}
+                    change={stats.total > 0 ? ((stats.active / stats.total) * 100).toFixed(0) + '%' : '0%'}
                     changeType="up"
                 />
                 <StatCard
-                    title="Inactive Users"
-                    value={stats.inactive}
-                    icon="cancel"
-                    onClick={() => applyFilter('inactive')}
-                    isActive={statusFilter === 'inactive'}
-                    changeType="down"
+                    title="Warehouse Admins"
+                    value={stats.by_role?.['warehouse_admin'] || 0}
+                    icon="warehouse"
+                    onClick={() => applyFilter('all', 'warehouse_admin')}
+                    isActive={roleFilter === 'warehouse_admin'}
                 />
                 <StatCard
-                    title="Administrators"
-                    value={stats.admins}
-                    icon="admin_panel_settings"
-                    onClick={() => applyFilter('all', 'admin')}
-                    isActive={roleFilter === 'admin'}
+                    title="Shop Owners"
+                    value={stats.by_role?.['shop_owner'] || 0}
+                    icon="store"
+                    onClick={() => applyFilter('all', 'shop_owner')}
+                    isActive={roleFilter === 'shop_owner'}
+                />
+                <StatCard
+                    title="Pharmacists"
+                    value={stats.by_role?.['pharmacist'] || 0}
+                    icon="medication"
+                    onClick={() => applyFilter('all', 'pharmacist')}
+                    isActive={roleFilter === 'pharmacist'}
+                />
+                <StatCard
+                    title="Cashiers"
+                    value={stats.by_role?.['cashier'] || 0}
+                    icon="point_of_sale"
+                    onClick={() => applyFilter('all', 'cashier')}
+                    isActive={roleFilter === 'cashier'}
+                />
+                <StatCard
+                    title="Pharmacy Employees"
+                    value={stats.by_role?.['pharmacy_employee'] || 0}
+                    icon="local_pharmacy"
+                    onClick={() => applyFilter('all', 'pharmacy_employee')}
+                    isActive={roleFilter === 'pharmacy_employee'}
+                />
+                <StatCard
+                    title="Warehouse Employees"
+                    value={stats.by_role?.['warehouse_employee'] || 0}
+                    icon="inventory_2"
+                    onClick={() => applyFilter('all', 'warehouse_employee')}
+                    isActive={roleFilter === 'warehouse_employee'}
                 />
             </UniversalListPage.KPICards>
 
@@ -424,11 +469,19 @@ export default function UsersList() {
                                             assigned_shop_id: ''
                                         });
                                     }}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                                    required
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'right 0.5rem center',
+                                        backgroundSize: '1.5em 1.5em',
+                                        paddingRight: '2.5rem'
+                                    }}
                                 >
-                                    <option value="">Select Role</option>
+                                    <option value="" className="text-slate-500">Select Role</option>
                                     {assignableRoles.map(role => (
-                                        <option key={role.id} value={role.name}>
+                                        <option key={role.id} value={role.name} className="text-slate-900 dark:text-white bg-white dark:bg-slate-800">
                                             {role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                         </option>
                                     ))}
@@ -436,24 +489,54 @@ export default function UsersList() {
                             </div>
 
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'warehouse' && (
-                                <SearchableSelect
-                                    label="Assign to Warehouse"
-                                    value={formData.assigned_warehouse_id}
-                                    onChange={(val) => setFormData({ ...formData, assigned_warehouse_id: val })}
-                                    options={warehouses.map(w => ({ value: w.id, label: w.name }))}
-                                    placeholder="Search and select warehouse..."
-                                    required
-                                />
+                                <div className="animate-fadeIn">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assign to Warehouse</label>
+                                    <select
+                                        value={formData.assigned_warehouse_id}
+                                        onChange={(e) => setFormData({ ...formData, assigned_warehouse_id: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                                        required
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 0.5rem center',
+                                            backgroundSize: '1.5em 1.5em',
+                                            paddingRight: '2.5rem'
+                                        }}
+                                    >
+                                        <option value="" className="text-slate-500">Select Warehouse</option>
+                                        {warehouses.map(w => (
+                                            <option key={w.id} value={w.id} className="text-slate-900 dark:text-white bg-white dark:bg-slate-800">
+                                                {w.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             )}
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'shop' && (
-                                <SearchableSelect
-                                    label="Assign to Medical Shop"
-                                    value={formData.assigned_shop_id}
-                                    onChange={(val) => setFormData({ ...formData, assigned_shop_id: val })}
-                                    options={shops.map(s => ({ value: s.id, label: s.name }))}
-                                    placeholder="Search and select shop..."
-                                    required
-                                />
+                                <div className="animate-fadeIn">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assign to Medical Shop</label>
+                                    <select
+                                        value={formData.assigned_shop_id}
+                                        onChange={(e) => setFormData({ ...formData, assigned_shop_id: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                                        required
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 0.5rem center',
+                                            backgroundSize: '1.5em 1.5em',
+                                            paddingRight: '2.5rem'
+                                        }}
+                                    >
+                                        <option value="" className="text-slate-500">Select Shop</option>
+                                        {shops.map(s => (
+                                            <option key={s.id} value={s.id} className="text-slate-900 dark:text-white bg-white dark:bg-slate-800">
+                                                {s.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             )}
 
                             {!editingUser && (

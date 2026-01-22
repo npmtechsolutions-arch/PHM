@@ -94,7 +94,7 @@ def list_racks(
     
     total = query.count()
     skip = (page - 1) * size
-    racks = query.order_by(Rack.rack_number).offset(skip).limit(size).all()
+    racks = query.order_by(Rack.created_at.desc()).offset(skip).limit(size).all()
     
     # Enrich with location names
     items = []

@@ -42,6 +42,9 @@ def list_medicines(
     if manufacturer:
         query = query.filter(Medicine.manufacturer.ilike(f"%{manufacturer}%"))
     
+    # Sort by creation date descending (newest first)
+    query = query.order_by(Medicine.created_at.desc())
+    
     total = query.count()
     medicines = query.offset((page - 1) * size).limit(size).all()
     

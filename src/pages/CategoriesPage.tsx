@@ -32,7 +32,8 @@ export default function CategoriesPage() {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        parent_id: ''
+        parent_id: '',
+        is_active: true
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -65,7 +66,7 @@ export default function CategoriesPage() {
 
     const openCreateModal = () => {
         setEditingCategory(null);
-        setFormData({ name: '', description: '', parent_id: '' });
+        setFormData({ name: '', description: '', parent_id: '', is_active: true });
         setError('');
         setShowModal(true);
     };
@@ -75,10 +76,21 @@ export default function CategoriesPage() {
         setFormData({
             name: category.name,
             description: category.description || '',
-            parent_id: category.parent_id || ''
+            parent_id: category.parent_id || '',
+            is_active: category.is_active
         });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (category: Category) => {
+        try {
+            await mastersApi.updateCategory(category.id, { is_active: !category.is_active });
+            window.toast?.success(`${category.name} ${category.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -195,6 +207,18 @@ export default function CategoriesPage() {
             render: (category) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('categories.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleToggleStatus(category)}
+                            className={`!p-1.5 h-8 w-8 ${category.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                            title={category.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                {category.is_active ? 'toggle_on' : 'toggle_off'}
+                            </span>
+                        </Button>
+                    )}
+                    {hasPermission('categories.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(category)} className="!p-1.5 h-8 w-8 text-emerald-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>
@@ -300,6 +324,19 @@ export default function CategoriesPage() {
                             rows={3}
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">

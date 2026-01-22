@@ -56,7 +56,6 @@ import SuppliersPage from './pages/SuppliersPage';
 import AdjustmentReasonsPage from './pages/AdjustmentReasonsPage';
 import PaymentMethodsPage from './pages/PaymentMethodsPage';
 import MedicineTypesPage from './pages/MedicineTypesPage';
-import BrandsPage from './pages/BrandsPage';
 import ManufacturersPage from './pages/ManufacturersPage';
 
 // Auth guard component
@@ -147,7 +146,6 @@ function App() {
                   <Route path="adjustment-reasons" element={<AdjustmentReasonsPage />} />
                   <Route path="payment-methods" element={<PaymentMethodsPage />} />
                   <Route path="medicine-types" element={<MedicineTypesPage />} />
-                  <Route path="brands" element={<BrandsPage />} />
                   <Route path="manufacturers" element={<ManufacturersPage />} />
 
                   {/* Rack Master (Physical storage locations) */}

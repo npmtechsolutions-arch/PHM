@@ -36,9 +36,16 @@ export default function InvoicesList() {
             const params: any = {
                 page: currentPage,
                 size: pageSize,
-                status: statusFilter || undefined
+                // status: statusFilter || undefined
             };
             if (search) params.search = search;
+
+            // Handle status filtering mapping
+            if (statusFilter === 'cancelled') {
+                params.status = 'cancelled';
+            } else if (statusFilter === 'completed' || statusFilter === 'pending') {
+                params.payment_status = statusFilter;
+            }
 
             const res = await invoicesApi.list(params);
             setInvoices(res.data?.items || res.data?.data || []);
@@ -55,7 +62,7 @@ export default function InvoicesList() {
 
     const stats = {
         total: totalItems,
-        paid: invoices.filter(i => i.payment_status === 'paid').length,
+        paid: invoices.filter(i => i.payment_status === 'completed').length,
         pending: invoices.filter(i => i.payment_status === 'pending').length,
         cancelled: invoices.filter(i => i.payment_status === 'cancelled').length,
     };
@@ -106,8 +113,8 @@ export default function InvoicesList() {
             key: 'payment_status',
             align: 'center',
             render: (inv) => {
-                const variant = inv.payment_status === 'paid' ? 'success' : inv.payment_status === 'cancelled' ? 'error' : 'warning';
-                return <Badge variant={variant} className="capitalize">{inv.payment_status}</Badge>;
+                const variant = inv.payment_status === 'completed' ? 'success' : inv.payment_status === 'cancelled' ? 'error' : 'warning';
+                return <Badge variant={variant} className="capitalize">{inv.payment_status === 'completed' ? 'paid' : inv.payment_status}</Badge>;
             }
         },
         {
@@ -141,8 +148,8 @@ export default function InvoicesList() {
                     title="Paid"
                     value={stats.paid}
                     icon="check_circle"
-                    onClick={() => setStatusFilter('paid')}
-                    isActive={statusFilter === 'paid'}
+                    onClick={() => setStatusFilter('completed')}
+                    isActive={statusFilter === 'completed'}
                     trend="up"
                 />
                 <StatCard
@@ -193,7 +200,7 @@ export default function InvoicesList() {
                                     className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                                 >
                                     <option value="">All Status</option>
-                                    <option value="paid">Paid</option>
+                                    <option value="completed">Paid</option>
                                     <option value="pending">Pending</option>
                                     <option value="cancelled">Cancelled</option>
                                 </select>

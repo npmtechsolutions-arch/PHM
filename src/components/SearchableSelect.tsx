@@ -110,7 +110,7 @@ export default function SearchableSelect({
                 />
 
                 {isOpen && !disabled && (
-                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-auto">
+                    <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-auto">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option) => (
                                 <div

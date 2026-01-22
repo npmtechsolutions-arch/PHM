@@ -41,6 +41,7 @@ def list_invoices(
     shop_id: Optional[str] = None,
     customer_id: Optional[str] = None,
     status: Optional[str] = None,
+    payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -74,6 +75,9 @@ def list_invoices(
     
     if status:
         query = query.filter(Invoice.status == status)
+
+    if payment_status:
+        query = query.filter(Invoice.payment_status == payment_status)
     
     if date_from:
         query = query.filter(Invoice.created_at >= date_from)

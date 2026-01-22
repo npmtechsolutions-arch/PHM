@@ -47,7 +47,8 @@ export default function HSNCodesPage() {
         gst_rate: 0,
         cgst_rate: 0,
         sgst_rate: 0,
-        igst_rate: 0
+        igst_rate: 0,
+        is_active: true
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -92,7 +93,7 @@ export default function HSNCodesPage() {
         setEditingHSN(null);
         setFormData({
             hsn_code: '', description: '', gst_slab_id: '',
-            gst_rate: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0
+            gst_rate: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0, is_active: true
         });
         setError('');
         setShowModal(true);
@@ -102,10 +103,21 @@ export default function HSNCodesPage() {
         setEditingHSN(hsn);
         setFormData({
             hsn_code: hsn.hsn_code, description: hsn.description, gst_slab_id: hsn.gst_slab_id || '',
-            gst_rate: hsn.gst_rate, cgst_rate: hsn.cgst_rate, sgst_rate: hsn.sgst_rate, igst_rate: hsn.igst_rate
+            gst_rate: hsn.gst_rate, cgst_rate: hsn.cgst_rate, sgst_rate: hsn.sgst_rate, igst_rate: hsn.igst_rate,
+            is_active: hsn.is_active
         });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (hsn: HSN) => {
+        try {
+            await mastersApi.updateHSN(hsn.id, { is_active: !hsn.is_active });
+            window.toast?.success(`HSN ${hsn.hsn_code} ${hsn.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleGSTSlabChange = (slabId: string) => {
@@ -216,6 +228,18 @@ export default function HSNCodesPage() {
             align: 'right',
             render: (hsn) => (
                 <div className="flex justify-end gap-1">
+                    {hasPermission('hsn.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleToggleStatus(hsn)}
+                            className={`!p-1.5 h-8 w-8 ${hsn.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                            title={hsn.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                {hsn.is_active ? 'toggle_on' : 'toggle_off'}
+                            </span>
+                        </Button>
+                    )}
                     {hasPermission('hsn.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(hsn)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -340,6 +364,19 @@ export default function HSNCodesPage() {
                                 <div className="mt-1 font-mono text-slate-700 dark:text-slate-300">{formData.igst_rate}%</div>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">

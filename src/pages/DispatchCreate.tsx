@@ -215,6 +215,7 @@ export default function DispatchCreate() {
                 warehouse_id: warehouseId,
                 shop_id: shopId,
                 notes: notes || undefined,
+                purchase_request_id: prId || undefined,
                 items: items.map(item => ({
                     medicine_id: item.medicine_id,
                     batch_id: item.batch_id,

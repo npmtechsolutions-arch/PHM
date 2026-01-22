@@ -44,9 +44,25 @@ export default function ShopList() {
     const [totalItems, setTotalItems] = useState(0);
     const [pageSize, setPageSize] = useState(10);
 
+    // Stats from API (not calculated from paginated data)
+    const [stats, setStats] = useState({ total: 0, active: 0, retail: 0, hospital: 0 });
+
     useEffect(() => {
         fetchShops();
     }, [currentPage, pageSize, search, statusFilter]);
+
+    useEffect(() => {
+        fetchStats();
+    }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await shopsApi.getStats();
+            setStats(response.data);
+        } catch (err) {
+            console.error('Failed to fetch stats:', err);
+        }
+    };
 
     const fetchShops = async () => {
         try {
@@ -82,6 +98,7 @@ export default function ShopList() {
             await shopsApi.delete(shopToDelete.id);
             window.toast?.success('Shop deleted successfully');
             fetchShops();
+            fetchStats(); // Refresh stats after delete
         } catch (err: any) {
             console.error('Failed to delete shop:', err);
             window.toast?.error(err.response?.data?.detail || 'Failed to delete shop');
@@ -91,13 +108,6 @@ export default function ShopList() {
         }
     };
 
-    // Calculate stats
-    const stats = {
-        total: totalItems,
-        active: shops.filter(s => s.status === 'active').length,
-        retail: shops.filter(s => s.shop_type === 'retail').length,
-        hospital: shops.filter(s => s.shop_type === 'hospital').length
-    };
 
     const columns: Column<Shop>[] = [
         {
@@ -206,7 +216,7 @@ export default function ShopList() {
             />
 
             <UniversalListPage.KPICards>
-                <StatCard title="Total Shops" value={totalItems} icon="storefront" onClick={() => setStatusFilter('all')} isActive={statusFilter === 'all'} />
+                <StatCard title="Total Shops" value={stats.total} icon="storefront" onClick={() => setStatusFilter('all')} isActive={statusFilter === 'all'} />
                 <StatCard title="Active" value={stats.active} icon="check_circle" trend="up" change="+2 this month" />
                 <StatCard title="Retail" value={stats.retail} icon="shopping_bag" trend="neutral" />
                 <StatCard title="Hospital" value={stats.hospital} icon="local_hospital" trend="neutral" />

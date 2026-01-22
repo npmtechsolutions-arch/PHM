@@ -94,6 +94,53 @@ def list_shops(
     return {"items": items, "total": total, "page": page, "size": size}
 
 
+@router.get("/stats")
+def get_shop_stats(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get shop statistics for KPI cards"""
+    # Base query with entity isolation
+    query = db.query(MedicalShop)
+    
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    if user_role != "super_admin":
+        if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"] or (user_role and user_shop_id):
+            if not user_shop_id:
+                return {"total": 0, "active": 0, "retail": 0, "hospital": 0}
+            query = query.filter(MedicalShop.id == user_shop_id)
+        elif user_role in ["warehouse_admin"] or (user_role and user_warehouse_id):
+            if not user_warehouse_id:
+                return {"total": 0, "active": 0, "retail": 0, "hospital": 0}
+            query = query.filter(MedicalShop.warehouse_id == user_warehouse_id)
+    
+    total = query.count()
+    active = query.filter(MedicalShop.status == "active").count()
+    retail = db.query(MedicalShop).filter(MedicalShop.shop_type == "retail")
+    hospital = db.query(MedicalShop).filter(MedicalShop.shop_type == "hospital")
+    
+    # Apply same entity isolation to type counts
+    if user_role != "super_admin":
+        if user_role in ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"] or (user_role and user_shop_id):
+            if user_shop_id:
+                retail = retail.filter(MedicalShop.id == user_shop_id)
+                hospital = hospital.filter(MedicalShop.id == user_shop_id)
+        elif user_role in ["warehouse_admin"] or (user_role and user_warehouse_id):
+            if user_warehouse_id:
+                retail = retail.filter(MedicalShop.warehouse_id == user_warehouse_id)
+                hospital = hospital.filter(MedicalShop.warehouse_id == user_warehouse_id)
+    
+    return {
+        "total": total,
+        "active": active,
+        "retail": retail.count(),
+        "hospital": hospital.count()
+    }
+
+
 @router.get("/{shop_id}")
 def get_shop(
     shop_id: str,

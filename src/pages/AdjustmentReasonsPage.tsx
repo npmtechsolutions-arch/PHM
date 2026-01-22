@@ -33,7 +33,8 @@ export default function AdjustmentReasonsPage() {
         name: '',
         code: '',
         description: '',
-        adjustment_type: 'decrease' as 'increase' | 'decrease'
+        adjustment_type: 'decrease' as 'increase' | 'decrease',
+        is_active: true
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -69,7 +70,7 @@ export default function AdjustmentReasonsPage() {
 
     const openCreateModal = () => {
         setEditingItem(null);
-        setFormData({ name: '', code: '', description: '', adjustment_type: 'decrease' });
+        setFormData({ name: '', code: '', description: '', adjustment_type: 'decrease', is_active: true });
         setError('');
         setShowModal(true);
     };
@@ -80,10 +81,21 @@ export default function AdjustmentReasonsPage() {
             name: item.name,
             code: item.code,
             description: item.description || '',
-            adjustment_type: item.adjustment_type
+            adjustment_type: item.adjustment_type,
+            is_active: item.is_active
         });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (item: AdjustmentReason) => {
+        try {
+            await mastersApi.updateAdjustmentReason(item.id, { is_active: !item.is_active });
+            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -187,6 +199,18 @@ export default function AdjustmentReasonsPage() {
             render: (item) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('adjustment_reasons.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => handleToggleStatus(item)}
+                            className={`!p-1.5 h-8 w-8 ${item.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                            title={item.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                {item.is_active ? 'toggle_on' : 'toggle_off'}
+                            </span>
+                        </Button>
+                    )}
+                    {hasPermission('adjustment_reasons.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(item)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>
@@ -273,6 +297,19 @@ export default function AdjustmentReasonsPage() {
                     </div>
 
                     <Input label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Explain when this reason is used" />
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
+                    </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                         <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>

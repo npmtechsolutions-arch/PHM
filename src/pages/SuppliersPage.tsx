@@ -46,7 +46,8 @@ export default function SuppliersPage() {
         address: '',
         city: '',
         state: '',
-        pincode: ''
+        pincode: '',
+        is_active: true
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -77,7 +78,7 @@ export default function SuppliersPage() {
 
     const openCreateModal = () => {
         setEditingItem(null);
-        setFormData({ name: '', code: '', contact_person: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', pincode: '' });
+        setFormData({ name: '', code: '', contact_person: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', pincode: '', is_active: true });
         setError('');
         setShowModal(true);
     };
@@ -94,10 +95,21 @@ export default function SuppliersPage() {
             address: item.address || '',
             city: item.city || '',
             state: item.state || '',
-            pincode: item.pincode || ''
+            pincode: item.pincode || '',
+            is_active: item.is_active
         });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (item: Supplier) => {
+        try {
+            await mastersApi.updateSupplier(item.id, { is_active: !item.is_active });
+            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -212,6 +224,18 @@ export default function SuppliersPage() {
                     {hasPermission('suppliers.edit') && (
                         <Button
                             variant="ghost"
+                            onClick={() => handleToggleStatus(item)}
+                            className={`!p-1.5 h-8 w-8 ${item.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                            title={item.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">
+                                {item.is_active ? 'toggle_on' : 'toggle_off'}
+                            </span>
+                        </Button>
+                    )}
+                    {hasPermission('suppliers.edit') && (
+                        <Button
+                            variant="ghost"
                             onClick={() => openEditModal(item)}
                             className="!p-1.5 h-8 w-8 text-blue-600"
                         >
@@ -316,6 +340,19 @@ export default function SuppliersPage() {
                         <Input label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" />
                         <Input label="State" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" />
                         <Input label="Pincode" value={formData.pincode} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">

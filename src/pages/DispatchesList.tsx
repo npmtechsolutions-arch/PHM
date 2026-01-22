@@ -171,22 +171,31 @@ export default function DispatchesList() {
         }
     ];
 
+    // Context-aware labels based on user type
+    const isShop = activeEntity?.type === 'shop';
+    const pageTitle = isShop ? 'Incoming Shipments' : 'Dispatch History';
+    const pageSubtitle = isShop
+        ? 'View incoming stock shipments from warehouses'
+        : 'Track warehouse to shop deliveries and shipments';
+
     return (
         <UniversalListPage>
             <UniversalListPage.Header
-                title="Dispatch History"
-                subtitle="Track warehouse to shop deliveries and shipments"
+                title={pageTitle}
+                subtitle={pageSubtitle}
                 actions={
-                    <Button variant="primary" onClick={() => navigate('/dispatches/create')}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        New Dispatch
-                    </Button>
+                    !isShop && (
+                        <Button variant="primary" onClick={() => navigate('/dispatches/create')}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            New Dispatch
+                        </Button>
+                    )
                 }
             />
 
             <UniversalListPage.KPICards>
                 <StatCard
-                    title="Total Dispatches"
+                    title={isShop ? 'Total Shipments' : 'Total Dispatches'}
                     value={totalItems}
                     icon="local_shipping"
                     onClick={() => setStatusFilter('')}
@@ -222,7 +231,7 @@ export default function DispatchesList() {
                 columns={columns}
                 data={dispatches}
                 loading={loading}
-                emptyMessage="No dispatches found."
+                emptyMessage={isShop ? 'No incoming shipments found.' : 'No dispatches found.'}
                 pagination={{
                     currentPage: currentPage,
                     totalPages: Math.ceil(totalItems / pageSize),
@@ -233,7 +242,7 @@ export default function DispatchesList() {
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls
-                        title="Dispatch List"
+                        title={isShop ? 'Incoming Shipments' : 'Dispatch List'}
                         count={totalItems}
                         searchProps={{
                             value: search,

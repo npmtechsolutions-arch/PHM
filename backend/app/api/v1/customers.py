@@ -55,6 +55,9 @@ def list_customers(
     if customer_type:
         query = query.filter(Customer.customer_type == customer_type)
     
+    # Sort by creation date descending (newest first)
+    query = query.order_by(Customer.created_at.desc())
+    
     total = query.count()
     customers = query.offset((page - 1) * size).limit(size).all()
     

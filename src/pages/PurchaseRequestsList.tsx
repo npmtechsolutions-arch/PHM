@@ -47,7 +47,7 @@ export default function PurchaseRequestsList() {
     const [newRequest, setNewRequest] = useState({
         shop_id: '',
         warehouse_id: '',
-        priority: 'normal',
+        priority: 'medium',
         items: [{ medicine_id: '', quantity: 1 }]
     });
 
@@ -58,8 +58,14 @@ export default function PurchaseRequestsList() {
     // Load medicines for create modal
     useEffect(() => {
         if (showCreateModal && medicines.length === 0) {
-            medicinesApi.list({ size: 5000 }).then(medRes => {
-                setMedicines(medRes.data?.items || medRes.data || []);
+            console.log('[PurchaseRequests] Fetching medicines...');
+            medicinesApi.list({ size: 1000 }).then(medRes => {
+                console.log('[PurchaseRequests] Medicines API response:', medRes.data);
+                const medsData = medRes.data?.items || (Array.isArray(medRes.data) ? medRes.data : []);
+                console.log('[PurchaseRequests] Medicines loaded:', medsData.length);
+                setMedicines(medsData);
+            }).catch(err => {
+                console.error('[PurchaseRequests] Failed to load medicines:', err);
             });
         }
     }, [showCreateModal]);
@@ -125,7 +131,7 @@ export default function PurchaseRequestsList() {
                     .map(i => ({ medicine_id: i.medicine_id, quantity_requested: i.quantity }))
             });
             setShowCreateModal(false);
-            setNewRequest({ shop_id: '', warehouse_id: '', priority: 'normal', items: [{ medicine_id: '', quantity: 1 }] });
+            setNewRequest({ shop_id: '', warehouse_id: '', priority: 'medium', items: [{ medicine_id: '', quantity: 1 }] });
             fetchRequests();
         } catch (e: any) {
             console.error(e);
@@ -350,12 +356,12 @@ export default function PurchaseRequestsList() {
             {/* Create Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto animate-scaleIn border border-slate-200 dark:border-slate-700">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn border border-slate-200 dark:border-slate-700">
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">New Purchase Request</h2>
                             <p className="text-sm text-slate-500">Create a stock request from a shop to warehouse</p>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-visible">
                             <div className="grid grid-cols-2 gap-4">
                                 {!isShopUser && (
                                     <div>

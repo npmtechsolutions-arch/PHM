@@ -138,6 +138,8 @@ export const usersApi = {
     update: (id: string, data: any) => api.put(`/users/${id}`, data),
 
     delete: (id: string) => api.delete(`/users/${id}`),
+
+    getStats: () => api.get('/users/stats'),
 };
 
 // Warehouses API
@@ -171,6 +173,8 @@ export const shopsApi = {
     update: (id: string, data: any) => api.put(`/shops/${id}`, data),
 
     delete: (id: string) => api.delete(`/shops/${id}`),
+
+    getStats: () => api.get('/shops/stats'),
 
     getStock: (id: string, params?: { page?: number; size?: number; low_stock?: boolean }) =>
         api.get(`/shops/${id}/stock`, { params }),
@@ -247,7 +251,7 @@ export const dispatchesApi = {
 
 // Invoices API
 export const invoicesApi = {
-    list: (params?: { page?: number; size?: number; shop_id?: string; customer_id?: string; status?: string }) =>
+    list: (params?: { page?: number; size?: number; shop_id?: string; customer_id?: string; status?: string; payment_status?: string }) =>
         api.get('/invoices', { params }),
 
     get: (id: string) => api.get(`/invoices/${id}`),

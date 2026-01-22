@@ -30,7 +30,8 @@ export default function PaymentMethodsPage() {
     const [formData, setFormData] = useState({
         name: '',
         code: '',
-        icon: 'payments'
+        icon: 'payments',
+        is_active: true
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -65,7 +66,7 @@ export default function PaymentMethodsPage() {
 
     const openCreateModal = () => {
         setEditingItem(null);
-        setFormData({ name: '', code: '', icon: 'payments' });
+        setFormData({ name: '', code: '', icon: 'payments', is_active: true });
         setError('');
         setShowModal(true);
     };
@@ -75,10 +76,21 @@ export default function PaymentMethodsPage() {
         setFormData({
             name: item.name,
             code: item.code,
-            icon: item.icon || 'payments'
+            icon: item.icon || 'payments',
+            is_active: item.is_active
         });
         setError('');
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (item: PaymentMethod) => {
+        try {
+            await mastersApi.updatePaymentMethod(item.id, { is_active: !item.is_active });
+            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            loadData();
+        } catch (err: any) {
+            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -169,6 +181,17 @@ export default function PaymentMethodsPage() {
                                 </div>
                                 <div className="flex gap-1">
                                     {hasPermission('payment_methods.edit') && (
+                                        <button
+                                            onClick={() => handleToggleStatus(item)}
+                                            className={`p-1.5 rounded-lg ${item.is_active ? 'text-amber-500 hover:text-amber-600' : 'text-green-500 hover:text-green-600'}`}
+                                            title={item.is_active ? 'Deactivate' : 'Activate'}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">
+                                                {item.is_active ? 'toggle_on' : 'toggle_off'}
+                                            </span>
+                                        </button>
+                                    )}
+                                    {hasPermission('payment_methods.edit') && (
                                         <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
                                             <span className="material-symbols-outlined text-[18px]">edit</span>
                                         </button>
@@ -208,6 +231,19 @@ export default function PaymentMethodsPage() {
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
+                            Active
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">

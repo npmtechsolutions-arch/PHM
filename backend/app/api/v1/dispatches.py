@@ -16,8 +16,9 @@ from app.core.security import get_current_user, require_role
 from app.db.database import get_db
 from app.db.models import (
     Dispatch, DispatchItem, DispatchStatusHistory, Medicine, Batch, 
-    MedicalShop, Warehouse, PurchaseRequest, StockMovement, 
-    WarehouseStock, ShopStock, MovementType, DispatchStatus as DStatus
+    MedicalShop, Warehouse, PurchaseRequest, PurchaseRequestItem, StockMovement, 
+    WarehouseStock, ShopStock, MovementType, DispatchStatus as DStatus,
+    PurchaseRequestStatus as PRStatus
 )
 
 router = APIRouter()
@@ -140,7 +141,14 @@ def create_dispatch(
     db.add(dispatch)
     db.flush()
     
-    # Add items
+    # Add items and update logic
+    pr_fully_dispatched = True
+    
+    # Fetch Purchase Request if exists
+    purchase_request = None
+    if dispatch_data.purchase_request_id:
+        purchase_request = db.query(PurchaseRequest).filter(PurchaseRequest.id == dispatch_data.purchase_request_id).first()
+
     for item_data in dispatch_data.items:
         medicine = db.query(Medicine).filter(Medicine.id == item_data.medicine_id).first()
         if not medicine:
@@ -156,9 +164,7 @@ def create_dispatch(
             WarehouseStock.batch_id == item_data.batch_id
         ).first()
         
-        # Fallback to batch quantity if no wh_stock record (legacy/global behavior), 
-        # but in strict entity mode we should probably rely on wh_stock.
-        # However, to avoid breakage if data isn't fully migrated:
+        # Fallback to batch quantity if no wh_stock record (legacy/global behavior)
         available = wh_stock.quantity if wh_stock else batch.quantity
         
         if item_data.quantity > available:
@@ -174,6 +180,42 @@ def create_dispatch(
             quantity=item_data.quantity
         )
         db.add(item)
+
+        # Update Purchase Request Item if linked
+        if purchase_request:
+            pr_item = db.query(PurchaseRequestItem).filter(
+                PurchaseRequestItem.purchase_request_id == purchase_request.id,
+                PurchaseRequestItem.medicine_id == item_data.medicine_id
+            ).first()
+            
+            if pr_item:
+                pr_item.quantity_dispatched += item_data.quantity
+                if pr_item.quantity_dispatched < pr_item.quantity_approved:
+                    pr_fully_dispatched = False
+            else:
+                # If we are dispatching an item not in PR (extra item), it doesn't block "full dispatch" 
+                # strictly speaking, but depends on business logic. 
+                # Usually we only care about requested items being fulfilled.
+                pass
+
+    # Update Purchase Request Status
+    if purchase_request:
+        # Check if ALL items in PR are fully dispatched
+        # We need to re-verify against all PR items, not just the ones in this dispatch
+        all_pr_items = db.query(PurchaseRequestItem).filter(
+            PurchaseRequestItem.purchase_request_id == purchase_request.id
+        ).all()
+        
+        all_fulfilled = True
+        for pi in all_pr_items:
+            if pi.quantity_dispatched < pi.quantity_approved:
+                all_fulfilled = False
+                break
+        
+        if all_fulfilled:
+            purchase_request.status = PRStatus.COMPLETED
+        else:
+            purchase_request.status = PRStatus.PARTIAL
     
     # Add initial status history
     history = DispatchStatusHistory(

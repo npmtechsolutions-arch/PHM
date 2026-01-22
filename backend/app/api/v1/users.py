@@ -133,6 +133,70 @@ def list_users(
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
+@router.get("/stats")
+def get_user_stats(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get user statistics for KPI cards"""
+    # Base query with entity isolation
+    query = db.query(User)
+    
+    user_role = current_user.get("role")
+    user_shop_id = current_user.get("shop_id")
+    user_warehouse_id = current_user.get("warehouse_id")
+    
+    if user_role != "super_admin":
+        if user_role == "warehouse_admin":
+            if not user_warehouse_id:
+                return {"total": 0, "active": 0, "inactive": 0, "admins": 0}
+            query = query.filter(
+                (User.assigned_warehouse_id == user_warehouse_id) | 
+                (User.assigned_warehouse_id == None)
+            )
+        elif user_role in ["shop_owner", "pharmacist", "pharmacy_admin"]:
+            if not user_shop_id:
+                return {"total": 0, "active": 0, "inactive": 0, "admins": 0}
+            query = query.filter(User.assigned_shop_id == user_shop_id)
+        elif user_role in ["cashier", "pharmacy_employee"]:
+            if user_shop_id:
+                query = query.filter(User.assigned_shop_id == user_shop_id)
+            else:
+                query = query.filter(User.id == current_user.get("user_id"))
+    
+    total = query.count()
+    active = query.filter(User.is_active == True).count()
+    inactive = query.filter(User.is_active == False).count()
+    
+    # Count admins (super_admin and admin roles)
+    admin_query = query.filter(
+        (User.role == "admin") | 
+        (User.role == "super_admin")
+    )
+    admins = admin_query.count()
+
+    # Role breakdown
+    role_counts = {}
+    try:
+        from sqlalchemy import func
+        # Reuse restrictions from query but change what we select
+        role_stats = query.with_entities(User.role, func.count(User.id)).group_by(User.role).all()
+        for r, c in role_stats:
+            r_name = r.value if hasattr(r, 'value') else str(r)
+            if r_name:
+                role_counts[r_name] = c
+    except Exception as e:
+        logger.error(f"Error fetching role stats: {str(e)}")
+    
+    return {
+        "total": total,
+        "active": active,
+        "inactive": inactive,
+        "admins": admins,
+        "by_role": role_counts
+    }
+
+
 @router.post("")
 def create_user(
     user_data: UserCreate,
@@ -317,8 +381,20 @@ def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Only super_admin can update other users
-    if current_user["user_id"] != user_id and current_user.get("role") != "super_admin":
+    # Debug logging to track role issues
+    logger.info(f"[UPDATE_USER] Request to update user {user_id}")
+    logger.info(f"[UPDATE_USER] Current user: {current_user}")
+    logger.info(f"[UPDATE_USER] Current user role: {current_user.get('role')}, user_id: {current_user.get('user_id')}")
+    
+    # Only super_admin can update other users (case-insensitive check with enum handling)
+    raw_role = str(current_user.get("role", "")).lower()
+    # Handle RoleType enum format like 'roletype.super_admin'
+    if '.' in raw_role:
+        raw_role = raw_role.split('.')[-1]
+    current_role = raw_role
+    logger.info(f"[UPDATE_USER] Normalized role: '{current_role}', is_super_admin: {current_role == 'super_admin'}")
+    if current_user["user_id"] != user_id and current_role != "super_admin":
+        logger.warning(f"[UPDATE_USER] 403 - User {current_user['user_id']} (role: {current_role}) tried to update user {user_id}")
         raise HTTPException(status_code=403, detail="Not authorized to update this user")
     
     update_data = user_data.model_dump(exclude_unset=True)

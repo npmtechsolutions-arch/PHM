@@ -30,6 +30,10 @@ class CategoryCreate(CategoryBase):
     pass
 
 
+class CategoryUpdate(CategoryBase):
+    is_active: Optional[bool] = None
+
+
 class CategoryResponse(CategoryBase):
     id: str
     is_active: bool
@@ -49,6 +53,10 @@ class UnitBase(BaseModel):
 
 class UnitCreate(UnitBase):
     pass
+
+
+class UnitUpdate(UnitBase):
+    is_active: Optional[bool] = None
 
 
 class UnitResponse(UnitBase):
@@ -73,6 +81,10 @@ class HSNBase(BaseModel):
 
 class HSNCreate(HSNBase):
     pass
+
+
+class HSNUpdate(HSNBase):
+    is_active: Optional[bool] = None
 
 
 class HSNResponse(HSNBase):
@@ -103,7 +115,7 @@ def list_categories(
         query = query.filter(MedicineCategory.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(MedicineCategory.name).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(MedicineCategory.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -135,7 +147,7 @@ def create_category(
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
 def update_category(
     category_id: str,
-    data: CategoryBase,
+    data: CategoryUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["categories.update", "categories.edit"]))
 ):
@@ -187,7 +199,7 @@ def list_units(
         query = query.filter(UnitMaster.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(UnitMaster.name).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(UnitMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -219,7 +231,7 @@ def create_unit(
 @router.put("/units/{unit_id}", response_model=UnitResponse)
 def update_unit(
     unit_id: str,
-    data: UnitBase,
+    data: UnitUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["units.update", "units.edit"]))
 ):
@@ -274,7 +286,7 @@ def list_hsn_codes(
         )
     
     total = query.count()
-    items = query.order_by(HSNMaster.hsn_code).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(HSNMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -306,7 +318,7 @@ def create_hsn_code(
 @router.put("/hsn/{hsn_id}", response_model=HSNResponse)
 def update_hsn_code(
     hsn_id: str,
-    data: HSNBase,
+    data: HSNUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["hsn.update", "hsn.edit"]))
 ):
@@ -350,6 +362,10 @@ class GSTSlabCreate(GSTSlabBase):
     pass
 
 
+class GSTSlabUpdate(GSTSlabBase):
+    is_active: Optional[bool] = None
+
+
 class GSTSlabResponse(GSTSlabBase):
     id: str
     is_active: bool
@@ -375,7 +391,7 @@ def list_gst_slabs(
         query = query.filter(GSTSlabMaster.is_active == is_active)
     
     total = query.count()
-    items = query.order_by(GSTSlabMaster.rate).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(GSTSlabMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -414,7 +430,7 @@ def create_gst_slab(
 @router.put("/gst-slabs/{slab_id}", response_model=GSTSlabResponse)
 def update_gst_slab(
     slab_id: str,
-    data: GSTSlabBase,
+    data: GSTSlabUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["gst.update", "gst.edit"]))
 ):
@@ -476,6 +492,10 @@ class MedicineTypeCreate(MedicineTypeBase):
     pass
 
 
+class MedicineTypeUpdate(MedicineTypeBase):
+    is_active: Optional[bool] = None
+
+
 class MedicineTypeResponse(MedicineTypeBase):
     id: str
     is_active: bool
@@ -504,7 +524,7 @@ def list_medicine_types(
         query = query.filter(MedicineTypeMaster.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(MedicineTypeMaster.sort_order).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(MedicineTypeMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -536,7 +556,7 @@ def create_medicine_type(
 @router.put("/medicine-types/{type_id}", response_model=MedicineTypeResponse)
 def update_medicine_type(
     type_id: str,
-    data: MedicineTypeBase,
+    data: MedicineTypeUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["medicine_types.update", "medicine_types.edit"]))
 ):
@@ -591,6 +611,10 @@ class BrandCreate(BrandBase):
     pass
 
 
+class BrandUpdate(BrandBase):
+    is_active: Optional[bool] = None
+
+
 class BrandResponse(BrandBase):
     id: str
     is_active: bool
@@ -619,7 +643,7 @@ def list_brands(
         query = query.filter(BrandMaster.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(BrandMaster.name).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(BrandMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -651,7 +675,7 @@ def create_brand(
 @router.put("/brands/{brand_id}", response_model=BrandResponse)
 def update_brand(
     brand_id: str,
-    data: BrandBase,
+    data: BrandUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["brands.update", "brands.edit"]))
 ):
@@ -710,6 +734,10 @@ class ManufacturerCreate(ManufacturerBase):
     pass
 
 
+class ManufacturerUpdate(ManufacturerBase):
+    is_active: Optional[bool] = None
+
+
 class ManufacturerResponse(ManufacturerBase):
     id: str
     is_active: bool
@@ -738,7 +766,7 @@ def list_manufacturers(
         query = query.filter(ManufacturerMaster.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(ManufacturerMaster.name).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(ManufacturerMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -770,7 +798,7 @@ def create_manufacturer(
 @router.put("/manufacturers/{manufacturer_id}", response_model=ManufacturerResponse)
 def update_manufacturer(
     manufacturer_id: str,
-    data: ManufacturerBase,
+    data: ManufacturerUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_permission(["manufacturers.update", "manufacturers.edit"]))
 ):
@@ -853,7 +881,7 @@ def list_payment_methods(
         query = query.filter(PaymentMethodMaster.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(PaymentMethodMaster.sort_order).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(PaymentMethodMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -979,7 +1007,7 @@ def list_suppliers(
         )
     
     total = query.count()
-    items = query.order_by(SupplierMaster.name).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(SupplierMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
@@ -1097,7 +1125,7 @@ def list_adjustment_reasons(
         query = query.filter(AdjustmentReasonMaster.name.ilike(f"%{search}%"))
     
     total = query.count()
-    items = query.order_by(AdjustmentReasonMaster.sort_order).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(AdjustmentReasonMaster.created_at.desc()).offset((page - 1) * size).limit(size).all()
     
     return {
         "items": items,
