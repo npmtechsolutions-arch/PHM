@@ -150,45 +150,34 @@ export default function StockEntry() {
     };
 
     const handleReceiveDispatchItem = async (item: any, index: number, silent: boolean = false) => {
-        // Logic to receive single item
-        // Call inventoryApi.stockEntry with item details + entered box name
-        // Then update UI to show 'Received'
-        try {
-            setLoading(true);
-            await inventoryApi.stockEntry({
-                shop_id: entityId,
-                medicine_id: item.medicine_id,
-                batch_number: item.batch_number,
-                expiry_date: item.expiry_date,
-                quantity: item.quantity,
-                purchase_price: item.purchase_price || 0,
-                selling_price: item.selling_price || 0,
-                rack_name: item.rack_name || rackName, // Use item specific or global bulk name
-                rack_number: item.rack_number || rackNumber // Use item specific or global bulk number
-            });
+        // IMPORTANT: Do NOT call inventoryApi.stockEntry here!
+        // The backend automatically adds stock to ShopStock when dispatch status is set to 'delivered'
+        // Calling stockEntry here would cause DOUBLE COUNTING of inventory
+        
+        // Just mark item as received in UI
+        const newItems = [...dispatchItems];
+        newItems[index].status = 'received';
+        // Save the used values to display
+        newItems[index].rack_name = item.rack_name || rackName;
+        newItems[index].rack_number = item.rack_number || rackNumber;
+        setDispatchItems(newItems);
 
-            // Mark item as received locally
-            const newItems = [...dispatchItems];
-            newItems[index].status = 'received';
-            // Save the used values to display
-            newItems[index].rack_name = item.rack_name || rackName;
-            newItems[index].rack_number = item.rack_number || rackNumber;
-            setDispatchItems(newItems);
-
-            // Check if all received
-            if (newItems.every(i => i.status === 'received')) {
+        // Check if all received - then update dispatch status (backend will add stock)
+        if (newItems.every(i => i.status === 'received')) {
+            try {
+                setLoading(true);
+                // Backend will automatically add stock to ShopStock when status is set to 'delivered'
                 await dispatchesApi.updateStatus(dispatchId!, 'delivered');
-                setMessage({ type: 'success', text: 'All items received. Dispatch marked as Delivered.' });
+                setMessage({ type: 'success', text: 'All items received. Stock added to inventory. Dispatch marked as Delivered.' });
                 setTimeout(() => navigate('/dispatches'), 2000);
-            } else if (!silent) {
-                setMessage({ type: 'success', text: 'Item received successfully' });
+            } catch (e) {
+                console.error(e);
+                setMessage({ type: 'error', text: 'Failed to mark dispatch as delivered' });
+            } finally {
+                setLoading(false);
             }
-
-        } catch (e) {
-            console.error(e);
-            setMessage({ type: 'error', text: 'Failed to receive item' });
-        } finally {
-            setLoading(false);
+        } else if (!silent) {
+            setMessage({ type: 'success', text: 'Item marked as received. Complete all items to add stock to inventory.' });
         }
     };
 

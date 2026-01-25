@@ -173,18 +173,6 @@ export default function UnitsPage() {
             render: (unit) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('units.edit') && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(unit)}
-                            className={`!p-1.5 h-8 w-8 ${unit.is_active ? 'text-amber-600' : 'text-green-600'}`}
-                            title={unit.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">
-                                {unit.is_active ? 'toggle_on' : 'toggle_off'}
-                            </span>
-                        </Button>
-                    )}
-                    {hasPermission('units.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(unit)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>

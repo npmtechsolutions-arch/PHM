@@ -34,11 +34,22 @@ export default function DispatchCreate() {
     const [warehouses, setWarehouses] = useState<any[]>([]);
     const [shops, setShops] = useState<any[]>([]);
     const [medicines, setMedicines] = useState<any[]>([]);
+    const [dropdownsLoading, setDropdownsLoading] = useState(true);
 
     useEffect(() => {
-        fetchWarehouses();
-        fetchShops();
-        fetchMedicines();
+        const loadAllDropdowns = async () => {
+            setDropdownsLoading(true);
+            try {
+                await Promise.all([
+                    fetchWarehouses(),
+                    fetchShops(),
+                    fetchMedicines()
+                ]);
+            } finally {
+                setDropdownsLoading(false);
+            }
+        };
+        loadAllDropdowns();
     }, []);
 
     const [searchParams] = useSearchParams();
@@ -234,6 +245,26 @@ export default function DispatchCreate() {
     };
 
     const isWarehouseAdmin = user?.role === 'warehouse_admin';
+
+    if (dropdownsLoading) {
+        return (
+            <PageLayout
+                title="Create New Dispatch"
+                subtitle="Create a dispatch from warehouse to shop"
+            >
+                <div className="max-w-5xl mx-auto">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center justify-center py-12">
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="spinner"></div>
+                                <p className="text-slate-500 dark:text-slate-400 font-medium">Loading dropdowns...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </PageLayout>
+        );
+    }
 
     return (
         <PageLayout

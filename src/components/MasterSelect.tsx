@@ -14,6 +14,9 @@
  *   />
  */
 import { useMasterData, type AllMasterData } from '../contexts/MasterDataContext';
+import { useOperationalContext } from '../contexts/OperationalContext';
+import { useState, useEffect, useRef } from 'react';
+import { warehousesApi } from '../services/api';
 
 // Props for the master select component
 interface MasterSelectProps {
@@ -507,18 +510,86 @@ export function DepartmentSelect({ value, onChange, required, disabled, classNam
 
 /**
  * WarehouseSelect - For warehouse selection
+ * Fetches warehouses directly from API to ensure they're always loaded
  */
 export function WarehouseSelect({ value, onChange, required, disabled, className, placeholder }: CategorySelectProps) {
+    const { getMaster, isLoading: mastersLoading } = useMasterData();
+    const { availableWarehouses } = useOperationalContext();
+    const [warehouses, setWarehouses] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const hasFetchedRef = useRef(false);
+
+    // Try to get from master data first
+    const masterWarehouses = getMaster('warehouses');
+
+    // Load warehouses: Try master data first, then operational context, then API
+    useEffect(() => {
+        // If master data has warehouses, use them
+        if (masterWarehouses.length > 0) {
+            setWarehouses(masterWarehouses);
+            setLoading(false);
+            hasFetchedRef.current = true;
+            return;
+        }
+
+        // If operational context has warehouses, use them
+        if (availableWarehouses.length > 0) {
+            setWarehouses(availableWarehouses.map(w => ({ id: w.id, name: w.name, code: w.id })));
+            setLoading(false);
+            hasFetchedRef.current = true;
+            return;
+        }
+
+        // If master data is still loading, wait
+        if (mastersLoading) {
+            setLoading(true);
+            return;
+        }
+
+        // Fetch directly from API if no warehouses found and we haven't fetched yet
+        if (!hasFetchedRef.current) {
+            hasFetchedRef.current = true;
+            setLoading(true);
+            warehousesApi.list({ size: 500 })
+                .then(res => {
+                    const data = res.data?.items || res.data || [];
+                    setWarehouses(data);
+                })
+                .catch(err => {
+                    console.error('Failed to load warehouses:', err);
+                    setWarehouses([]);
+                })
+                .finally(() => {
+                    setLoading(false);
+                });
+        } else if (warehouses.length === 0) {
+            setLoading(false);
+        }
+    }, [masterWarehouses.length, availableWarehouses.length, mastersLoading]);
+
+    const isLoading = mastersLoading || loading;
+    const warehouseOptions = warehouses.length > 0 ? warehouses : [];
+
+    const defaultClassName = `w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all ${disabled || isLoading ? 'opacity-60 cursor-not-allowed' : ''}`;
+
     return (
-        <MasterSelect
-            masterKey="warehouses"
+        <select
             value={value}
-            onChange={onChange}
-            placeholder={placeholder || "Select Warehouse"}
+            onChange={(e) => onChange(e.target.value)}
             required={required}
-            disabled={disabled}
-            className={className}
-        />
+            disabled={disabled || isLoading || warehouseOptions.length === 0}
+            className={className || defaultClassName}
+            title={isLoading ? 'Loading warehouses...' : warehouseOptions.length === 0 ? 'No warehouses available' : undefined}
+        >
+            <option value="">
+                {isLoading ? 'Loading warehouses...' : warehouseOptions.length === 0 ? '⚠️ No warehouses found' : (placeholder || 'Select Warehouse')}
+            </option>
+            {warehouseOptions.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} {warehouse.code ? `(${warehouse.code})` : ''}
+                </option>
+            ))}
+        </select>
     );
 }
 

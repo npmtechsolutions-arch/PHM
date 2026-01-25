@@ -199,18 +199,6 @@ export default function AdjustmentReasonsPage() {
             render: (item) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('adjustment_reasons.edit') && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(item)}
-                            className={`!p-1.5 h-8 w-8 ${item.is_active ? 'text-amber-600' : 'text-green-600'}`}
-                            title={item.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">
-                                {item.is_active ? 'toggle_on' : 'toggle_off'}
-                            </span>
-                        </Button>
-                    )}
-                    {hasPermission('adjustment_reasons.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(item)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>

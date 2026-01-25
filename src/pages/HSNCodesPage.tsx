@@ -229,18 +229,6 @@ export default function HSNCodesPage() {
             render: (hsn) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('hsn.edit') && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(hsn)}
-                            className={`!p-1.5 h-8 w-8 ${hsn.is_active ? 'text-amber-600' : 'text-green-600'}`}
-                            title={hsn.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">
-                                {hsn.is_active ? 'toggle_on' : 'toggle_off'}
-                            </span>
-                        </Button>
-                    )}
-                    {hasPermission('hsn.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(hsn)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>

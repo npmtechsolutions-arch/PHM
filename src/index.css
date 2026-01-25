@@ -452,6 +452,35 @@ textarea.input {
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   user-select: none;
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  overflow: hidden;
+  text-overflow: clip;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  min-width: 1em;
+  max-width: 1em;
+  text-align: center;
+  vertical-align: middle;
+  /* Hide text completely until font loads - use opacity to prevent layout shift */
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Show icon when font is loaded */
+html.material-symbols-loaded .material-symbols-outlined {
+  opacity: 1;
+  visibility: visible;
 }
 
 .material-symbols-outlined.filled {

@@ -43,6 +43,8 @@ export default function PurchaseRequestsList() {
     // Create/Edit State
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [medicines, setMedicines] = useState<any[]>([]);
+    const [medicinesLoading, setMedicinesLoading] = useState(false);
+    const [dropdownsLoading, setDropdownsLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [newRequest, setNewRequest] = useState({
         shop_id: '',
@@ -55,20 +57,35 @@ export default function PurchaseRequestsList() {
         fetchRequests();
     }, [currentPage, pageSize, search, statusFilter]);
 
-    // Load medicines for create modal
+    // Load ALL dropdowns when component mounts (not when modal opens)
+    // This ensures dropdowns are ready before user can interact with the page
     useEffect(() => {
-        if (showCreateModal && medicines.length === 0) {
-            console.log('[PurchaseRequests] Fetching medicines...');
-            medicinesApi.list({ size: 1000 }).then(medRes => {
-                console.log('[PurchaseRequests] Medicines API response:', medRes.data);
-                const medsData = medRes.data?.items || (Array.isArray(medRes.data) ? medRes.data : []);
-                console.log('[PurchaseRequests] Medicines loaded:', medsData.length);
-                setMedicines(medsData);
-            }).catch(err => {
-                console.error('[PurchaseRequests] Failed to load medicines:', err);
-            });
+        const loadAllDropdowns = async () => {
+            setDropdownsLoading(true);
+            try {
+                // Load medicines and warehouses in parallel
+                await Promise.all([
+                    medicinesApi.list({ size: 1000 }).then(medRes => {
+                        const medsData = medRes.data?.items || (Array.isArray(medRes.data) ? medRes.data : []);
+                        setMedicines(medsData);
+                    }).catch(err => {
+                        console.error('[PurchaseRequests] Failed to load medicines:', err);
+                    }),
+                    // Trigger warehouse loading in WarehouseSelect component
+                    // (WarehouseSelect will fetch if not in master data)
+                ]);
+            } finally {
+                setDropdownsLoading(false);
+                setMedicinesLoading(false);
+            }
+        };
+
+        if (medicines.length === 0) {
+            loadAllDropdowns();
+        } else {
+            setDropdownsLoading(false);
         }
-    }, [showCreateModal]);
+    }, [medicines.length]);
 
     const fetchRequests = async () => {
         try {
@@ -262,8 +279,11 @@ export default function PurchaseRequestsList() {
 
     const getStatus = (id: string) => requests.find(r => r.id === id)?.status;
 
+    // Page should not be interactive until all dropdowns are loaded
+    const pageLoading = mastersLoading || dropdownsLoading;
+
     return (
-        <UniversalListPage loading={mastersLoading}>
+        <UniversalListPage loading={pageLoading}>
             <UniversalListPage.Header
                 title="Purchase Requests"
                 subtitle="Manage stock requests from shops to warehouses"
@@ -361,6 +381,12 @@ export default function PurchaseRequestsList() {
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">New Purchase Request</h2>
                             <p className="text-sm text-slate-500">Create a stock request from a shop to warehouse</p>
                         </div>
+                        {dropdownsLoading ? (
+                            <div className="p-6 text-center">
+                                <div className="spinner mx-auto mb-2"></div>
+                                <p className="text-sm text-slate-500">Loading dropdowns...</p>
+                            </div>
+                        ) : (
                         <div className="p-6 space-y-4 overflow-visible">
                             <div className="grid grid-cols-2 gap-4">
                                 {!isShopUser && (
@@ -445,11 +471,12 @@ export default function PurchaseRequestsList() {
                                 </div>
                             </div>
                         </div>
+                        )}
                         <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                             <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
                                 Cancel
                             </button>
-                            <Button variant="primary" onClick={handleCreate} disabled={creating}>
+                            <Button variant="primary" onClick={handleCreate} disabled={creating || dropdownsLoading}>
                                 {creating ? 'Creating...' : 'Create Request'}
                             </Button>
                         </div>

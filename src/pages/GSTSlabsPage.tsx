@@ -241,18 +241,6 @@ export default function GSTSlabsPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex justify-center gap-1">
                                                 {hasPermission('gst.edit') && (
-                                                    <Button
-                                                        variant="secondary"
-                                                        onClick={() => handleToggleStatus(slab)}
-                                                        className={`!p-1.5 ${slab.is_active ? 'text-amber-600' : 'text-green-600'}`}
-                                                        title={slab.is_active ? 'Deactivate' : 'Activate'}
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">
-                                                            {slab.is_active ? 'toggle_on' : 'toggle_off'}
-                                                        </span>
-                                                    </Button>
-                                                )}
-                                                {hasPermission('gst.edit') && (
                                                     <Button variant="secondary" onClick={() => openEditModal(slab)} className="!p-1.5">
                                                         <span className="material-symbols-outlined text-[18px]">edit</span>
                                                     </Button>

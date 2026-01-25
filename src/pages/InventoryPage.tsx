@@ -67,7 +67,11 @@ export default function InventoryPage() {
     const fetchStock = async () => {
         setLoading(true);
         try {
-            // Determine source based on context
+            // CRITICAL: Determine source based on entity type
+            // Warehouse inventory and Shop inventory are SEPARATE
+            // - Warehouse stock: stored in WarehouseStock table
+            // - Shop stock: stored in ShopStock table
+            // We must use the correct API based on activeEntity.type
             let response;
             const params: any = { page: currentPage, size: pageSize };
 
@@ -77,8 +81,10 @@ export default function InventoryPage() {
             }
 
             if (activeEntity?.type === 'warehouse') {
+                // Fetch WAREHOUSE inventory (WarehouseStock table)
                 response = await warehousesApi.getStock(activeEntity.id, params);
             } else if (activeEntity?.type === 'shop') {
+                // Fetch SHOP inventory (ShopStock table) - SEPARATE from warehouse
                 response = await shopsApi.getStock(activeEntity.id, params);
             } else if (scope === 'global') {
                 // For global view, we might need a different approach or default to oversight

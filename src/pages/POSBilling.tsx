@@ -157,6 +157,9 @@ export default function POSBilling() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
+            // CRITICAL: Pass shop_id to filter medicines by SHOP stock only
+            // Backend will return medicines with stock_quantity from ShopStock table (not WarehouseStock)
+            // This ensures POS only shows medicines available in the shop's inventory
             const res = await medicinesApi.list({ search, shop_id: shopId });
             clearTimeout(timeoutId);
             setMedicines(res.data?.items || res.data || []);

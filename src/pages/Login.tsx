@@ -74,10 +74,21 @@ export default function Login() {
                             { icon: 'receipt_long', text: 'Integrated POS & Billing' },
                         ].map((feature, i) => (
                             <div key={i} className="flex items-center gap-3 text-blue-100">
-                                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-lg">{feature.icon}</span>
+                                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ minWidth: '32px', maxWidth: '32px' }}>
+                                    <span 
+                                        className="material-symbols-outlined text-lg" 
+                                        style={{ 
+                                            fontSize: '18px', 
+                                            width: '18px', 
+                                            height: '18px', 
+                                            lineHeight: '18px'
+                                        }}
+                                        aria-hidden="true"
+                                    >
+                                        {feature.icon}
+                                    </span>
                                 </div>
-                                <span>{feature.text}</span>
+                                <span className="flex-1">{feature.text}</span>
                             </div>
                         ))}
                     </div>

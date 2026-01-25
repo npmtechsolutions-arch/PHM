@@ -181,17 +181,6 @@ export default function PaymentMethodsPage() {
                                 </div>
                                 <div className="flex gap-1">
                                     {hasPermission('payment_methods.edit') && (
-                                        <button
-                                            onClick={() => handleToggleStatus(item)}
-                                            className={`p-1.5 rounded-lg ${item.is_active ? 'text-amber-500 hover:text-amber-600' : 'text-green-500 hover:text-green-600'}`}
-                                            title={item.is_active ? 'Deactivate' : 'Activate'}
-                                        >
-                                            <span className="material-symbols-outlined text-[18px]">
-                                                {item.is_active ? 'toggle_on' : 'toggle_off'}
-                                            </span>
-                                        </button>
-                                    )}
-                                    {hasPermission('payment_methods.edit') && (
                                         <button onClick={() => openEditModal(item)} className="p-1.5 text-slate-400 hover:text-primary rounded-lg">
                                             <span className="material-symbols-outlined text-[18px]">edit</span>
                                         </button>

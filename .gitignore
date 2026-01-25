@@ -74,3 +74,4 @@ lerna-debug.log*
 
 # Gemini/AI artifacts (keep these local)
 .gemini/
+LOGIN_AND_FLOW_DOCUMENTATION.md

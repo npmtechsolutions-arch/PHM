@@ -207,18 +207,6 @@ export default function CategoriesPage() {
             render: (category) => (
                 <div className="flex justify-end gap-1">
                     {hasPermission('categories.edit') && (
-                        <Button
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(category)}
-                            className={`!p-1.5 h-8 w-8 ${category.is_active ? 'text-amber-600' : 'text-green-600'}`}
-                            title={category.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">
-                                {category.is_active ? 'toggle_on' : 'toggle_off'}
-                            </span>
-                        </Button>
-                    )}
-                    {hasPermission('categories.edit') && (
                         <Button variant="ghost" onClick={() => openEditModal(category)} className="!p-1.5 h-8 w-8 text-emerald-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>
