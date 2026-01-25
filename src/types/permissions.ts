@@ -88,6 +88,7 @@ export const PERMISSIONS = {
 
     // Users
     USERS_VIEW: 'users.view',
+    USERS_VIEW_WAREHOUSE: 'users.view.warehouse',
     USERS_CREATE: 'users.create',
     USERS_EDIT: 'users.edit',
     USERS_DELETE: 'users.delete',
@@ -115,9 +116,25 @@ export const PERMISSIONS = {
     MEDICINES_DELETE: 'medicines.delete',
 
     // Categories/Units/HSN/GST
+    CATEGORIES_VIEW: 'categories.view',
+    CATEGORIES_CREATE: 'categories.create',
+    CATEGORIES_EDIT: 'categories.edit',
+    CATEGORIES_DELETE: 'categories.delete',
     CATEGORIES_MANAGE: 'categories.manage',
+    UNITS_VIEW: 'units.view',
+    UNITS_CREATE: 'units.create',
+    UNITS_EDIT: 'units.edit',
+    UNITS_DELETE: 'units.delete',
     UNITS_MANAGE: 'units.manage',
+    HSN_VIEW: 'hsn.view',
+    HSN_CREATE: 'hsn.create',
+    HSN_EDIT: 'hsn.edit',
+    HSN_DELETE: 'hsn.delete',
     HSN_MANAGE: 'hsn.manage',
+    GST_VIEW: 'gst.view',
+    GST_CREATE: 'gst.create',
+    GST_EDIT: 'gst.edit',
+    GST_DELETE: 'gst.delete',
     GST_MANAGE: 'gst.manage',
 
     // Inventory
@@ -128,9 +145,13 @@ export const PERMISSIONS = {
     INVENTORY_ADJUST_WAREHOUSE: 'inventory.adjust.warehouse',
     INVENTORY_ADJUST_SHOP: 'inventory.adjust.shop',
     INVENTORY_ENTRY_WAREHOUSE: 'inventory.entry.warehouse',
+    INVENTORY_ENTRY_SHOP: 'inventory.entry.shop',
 
     // Racks
     RACKS_VIEW: 'racks.view',
+    RACKS_CREATE: 'racks.create',
+    RACKS_EDIT: 'racks.edit',  // Backend also accepts 'racks.update' as alias
+    RACKS_DELETE: 'racks.delete',
     RACKS_MANAGE_WAREHOUSE: 'racks.manage.warehouse',
 
     // Purchase Requests
@@ -166,6 +187,7 @@ export const PERMISSIONS = {
     EMPLOYEES_VIEW_SHOP: 'employees.view.shop',
     EMPLOYEES_MANAGE_WAREHOUSE: 'employees.manage.warehouse',
     EMPLOYEES_MANAGE_SHOP: 'employees.manage.shop',
+    ATTENDANCE_VIEW_WAREHOUSE: 'attendance.view.warehouse',
     ATTENDANCE_MANAGE_WAREHOUSE: 'attendance.manage.warehouse',
     ATTENDANCE_MANAGE_SHOP: 'attendance.manage.shop',
     SALARY_MANAGE_WAREHOUSE: 'salary.manage.warehouse',
@@ -193,36 +215,42 @@ export const PERMISSIONS = {
     BRANDS_CREATE: 'brands.create',
     BRANDS_EDIT: 'brands.edit',
     BRANDS_DELETE: 'brands.delete',
+    BRANDS_MANAGE: 'brands.manage',
 
     // Master Data - Manufacturers
     MANUFACTURERS_VIEW: 'manufacturers.view',
     MANUFACTURERS_CREATE: 'manufacturers.create',
     MANUFACTURERS_EDIT: 'manufacturers.edit',
     MANUFACTURERS_DELETE: 'manufacturers.delete',
+    MANUFACTURERS_MANAGE: 'manufacturers.manage',
 
     // Master Data - Medicine Types
     MEDICINE_TYPES_VIEW: 'medicine_types.view',
     MEDICINE_TYPES_CREATE: 'medicine_types.create',
     MEDICINE_TYPES_EDIT: 'medicine_types.edit',
     MEDICINE_TYPES_DELETE: 'medicine_types.delete',
+    MEDICINE_TYPES_MANAGE: 'medicine_types.manage',
 
     // Master Data - Suppliers
     SUPPLIERS_VIEW: 'suppliers.view',
     SUPPLIERS_CREATE: 'suppliers.create',
     SUPPLIERS_EDIT: 'suppliers.edit',
     SUPPLIERS_DELETE: 'suppliers.delete',
+    SUPPLIERS_MANAGE: 'suppliers.manage',
 
     // Master Data - Adjustment Reasons
     ADJUSTMENT_REASONS_VIEW: 'adjustment_reasons.view',
     ADJUSTMENT_REASONS_CREATE: 'adjustment_reasons.create',
     ADJUSTMENT_REASONS_EDIT: 'adjustment_reasons.edit',
     ADJUSTMENT_REASONS_DELETE: 'adjustment_reasons.delete',
+    ADJUSTMENT_REASONS_MANAGE: 'adjustment_reasons.manage',
 
     // Master Data - Payment Methods
     PAYMENT_METHODS_VIEW: 'payment_methods.view',
     PAYMENT_METHODS_CREATE: 'payment_methods.create',
     PAYMENT_METHODS_EDIT: 'payment_methods.edit',
     PAYMENT_METHODS_DELETE: 'payment_methods.delete',
+    PAYMENT_METHODS_MANAGE: 'payment_methods.manage',
 
     // Master Data - Shop Types
     SHOP_TYPES_VIEW: 'shop_types.view',

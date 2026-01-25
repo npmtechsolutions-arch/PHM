@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import { mastersApi } from '../services/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
@@ -31,6 +32,7 @@ export default function ManufacturersPage() {
     const [formData, setFormData] = useState({ code: '', name: '', description: '', is_active: true });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { handleError, handleSuccess } = useErrorHandler();
 
     // Pagination & Search
     const [search, setSearch] = useState('');
@@ -74,10 +76,10 @@ export default function ManufacturersPage() {
     const handleToggleStatus = async (item: Manufacturer) => {
         try {
             await mastersApi.updateManufacturer(item.id, { is_active: !item.is_active });
-            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            handleSuccess(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
             loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        } catch (err) {
+            handleError(err);
         }
     };
 
@@ -92,13 +94,16 @@ export default function ManufacturersPage() {
         try {
             if (editing) {
                 await mastersApi.updateManufacturer(editing.id, formData);
+                handleSuccess('Manufacturer updated successfully');
             } else {
                 await mastersApi.createManufacturer(formData);
+                handleSuccess('Manufacturer created successfully');
             }
             setShowModal(false);
             loadData();
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to save');
+        } catch (err) {
+            const errorMsg = handleError(err);
+            setError(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -118,11 +123,10 @@ export default function ManufacturersPage() {
 
         try {
             await mastersApi.deleteManufacturer(itemToDelete.id);
-            window.toast?.success('Manufacturer deleted successfully');
+            handleSuccess('Manufacturer deleted successfully');
             loadData();
-        } catch (err: any) {
-            console.error('Failed to delete manufacturer:', err);
-            window.toast?.error(err.response?.data?.detail || 'Failed to delete manufacturer');
+        } catch (err) {
+            handleError(err, 'Failed to delete manufacturer');
         } finally {
             setIsDeleteModalOpen(false);
             setItemToDelete(null);
@@ -239,9 +243,29 @@ export default function ManufacturersPage() {
                 }
             />
 
-            <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Manufacturer' : 'Add Manufacturer'}>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-xl text-red-600 text-sm">{error}</div>}
+            <Drawer
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={editing ? 'Edit Manufacturer' : 'Add Manufacturer'}
+                subtitle={editing ? 'Update manufacturer information' : 'Create a new manufacturer master'}
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="manufacturer-form" loading={saving}>
+                            {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
+                        </Button>
+                    </div>
+                }
+            >
+                <form id="manufacturer-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
                     <Input
                         label="Code"
                         value={formData.code}
@@ -262,7 +286,7 @@ export default function ManufacturersPage() {
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         placeholder="Manufacturer description"
                     />
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -270,18 +294,12 @@ export default function ManufacturersPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={saving}>
-                            {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
-                        </Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

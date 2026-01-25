@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { warehousesApi, shopsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
@@ -29,8 +30,7 @@ interface Warehouse {
 export default function WarehouseList() {
     const navigate = useNavigate();
     const { user } = useUser();
-    const userRole = user?.role || 'user';
-    const canDelete = userRole === 'super_admin';
+    const { hasPermission } = usePermissions();
 
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -172,23 +172,27 @@ export default function WarehouseList() {
             key: 'id',
             render: (warehouse) => (
                 <div className="flex justify-end gap-1">
-                    <Button
-                        variant="ghost"
-                        onClick={() => openViewModal(warehouse)}
-                        className="!p-1.5 h-8 w-8 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                        title="View Details"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">visibility</span>
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate(`/warehouses/edit/${warehouse.id}`)}
-                        className="!p-1.5 h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                        title="Edit Warehouse"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                    </Button>
-                    {canDelete && (
+                    {hasPermission('warehouses.view') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => openViewModal(warehouse)}
+                            className="!p-1.5 h-8 w-8 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                            title="View Details"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">visibility</span>
+                        </Button>
+                    )}
+                    {hasPermission('warehouses.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate(`/warehouses/edit/${warehouse.id}`)}
+                            className="!p-1.5 h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                            title="Edit Warehouse"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('warehouses.delete') && (
                         <Button
                             variant="ghost"
                             onClick={() => handleDeleteClick(warehouse)}
@@ -211,10 +215,12 @@ export default function WarehouseList() {
                 title="Warehouses"
                 subtitle={`Manage ${totalItems} warehouses in your network`}
                 actions={
-                    <Button variant="primary" onClick={() => navigate('/warehouses/add')}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        Add Warehouse
-                    </Button>
+                    hasPermission('warehouses.create') && (
+                        <Button variant="primary" onClick={() => navigate('/warehouses/add')}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            Add Warehouse
+                        </Button>
+                    )
                 }
             />
 

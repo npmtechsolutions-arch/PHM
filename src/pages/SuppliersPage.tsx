@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
@@ -51,6 +52,7 @@ export default function SuppliersPage() {
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { handleError, handleSuccess } = useErrorHandler();
     const [search, setSearch] = useState('');
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
@@ -105,10 +107,10 @@ export default function SuppliersPage() {
     const handleToggleStatus = async (item: Supplier) => {
         try {
             await mastersApi.updateSupplier(item.id, { is_active: !item.is_active });
-            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            handleSuccess(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
             loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        } catch (err) {
+            handleError(err);
         }
     };
 
@@ -123,13 +125,16 @@ export default function SuppliersPage() {
         try {
             if (editingItem) {
                 await mastersApi.updateSupplier(editingItem.id, formData);
+                handleSuccess('Supplier updated successfully');
             } else {
                 await mastersApi.createSupplier(formData);
+                handleSuccess('Supplier created successfully');
             }
             setShowModal(false);
             loadData();
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to save supplier');
+        } catch (err) {
+            const errorMsg = handleError(err);
+            setError(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -149,11 +154,10 @@ export default function SuppliersPage() {
 
         try {
             await mastersApi.deleteSupplier(supplierToDelete.id);
-            window.toast?.success('Supplier deleted successfully');
+            handleSuccess('Supplier deleted successfully');
             loadData();
-        } catch (err: any) {
-            console.error('Failed to delete supplier:', err);
-            window.toast?.error(err.response?.data?.detail || 'Failed to delete supplier');
+        } catch (err) {
+            handleError(err, 'Failed to delete supplier');
         } finally {
             setIsDeleteModalOpen(false);
             setSupplierToDelete(null);
@@ -297,40 +301,109 @@ export default function SuppliersPage() {
                 }
             />
 
-            {/* Modal */}
-            <Modal
+            {/* Drawer */}
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title={editingItem ? 'Edit Supplier' : 'Add Supplier'}
-                size="lg"
+                subtitle={editingItem ? 'Update supplier information' : 'Create a new supplier master'}
+                width="lg"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="supplier-form" loading={saving}>
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+                <form id="supplier-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Supplier Code *" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="SUP001" required />
-                        <Input label="Supplier Name *" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="ABC Pharmaceuticals" required />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input 
+                            label="Supplier Code" 
+                            value={formData.code} 
+                            onChange={(e) => setFormData({ ...formData, code: e.target.value })} 
+                            placeholder="SUP001" 
+                            required 
+                        />
+                        <Input 
+                            label="Supplier Name" 
+                            value={formData.name} 
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                            placeholder="ABC Pharmaceuticals" 
+                            required 
+                        />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Contact Person" value={formData.contact_person} onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })} placeholder="John Doe" />
-                        <Input label="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+91 9876543210" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input 
+                            label="Contact Person" 
+                            value={formData.contact_person} 
+                            onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })} 
+                            placeholder="John Doe" 
+                        />
+                        <Input 
+                            label="Phone" 
+                            value={formData.phone} 
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
+                            placeholder="+91 9876543210" 
+                        />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="supplier@example.com" />
-                        <Input label="GST Number" value={formData.gst_number} onChange={(e) => setFormData({ ...formData, gst_number: e.target.value })} placeholder="29ABCDE1234F1Z5" className="font-mono" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input 
+                            label="Email" 
+                            type="email" 
+                            value={formData.email} 
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+                            placeholder="supplier@example.com" 
+                        />
+                        <Input 
+                            label="GST Number" 
+                            value={formData.gst_number} 
+                            onChange={(e) => setFormData({ ...formData, gst_number: e.target.value })} 
+                            placeholder="29ABCDE1234F1Z5" 
+                            className="font-mono" 
+                        />
                     </div>
 
-                    <Input label="Address" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Street address" />
+                    <Input 
+                        label="Address" 
+                        value={formData.address} 
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
+                        placeholder="Street address" 
+                    />
 
-                    <div className="grid grid-cols-3 gap-4">
-                        <Input label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" />
-                        <Input label="State" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" />
-                        <Input label="Pincode" value={formData.pincode} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <Input 
+                            label="City" 
+                            value={formData.city} 
+                            onChange={(e) => setFormData({ ...formData, city: e.target.value })} 
+                            placeholder="Mumbai" 
+                        />
+                        <Input 
+                            label="State" 
+                            value={formData.state} 
+                            onChange={(e) => setFormData({ ...formData, state: e.target.value })} 
+                            placeholder="Maharashtra" 
+                        />
+                        <Input 
+                            label="Pincode" 
+                            value={formData.pincode} 
+                            onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} 
+                            placeholder="400001" 
+                        />
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -338,17 +411,12 @@ export default function SuppliersPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={saving}>{saving ? 'Saving...' : 'Save'}</Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

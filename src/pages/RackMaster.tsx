@@ -7,7 +7,7 @@ import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 import { type Column } from '../components/Table';
@@ -234,26 +234,43 @@ export default function RackMaster() {
                 }
             />
 
-            <Modal
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title="Add New Rack"
-                size="md"
+                subtitle="Create a new rack for warehouse organization"
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="rack-form" loading={isSubmitting}>
+                            {isSubmitting ? 'Adding...' : 'Add Rack'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleAddRack} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+                <form id="rack-form" onSubmit={handleAddRack} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Rack Name *" value={newRack.rack_name} onChange={(e) => setNewRack({ ...newRack, rack_name: e.target.value })} placeholder="e.g., Rack A1" required />
-                        <Input label="Rack Number *" value={newRack.rack_number} onChange={(e) => setNewRack({ ...newRack, rack_number: e.target.value.toUpperCase() })} placeholder="e.g., RA1" required className="font-mono" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input label="Rack Name" value={newRack.rack_name} onChange={(e) => setNewRack({ ...newRack, rack_name: e.target.value })} placeholder="e.g., Rack A1" required />
+                        <Input label="Rack Number" value={newRack.rack_number} onChange={(e) => setNewRack({ ...newRack, rack_number: e.target.value.toUpperCase() })} placeholder="e.g., RA1" required className="font-mono" />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Warehouse</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Warehouse
+                        </label>
                         <select
                             value={newRack.warehouse_id}
                             onChange={(e) => setNewRack({ ...newRack, warehouse_id: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                         >
                             <option value="">Select Warehouse</option>
                             {warehouses.map(w => (
@@ -261,13 +278,8 @@ export default function RackMaster() {
                             ))}
                         </select>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={isSubmitting} className="bg-purple-600 hover:bg-purple-700">{isSubmitting ? 'Adding...' : 'Add Rack'}</Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

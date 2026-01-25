@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { medicinesApi, inventoryApi } from '../services/api';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -22,6 +23,18 @@ interface Batch {
 export default function StockAdjustment() {
     const navigate = useNavigate();
     const { activeEntity } = useOperationalContext();
+    const { hasPermission } = usePermissions();
+
+    // Check permissions based on entity type
+    const canAdjust = activeEntity?.type === 'warehouse' 
+        ? hasPermission('inventory.adjust.warehouse')
+        : hasPermission('inventory.adjust.shop');
+
+    useEffect(() => {
+        if (!canAdjust) {
+            navigate('/');
+        }
+    }, [canAdjust, navigate]);
 
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [batches, setBatches] = useState<Batch[]>([]);

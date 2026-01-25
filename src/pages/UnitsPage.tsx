@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 import { type Column } from '../components/Table';
@@ -32,6 +33,7 @@ export default function UnitsPage() {
     const [formData, setFormData] = useState({ name: '', short_name: '', description: '', is_active: true });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { handleError, handleSuccess } = useErrorHandler();
     const [searchTerm, setSearchTerm] = useState('');
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
@@ -74,10 +76,10 @@ export default function UnitsPage() {
     const handleToggleStatus = async (unit: Unit) => {
         try {
             await mastersApi.updateUnit(unit.id, { is_active: !unit.is_active });
-            window.toast?.success(`${unit.name} ${unit.is_active ? 'deactivated' : 'activated'}`);
+            handleSuccess(`${unit.name} ${unit.is_active ? 'deactivated' : 'activated'}`);
             loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        } catch (err) {
+            handleError(err);
         }
     };
 
@@ -90,12 +92,18 @@ export default function UnitsPage() {
         setSaving(true);
         setError('');
         try {
-            if (editingUnit) await mastersApi.updateUnit(editingUnit.id, formData);
-            else await mastersApi.createUnit(formData);
+            if (editingUnit) {
+                await mastersApi.updateUnit(editingUnit.id, formData);
+                handleSuccess('Unit updated successfully');
+            } else {
+                await mastersApi.createUnit(formData);
+                handleSuccess('Unit created successfully');
+            }
             setShowModal(false);
             loadData();
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to save');
+        } catch (err) {
+            const errorMsg = handleError(err);
+            setError(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -115,11 +123,10 @@ export default function UnitsPage() {
 
         try {
             await mastersApi.deleteUnit(unitToDelete.id);
-            window.toast?.success('Unit deleted successfully');
+            handleSuccess('Unit deleted successfully');
             loadData();
-        } catch (err: any) {
-            console.error('Failed to delete unit:', err);
-            window.toast?.error(err.response?.data?.detail || 'Failed to delete unit');
+        } catch (err) {
+            handleError(err, 'Failed to delete unit');
         } finally {
             setIsDeleteModalOpen(false);
             setUnitToDelete(null);
@@ -240,29 +247,60 @@ export default function UnitsPage() {
                 }
             />
 
-            <Modal
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title={editingUnit ? 'Edit Unit' : 'Add Unit'}
-                size="sm"
+                subtitle={editingUnit ? 'Update unit information' : 'Create a new unit master'}
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="unit-form" loading={saving}>
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+                <form id="unit-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
 
-                    <Input label="Name *" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Tablet" required />
-                    <Input label="Short Name *" value={formData.short_name} onChange={(e) => setFormData({ ...formData, short_name: e.target.value })} placeholder="e.g., Tab" maxLength={10} required />
+                    <Input 
+                        label="Name" 
+                        value={formData.name} 
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                        placeholder="e.g., Tablet" 
+                        required 
+                    />
+                    <Input 
+                        label="Short Name" 
+                        value={formData.short_name} 
+                        onChange={(e) => setFormData({ ...formData, short_name: e.target.value })} 
+                        placeholder="e.g., Tab" 
+                        maxLength={10} 
+                        required 
+                    />
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Description
+                        </label>
                         <textarea
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            rows={2}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            rows={3}
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Unit description"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -270,17 +308,12 @@ export default function UnitsPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={saving} className="bg-gradient-to-r from-blue-600 to-cyan-600">{saving ? 'Saving...' : 'Save'}</Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

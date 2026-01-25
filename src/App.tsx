@@ -57,6 +57,7 @@ import AdjustmentReasonsPage from './pages/AdjustmentReasonsPage';
 import PaymentMethodsPage from './pages/PaymentMethodsPage';
 import MedicineTypesPage from './pages/MedicineTypesPage';
 import ManufacturersPage from './pages/ManufacturersPage';
+import BrandsPage from './pages/BrandsPage';
 
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -147,6 +148,7 @@ function App() {
                   <Route path="payment-methods" element={<PaymentMethodsPage />} />
                   <Route path="medicine-types" element={<MedicineTypesPage />} />
                   <Route path="manufacturers" element={<ManufacturersPage />} />
+                  <Route path="brands" element={<BrandsPage />} />
 
                   {/* Rack Master (Physical storage locations) */}
                   <Route path="racks" element={<RackMaster />} />

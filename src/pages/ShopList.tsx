@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { StatusSelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
@@ -33,8 +34,7 @@ export default function ShopList() {
     const navigate = useNavigate();
     const { user } = useUser();
     const { isLoading: mastersLoading } = useMasterData();
-    const userRole = user?.role || 'user';
-    const canDelete = userRole === 'super_admin';
+    const { hasPermission } = usePermissions();
 
     const [shops, setShops] = useState<Shop[]>([]);
     const [loading, setLoading] = useState(true);
@@ -178,15 +178,17 @@ export default function ShopList() {
             key: 'id',
             render: (shop) => (
                 <div className="flex justify-end gap-1">
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate(`/shops/${shop.id}/edit`)}
-                        className="!p-1.5 h-8 w-8 text-blue-600"
-                        title="Edit Shop"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                    </Button>
-                    {canDelete && (
+                    {hasPermission('shops.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate(`/shops/${shop.id}/edit`)}
+                            className="!p-1.5 h-8 w-8 text-blue-600"
+                            title="Edit Shop"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('shops.delete') && (
                         <Button
                             variant="ghost"
                             onClick={() => handleDeleteClick(shop)}
@@ -208,10 +210,12 @@ export default function ShopList() {
                 title="Medical Shops"
                 subtitle={`Manage ${totalItems} retail pharmacy locations`}
                 actions={
-                    <Button variant="primary" onClick={() => navigate('/shops/add')}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add_business</span>
-                        Add Shop
-                    </Button>
+                    hasPermission('shops.create') && (
+                        <Button variant="primary" onClick={() => navigate('/shops/add')}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add_business</span>
+                            Add Shop
+                        </Button>
+                    )
                 }
             />
 

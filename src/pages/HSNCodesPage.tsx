@@ -9,7 +9,7 @@ import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 
@@ -297,25 +297,42 @@ export default function HSNCodesPage() {
                 }
             />
 
-            <Modal
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title={editingHSN ? 'Edit HSN Code' : 'Add HSN Code'}
-                size="md"
+                subtitle={editingHSN ? 'Update HSN code information' : 'Create a new HSN code'}
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="hsn-code-form" loading={saving}>
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+                <form id="hsn-code-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="HSN Code *" value={formData.hsn_code} onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })} placeholder="e.g. 3004" required />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input label="HSN Code" value={formData.hsn_code} onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })} placeholder="e.g. 3004" required />
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">GST Slab *</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                GST Slab <span className="text-red-500">*</span>
+                            </label>
                             <select
                                 value={formData.gst_slab_id}
                                 onChange={(e) => handleGSTSlabChange(e.target.value)}
                                 required
-                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                             >
                                 <option value="">Select GST Slab</option>
                                 {gstSlabs.map((slab: any) => (
@@ -327,34 +344,34 @@ export default function HSNCodesPage() {
                         </div>
                     </div>
 
-                    <Input label="Description *" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="e.g., Medicaments" required />
+                    <Input label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="e.g., Medicaments" required />
 
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">info</span>
+                    <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px]">info</span>
                             Auto-calculated Tax Rates
                         </p>
-                        <div className="grid grid-cols-4 gap-3 text-center">
-                            <div>
-                                <label className="text-[10px] uppercase text-slate-500 font-bold">Total</label>
-                                <div className="mt-1 font-mono font-bold text-blue-600">{formData.gst_rate}%</div>
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-center">
+                                <label className="text-[10px] uppercase text-slate-500 font-bold block">Total</label>
+                                <div className="mt-1 font-mono font-bold text-amber-600 dark:text-amber-400">{formData.gst_rate}%</div>
                             </div>
-                            <div>
-                                <label className="text-[10px] uppercase text-slate-500 font-bold">CGST</label>
+                            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-center">
+                                <label className="text-[10px] uppercase text-slate-500 font-bold block">CGST</label>
                                 <div className="mt-1 font-mono text-slate-700 dark:text-slate-300">{formData.cgst_rate}%</div>
                             </div>
-                            <div>
-                                <label className="text-[10px] uppercase text-slate-500 font-bold">SGST</label>
+                            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-center">
+                                <label className="text-[10px] uppercase text-slate-500 font-bold block">SGST</label>
                                 <div className="mt-1 font-mono text-slate-700 dark:text-slate-300">{formData.sgst_rate}%</div>
                             </div>
-                            <div>
-                                <label className="text-[10px] uppercase text-slate-500 font-bold">IGST</label>
+                            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-center">
+                                <label className="text-[10px] uppercase text-slate-500 font-bold block">IGST</label>
                                 <div className="mt-1 font-mono text-slate-700 dark:text-slate-300">{formData.igst_rate}%</div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -362,17 +379,12 @@ export default function HSNCodesPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={saving} className="bg-gradient-to-r from-amber-600 to-orange-600">{saving ? 'Saving...' : 'Save'}</Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

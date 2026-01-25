@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { employeesApi } from '../services/api';
 import { ShopSelect, EmploymentTypeSelect, GenderSelect } from '../components/MasterSelect';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
+import { useOperationalContext } from '../contexts/OperationalContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
+import Drawer from '../components/Drawer';
 import { type Column } from '../components/Table';
 
 
@@ -71,6 +74,7 @@ const emptyForm: EmployeeForm = {
 
 export default function EmployeesList() {
     const { user } = useUser();
+    const { activeEntity } = useOperationalContext();
     const { isLoading: mastersLoading } = useMasterData();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,8 +96,7 @@ export default function EmployeesList() {
     const [deleting, setDeleting] = useState(false);
 
     const [statusFilter, setStatusFilter] = useState('');
-    const isWarehouseAdmin = user?.role === 'warehouse_admin';
-    const isSuperAdmin = user?.role === 'super_admin';
+    const { hasPermission } = usePermissions();
 
     useEffect(() => {
         fetchEmployees();
@@ -323,10 +326,12 @@ export default function EmployeesList() {
                 title="Employees"
                 subtitle="Manage staff, payroll, and assignments"
                 actions={
-                    <Button variant="primary" onClick={openCreateModal}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        Add Employee
-                    </Button>
+                    (hasPermission('employees.manage.warehouse') || hasPermission('employees.manage.shop')) && (
+                        <Button variant="primary" onClick={openCreateModal}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            Add Employee
+                        </Button>
+                    )
                 }
             />
 
@@ -359,7 +364,7 @@ export default function EmployeesList() {
                     onClick={() => setStatusFilter('inactive')}
                     isActive={statusFilter === 'inactive'}
                 />
-                {isSuperAdmin && (
+                {hasPermission('employees.view.global') && (
                     <StatCard
                         title="Terminated"
                         value={statusFilter === 'terminated' ? totalItems : '-'}
@@ -400,55 +405,81 @@ export default function EmployeesList() {
                 }
             />
 
-            {/* Edit/Create Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700 animate-scaleIn">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
-                            </h2>
+            {/* Edit/Create Drawer */}
+            <Drawer
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+                subtitle={editingEmployee ? 'Update employee information' : 'Create a new employee record'}
+                width="lg"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setShowModal(false)}
+                            type="button"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            type="submit"
+                            form="employee-form"
+                            disabled={saving}
+                            loading={saving}
+                        >
+                            {editingEmployee ? 'Update Employee' : 'Add Employee'}
+                        </Button>
+                    </div>
+                }
+            >
+                <form id="employee-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px]">error</span>
+                            {error}
                         </div>
+                    )}
 
-                        <form onSubmit={handleSubmit}>
-                            <div className="p-6 space-y-4">
-                                {error && (
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-[18px]">error</span>
-                                        {error}
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
-                                        <input
-                                            type="text"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Phone</label>
-                                        <input
-                                            type="tel"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Email</label>
-                                        <input
-                                            type="email"
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors"
-                                        />
-                                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Full Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="Enter full name"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Phone <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={formData.phone}
+                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="Enter phone number"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="Enter email address"
+                            />
+                        </div>
                                     {!editingEmployee && (
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Password</label>
@@ -503,7 +534,7 @@ export default function EmployeesList() {
                                             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:bg-white transition-colors font-mono"
                                         />
                                     </div>
-                                    {!isWarehouseAdmin && (
+                                    {activeEntity?.type !== 'warehouse' && (
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Assigned Shop</label>
                                             <ShopSelect
@@ -594,29 +625,8 @@ export default function EmployeesList() {
                                         rows={2}
                                     />
                                 </div>
-                            </div>
-
-                            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => setShowModal(false)}
-                                    type="button"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    variant="primary"
-                                    type="submit"
-                                    disabled={saving}
-                                    loading={saving}
-                                >
-                                    {editingEmployee ? 'Update Employee' : 'Add Employee'}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                </form>
+            </Drawer>
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && deletingEmployee && (

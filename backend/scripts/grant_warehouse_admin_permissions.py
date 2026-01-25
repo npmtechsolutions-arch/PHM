@@ -31,6 +31,11 @@ def grant_warehouse_admin_permissions():
         # Define all permissions for Warehouse Admin based on 9 modules
         warehouse_admin_permissions = [
             # ═══════════════════════════════════════════════════════════════
+            # 📊 DASHBOARD
+            # ═══════════════════════════════════════════════════════════════
+            "dashboard.view",                 # View dashboard
+            
+            # ═══════════════════════════════════════════════════════════════
             # 🔐 USER MANAGEMENT (WAREHOUSE-SCOPED ONLY)
             # Can create/manage users ONLY for their warehouse
             # Can assign only: warehouse_employee, warehouse_supervisor, inventory_manager
@@ -44,142 +49,146 @@ def grant_warehouse_admin_permissions():
             # ═══════════════════════════════════════════════════════════════
             # 1️⃣ WAREHOUSE MANAGEMENT
             # ═══════════════════════════════════════════════════════════════
-            "warehouses.view.warehouse",      # View own warehouse profile
-            "warehouses.update.warehouse",    # Update warehouse profile
-            "warehouse_staff.view",           # View warehouse staff
-            "warehouse_staff.manage",         # Manage warehouse staff
-            "shops.view.warehouse",           # View assigned shops
+            "warehouses.view",                # View warehouses (for sidebar)
             
             # ═══════════════════════════════════════════════════════════════
             # 2️⃣ INVENTORY MANAGEMENT
             # ═══════════════════════════════════════════════════════════════
             "inventory.view.warehouse",       # View warehouse inventory
-            "inventory.manage.warehouse",     # Manage warehouse inventory
-            "stock.entry.warehouse",          # Add stock to warehouse
-            "stock.adjust.warehouse",         # Adjust stock levels
-            "stock.transfer.warehouse",       # Transfer stock between warehouses
-            "batches.view.warehouse",         # View batches
-            "batches.manage.warehouse",       # Manage batches
-            "expiry.view.warehouse",          # View expiry tracking
-            "expiry.manage.warehouse",        # Manage expiry alerts
-            "stock_alerts.view.warehouse",    # View stock alerts
-            "stock_alerts.manage.warehouse",  # Manage stock thresholds
+            "inventory.view.shop",            # View shop inventory (for sidebar)
+            "inventory.entry.warehouse",      # Stock entry
+            "inventory.adjust.warehouse",     # Stock adjustment
+            "inventory.adjust.shop",          # Shop stock adjustment (for sidebar)
             
             # ═══════════════════════════════════════════════════════════════
             # 3️⃣ PURCHASE & DISPATCH
             # ═══════════════════════════════════════════════════════════════
             "purchase_requests.view.warehouse",   # View shop purchase requests
-            "purchase_requests.approve",          # Approve purchase requests
-            "purchase_requests.reject",           # Reject purchase requests
+            "purchase_requests.view.shop",        # View shop purchase requests (for sidebar)
+            "purchase_requests.create.shop",     # Create purchase requests (for sidebar)
+            "purchase_requests.approve.warehouse", # Approve purchase requests
             "dispatches.view.warehouse",          # View dispatches
+            "dispatches.view.shop",               # View shop dispatches (for sidebar)
             "dispatches.create.warehouse",        # Create dispatch orders
-            "dispatches.update.warehouse",        # Update dispatch status
-            "dispatches.manage.warehouse",        # Full dispatch management
             
             # ═══════════════════════════════════════════════════════════════
             # 4️⃣ MEDICINE CATALOG (LIMITED)
             # ═══════════════════════════════════════════════════════════════
-            "medicines.view.warehouse",       # View medicines
-            "medicines.create.warehouse",     # Add local medicines
-            "medicines.update.warehouse",     # Update medicine details
-            "medicine_pricing.manage.warehouse", # Manage pricing
+            "medicines.view",                 # View medicines (for sidebar)
+            "medicines.create",               # Create medicines (for sidebar)
             
             # ═══════════════════════════════════════════════════════════════
-            # 5️⃣ SHOP OVERSIGHT
+            # 5️⃣ SHOP OVERSIGHT (Not needed - warehouse admin doesn't manage shops)
             # ═══════════════════════════════════════════════════════════════
-            "shops.view.warehouse",           # View assigned shops
-            "shop_performance.view",          # View shop performance
-            "shop_inventory.view",            # View shop inventory status
-            "shop_analytics.view",            # View shop analytics
             
             # ═══════════════════════════════════════════════════════════════
-            # 6️⃣ TAX & ACCOUNTING
+            # 6️⃣ TAX & ACCOUNTING (Available through Reports)
             # ═══════════════════════════════════════════════════════════════
-            "gst_reports.view.warehouse",     # View GST reports
-            "tax_reports.view.warehouse",     # View tax reports
-            "purchase_tax.view.warehouse",    # View purchase tax
-            "returns.view.warehouse",         # View returns
-            "returns.manage.warehouse",       # Manage returns
             
             # ═══════════════════════════════════════════════════════════════
-            # 7️⃣ REPORTS & ANALYTICS
+            # 7️⃣ INVENTORY OVERSIGHT
             # ═══════════════════════════════════════════════════════════════
+            "inventory.view.global",          # View inventory oversight (for sidebar)
+            
+            # ═══════════════════════════════════════════════════════════════
+            # 8️⃣ REPORTS & ANALYTICS
+            # ═══════════════════════════════════════════════════════════════
+            "reports.view.global",            # View reports (for sidebar)
             "reports.view.warehouse",         # View warehouse reports
-            "analytics.view.warehouse",       # View analytics
-            "sales_reports.view.warehouse",   # View sales summary
-            "dispatch_reports.view.warehouse", # View dispatch performance
-            "inventory_reports.view.warehouse", # View inventory aging
-            "performance_reports.view.warehouse", # View performance reports
+            "reports.view.shop",              # View shop reports (for sidebar)
             
             # ═══════════════════════════════════════════════════════════════
-            # 8️⃣ HR MANAGEMENT
+            # 9️⃣ HR MANAGEMENT
             # ═══════════════════════════════════════════════════════════════
             "employees.view.warehouse",       # View warehouse employees
-            "employees.create.warehouse",     # Add warehouse employees (NOT users with roles)
-            "employees.update.warehouse",     # Update employee details
-            "attendance.view.warehouse",      # View attendance
+            "employees.view.shop",            # View shop employees (for sidebar)
+            "employees.view.global",          # View employees (for sidebar)
+            "employees.manage.warehouse",     # Manage employees (for sidebar)
+            "employees.manage.shop",          # Manage shop employees (for sidebar)
             "attendance.manage.warehouse",    # Manage attendance
-            "payroll.view.warehouse",         # View payroll
-            "payroll.process.warehouse",      # Process payroll
-            "leave.view.warehouse",           # View leave requests
-            "leave.manage.warehouse",         # Manage leave requests
+            "attendance.manage.shop",         # Manage shop attendance (for sidebar)
+            "salary.manage.warehouse",        # Manage salary (for sidebar)
+            "salary.manage.shop",             # Manage shop salary (for sidebar)
             
             # ═══════════════════════════════════════════════════════════════
-            # 9️⃣ NOTIFICATIONS & ALERTS
+            # 🔟 NOTIFICATIONS & ALERTS
             # ═══════════════════════════════════════════════════════════════
-            "notifications.view.warehouse",   # View notifications
-            "alerts.view.warehouse",          # View alerts
-            "low_stock_alerts.view",          # View low stock alerts
-            "expiry_alerts.view",             # View expiry alerts
-            "dispatch_alerts.view",           # View dispatch alerts
+            "notifications.view",             # View notifications
             
             # ═══════════════════════════════════════════════════════════════
             # MASTER DATA (CREATE, UPDATE - NO DELETE)
             # Warehouse Admin can add/edit master data but cannot delete
             # ═══════════════════════════════════════════════════════════════
+            # ═══════════════════════════════════════════════════════════════
+            # MASTER DATA (VIEW, CREATE, EDIT - NO DELETE)
+            # Warehouse Admin can add/edit master data but cannot delete
+            # ═══════════════════════════════════════════════════════════════
+            
+            # Categories
             "categories.view",                # View medicine categories
             "categories.create",              # Create new categories
-            "categories.update",              # Update categories
+            "categories.edit",                # Edit categories
+            "categories.manage",              # Manage categories (for sidebar)
             
+            # Units
             "units.view",                     # View units
             "units.create",                   # Create new units
-            "units.update",                   # Update units
+            "units.edit",                     # Edit units
+            "units.manage",                   # Manage units (for sidebar)
             
+            # Brands
             "brands.view",                    # View brands
             "brands.create",                  # Create new brands
-            "brands.update",                  # Update brands
+            "brands.edit",                    # Edit brands
+            "brands.manage",                  # Manage brands (for sidebar)
             
+            # Manufacturers
             "manufacturers.view",             # View manufacturers
             "manufacturers.create",           # Create new manufacturers
-            "manufacturers.update",           # Update manufacturers
+            "manufacturers.edit",            # Edit manufacturers
+            "manufacturers.manage",          # Manage manufacturers (for sidebar)
             
+            # Medicine Types
             "medicine_types.view",            # View medicine types
             "medicine_types.create",          # Create new medicine types
-            "medicine_types.update",          # Update medicine types
+            "medicine_types.edit",           # Edit medicine types
+            "medicine_types.manage",         # Manage medicine types (for sidebar)
             
+            # HSN Codes
             "hsn.view",                       # View HSN codes
             "hsn.create",                     # Create new HSN codes
-            "hsn.update",                     # Update HSN codes
+            "hsn.edit",                       # Edit HSN codes
+            "hsn.manage",                     # Manage HSN codes (for sidebar)
             
+            # GST Slabs
             "gst.view",                       # View GST slabs
             "gst.create",                     # Create new GST slabs
-            "gst.update",                     # Update GST slabs
+            "gst.edit",                       # Edit GST slabs
+            "gst.manage",                     # Manage GST slabs (for sidebar)
             
+            # Suppliers
             "suppliers.view",                 # View suppliers
             "suppliers.create",               # Create new suppliers
-            "suppliers.update",               # Update suppliers
+            "suppliers.edit",                 # Edit suppliers
+            "suppliers.manage",               # Manage suppliers (for sidebar)
             
+            # Payment Methods
             "payment_methods.view",           # View payment methods
             "payment_methods.create",         # Create new payment methods
-            "payment_methods.update",         # Update payment methods
+            "payment_methods.edit",           # Edit payment methods
+            "payment_methods.manage",        # Manage payment methods (for sidebar)
             
+            # Adjustment Reasons
             "adjustment_reasons.view",        # View adjustment reasons
             "adjustment_reasons.create",      # Create new adjustment reasons
-            "adjustment_reasons.update",      # Update adjustment reasons
+            "adjustment_reasons.edit",        # Edit adjustment reasons
+            "adjustment_reasons.manage",      # Manage adjustment reasons (for sidebar)
             
+            # Racks
             "racks.view",                     # View racks
             "racks.create",                   # Create new racks
-            "racks.update",                   # Update racks
+            "racks.edit",                     # Edit racks
+            "racks.manage",                   # Manage racks (for sidebar)
             "racks.manage.warehouse",         # Manage warehouse racks
         ]
         

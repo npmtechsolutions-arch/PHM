@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dispatchesApi } from '../services/api';
 import { useOperationalContext } from '../contexts/OperationalContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
@@ -25,6 +26,7 @@ interface Dispatch {
 export default function DispatchesList() {
     const navigate = useNavigate();
     const { activeEntity } = useOperationalContext();
+    const { hasPermission } = usePermissions();
     const [dispatches, setDispatches] = useState<Dispatch[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
@@ -133,7 +135,7 @@ export default function DispatchesList() {
             align: 'right',
             render: (d) => (
                 <div className="flex justify-end gap-2">
-                    {d.status === 'pending' && (
+                    {d.status === 'pending' && hasPermission('dispatches.create.warehouse') && (
                         <Button
                             variant="primary"
                             onClick={() => handleUpdateStatus(d.id, 'in_transit')}
@@ -143,9 +145,8 @@ export default function DispatchesList() {
                             Start
                         </Button>
                     )}
-                    {/* Allow Shop to Receive Stock at any stage if needed, or strictly after transit. 
-                        User requested visibility, but ONLY for shops. Warehouse Admin should NOT see this. */}
-                    {activeEntity?.type === 'shop' && ['pending', 'created', 'in_transit'].includes(d.status?.toLowerCase()) && (
+                    {/* Allow Shop to Receive Stock - permission based */}
+                    {activeEntity?.type === 'shop' && hasPermission('inventory.entry.shop') && ['pending', 'created', 'in_transit'].includes(d.status?.toLowerCase()) && (
                         <Button
                             variant="success"
                             onClick={() => navigate('/shops/stock', {
@@ -184,7 +185,7 @@ export default function DispatchesList() {
                 title={pageTitle}
                 subtitle={pageSubtitle}
                 actions={
-                    !isShop && (
+                    hasPermission('dispatches.create.warehouse') && (
                         <Button variant="primary" onClick={() => navigate('/dispatches/create')}>
                             <span className="material-symbols-outlined text-[20px] mr-2">add</span>
                             New Dispatch

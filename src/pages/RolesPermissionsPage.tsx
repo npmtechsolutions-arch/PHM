@@ -3,6 +3,8 @@ import { rolesApi, usersApi, permissionsApi } from '../services/api';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useUser } from '../contexts/UserContext';
 import { PERMISSIONS } from '../types/permissions';
+import Drawer from '../components/Drawer';
+import Button from '../components/Button';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 interface Permission {
@@ -72,8 +74,9 @@ export default function RolesPermissionsPage() {
 
             let fetchedRoles = rolesRes.data.items || [];
 
-            // Filter roles for Warehouse Admin
-            if (user?.role === 'warehouse_admin') {
+            // Filter roles based on permissions
+            // Users without global user management permissions can only assign warehouse-scoped roles
+            if (!hasPermission('users.view') && hasPermission('users.view.warehouse')) {
                 fetchedRoles = fetchedRoles.filter((r: any) =>
                     r.name !== 'super_admin' &&
                     r.entity_type !== 'shop'
@@ -396,22 +399,34 @@ export default function RolesPermissionsPage() {
                 )}
             </div>
 
-            {/* Create/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-scaleIn">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                {editingRole ? 'Edit Role' : 'Create New Role'}
-                            </h2>
-                            {editingRole?.is_system && (
-                                <p className="text-sm text-amber-600 mt-1">
-                                    ⚠️ System roles have limited editing options
-                                </p>
-                            )}
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
+            {/* Create/Edit Drawer */}
+            <Drawer
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={editingRole ? 'Edit Role' : 'Create New Role'}
+                subtitle={editingRole?.is_system ? '⚠️ System roles have limited editing options' : editingRole ? 'Update role and permissions' : 'Create a new role with custom permissions'}
+                width="xl"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            variant="secondary"
+                            type="button"
+                            onClick={() => setShowModal(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={handleSubmit}
+                            disabled={saving || (editingRole?.is_system && editingRole?.name === 'super_admin')}
+                            loading={saving}
+                        >
+                            {saving ? 'Saving...' : editingRole ? 'Update Role' : 'Create Role'}
+                        </Button>
+                    </div>
+                }
+            >
+                <form onSubmit={handleSubmit} className="space-y-6">
                             {error && (
                                 <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
                                     {error}
@@ -502,27 +517,8 @@ export default function RolesPermissionsPage() {
                                     ))}
                                 </div>
                             </div>
-                        </form>
-
-                        <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setShowModal(false)}
-                                className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl font-medium transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={saving || (editingRole?.is_system && editingRole?.name === 'super_admin')}
-                                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                {saving ? 'Saving...' : editingRole ? 'Update Role' : 'Create Role'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                </form>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

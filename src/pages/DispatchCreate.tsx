@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { dispatchesApi, warehousesApi, shopsApi, medicinesApi, purchaseRequestsApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import Button from '../components/Button';
 import PageLayout from '../components/PageLayout';
 import SearchableSelect from '../components/SearchableSelect';
@@ -99,9 +100,9 @@ export default function DispatchCreate() {
         }
     };
 
-    // Auto-select warehouse for warehouse_admin
+    // Auto-select warehouse for users with warehouse scope
     useEffect(() => {
-        if (!warehouseId && user?.role === 'warehouse_admin' && user?.warehouse_id) {
+        if (!warehouseId && user?.warehouse_id) {
             setWarehouseId(user.warehouse_id);
         }
     }, [user, warehouseId]);
@@ -244,7 +245,9 @@ export default function DispatchCreate() {
         }
     };
 
-    const isWarehouseAdmin = user?.role === 'warehouse_admin';
+    // Check if user has permission to create dispatches from warehouse
+    const { hasPermission } = usePermissions();
+    const canCreateDispatch = hasPermission('dispatches.create.warehouse');
 
     if (dropdownsLoading) {
         return (
@@ -290,7 +293,7 @@ export default function DispatchCreate() {
                                 <select
                                     value={warehouseId}
                                     onChange={(e) => setWarehouseId(e.target.value)}
-                                    disabled={isWarehouseAdmin}
+                                    disabled={!canCreateDispatch || user?.warehouse_id === warehouseId}
                                     className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 disabled:opacity-50"
                                     required
                                 >

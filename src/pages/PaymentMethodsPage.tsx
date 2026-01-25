@@ -7,7 +7,7 @@ import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 interface PaymentMethod {
@@ -197,24 +197,50 @@ export default function PaymentMethodsPage() {
                 )}
             </Card>
 
-            <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingItem ? 'Edit Payment Method' : 'Add Payment Method'}>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+            <Drawer
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={editingItem ? 'Edit Payment Method' : 'Add Payment Method'}
+                subtitle={editingItem ? 'Update payment method' : 'Create a new payment method'}
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="payment-method-form" loading={saving}>
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                    </div>
+                }
+            >
+                <form id="payment-method-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Code *" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="CASH" required />
-                        <Input label="Name *" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Cash Payment" required />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input label="Code" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="CASH" required />
+                        <Input label="Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Cash Payment" required />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Icon</label>
-                        <div className="flex flex-wrap gap-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                            Icon
+                        </label>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                             {icons.map((icon) => (
                                 <button
                                     key={icon}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, icon })}
-                                    className={`p-3 rounded-lg border ${formData.icon === icon ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                    className={`p-3 rounded-lg border transition-all ${
+                                        formData.icon === icon 
+                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500/20' 
+                                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                    }`}
                                 >
                                     <span className="material-symbols-outlined text-xl">{icon}</span>
                                 </button>
@@ -222,7 +248,7 @@ export default function PaymentMethodsPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -230,17 +256,12 @@ export default function PaymentMethodsPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={saving}>{saving ? 'Saving...' : 'Save'}</Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

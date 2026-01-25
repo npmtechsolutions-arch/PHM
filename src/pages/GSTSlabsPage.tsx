@@ -9,7 +9,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 interface GSTSlab {
@@ -260,15 +260,27 @@ export default function GSTSlabsPage() {
                 </Card>
             </div>
 
-            {/* Create/Edit Modal */}
-            <Modal
+            {/* Create/Edit Drawer */}
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title={editingSlab ? 'Edit GST Slab' : 'Add GST Slab'}
+                subtitle={editingSlab ? 'Update GST slab information' : 'Create a new GST slab'}
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="gst-slab-form" loading={saving}>
+                            {saving ? 'Saving...' : editingSlab ? 'Update' : 'Create'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form id="gst-slab-form" onSubmit={handleSubmit} className="space-y-5">
                     {error && (
-                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-xl text-red-600 text-sm">
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
                             {error}
                         </div>
                     )}
@@ -290,25 +302,25 @@ export default function GSTSlabsPage() {
                     />
 
                     {/* Preview */}
-                    <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                        <p className="text-xs font-medium text-slate-500 uppercase mb-2">Tax Breakdown Preview</p>
+                    <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase mb-3 tracking-wider">Tax Breakdown Preview</p>
                         <div className="grid grid-cols-3 gap-4 text-center">
-                            <div>
-                                <p className="text-lg font-bold text-primary">{formData.rate}%</p>
-                                <p className="text-xs text-slate-500">Total GST</p>
+                            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{formData.rate}%</p>
+                                <p className="text-xs text-slate-500 mt-1">Total GST</p>
                             </div>
-                            <div>
-                                <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{(formData.rate / 2).toFixed(1)}%</p>
-                                <p className="text-xs text-slate-500">CGST</p>
+                            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                                <p className="text-xl font-bold text-slate-700 dark:text-slate-300">{(formData.rate / 2).toFixed(1)}%</p>
+                                <p className="text-xs text-slate-500 mt-1">CGST</p>
                             </div>
-                            <div>
-                                <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{(formData.rate / 2).toFixed(1)}%</p>
-                                <p className="text-xs text-slate-500">SGST</p>
+                            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                                <p className="text-xl font-bold text-slate-700 dark:text-slate-300">{(formData.rate / 2).toFixed(1)}%</p>
+                                <p className="text-xs text-slate-500 mt-1">SGST</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -316,21 +328,12 @@ export default function GSTSlabsPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" type="submit" loading={saving}>
-                            {saving ? 'Saving...' : editingSlab ? 'Update' : 'Create'}
-                        </Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

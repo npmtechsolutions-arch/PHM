@@ -3,6 +3,7 @@ import { medicinesApi, invoicesApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { shopsApi } from '../services/api';
 import { PrintBill } from '../components/PrintBill';
 import { useOperationalContext } from '../contexts/OperationalContext';
@@ -66,16 +67,17 @@ export default function POSBilling() {
     const navigate = useNavigate();
     const { user } = useUser();
     const { activeEntity } = useOperationalContext();
+    const { hasPermission } = usePermissions();
     const { isLoading: mastersLoading } = useMasterData();
 
-    // Enforce Shop Context
+    // Enforce Shop Context and Permissions
     useEffect(() => {
-        if (!activeEntity || activeEntity.type !== 'shop') {
+        if (!activeEntity || activeEntity.type !== 'shop' || !hasPermission('billing.create.shop')) {
             navigate('/');
         }
-    }, [activeEntity, navigate]);
+    }, [activeEntity, navigate, hasPermission]);
 
-    if (!activeEntity || activeEntity.type !== 'shop') return null;
+    if (!activeEntity || activeEntity.type !== 'shop' || !hasPermission('billing.create.shop')) return null;
 
     if (mastersLoading) {
         return (

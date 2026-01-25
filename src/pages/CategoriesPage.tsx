@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
-import Modal from '../components/Modal';
+import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Input from '../components/Input';
 import { type Column } from '../components/Table';
@@ -37,6 +38,7 @@ export default function CategoriesPage() {
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { handleError, handleSuccess } = useErrorHandler();
     const [searchTerm, setSearchTerm] = useState('');
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
@@ -86,10 +88,10 @@ export default function CategoriesPage() {
     const handleToggleStatus = async (category: Category) => {
         try {
             await mastersApi.updateCategory(category.id, { is_active: !category.is_active });
-            window.toast?.success(`${category.name} ${category.is_active ? 'deactivated' : 'activated'}`);
+            handleSuccess(`${category.name} ${category.is_active ? 'deactivated' : 'activated'}`);
             loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        } catch (err) {
+            handleError(err);
         }
     };
 
@@ -109,13 +111,16 @@ export default function CategoriesPage() {
             };
             if (editingCategory) {
                 await mastersApi.updateCategory(editingCategory.id, payload);
+                handleSuccess('Category updated successfully');
             } else {
                 await mastersApi.createCategory(payload);
+                handleSuccess('Category created successfully');
             }
             setShowModal(false);
             loadData();
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to save category');
+        } catch (err) {
+            const errorMsg = handleError(err);
+            setError(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -135,11 +140,10 @@ export default function CategoriesPage() {
 
         try {
             await mastersApi.deleteCategory(categoryToDelete.id);
-            window.toast?.success('Category deleted successfully');
+            handleSuccess('Category deleted successfully');
             loadData();
-        } catch (err: any) {
-            console.error('Failed to delete category:', err);
-            window.toast?.error(err.response?.data?.detail || 'Failed to delete category');
+        } catch (err) {
+            handleError(err, 'Failed to delete category');
         } finally {
             setIsDeleteModalOpen(false);
             setCategoryToDelete(null);
@@ -275,23 +279,46 @@ export default function CategoriesPage() {
                 }
             />
 
-            <Modal
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title={editingCategory ? 'Edit Category' : 'Add Category'}
-                size="md"
+                subtitle={editingCategory ? 'Update category information' : 'Create a new category or subcategory'}
+                width="md"
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="category-form" loading={saving}>
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 text-sm">{error}</div>}
+                <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                            {error}
+                        </div>
+                    )}
 
-                    <Input label="Category Name *" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Antibiotics" required />
+                    <Input 
+                        label="Category Name" 
+                        value={formData.name} 
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                        placeholder="e.g., Antibiotics" 
+                        required 
+                    />
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Parent Category</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Parent Category
+                        </label>
                         <select
                             value={formData.parent_id}
                             onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                         >
                             <option value="">None (Top Level)</option>
                             {categories
@@ -304,17 +331,19 @@ export default function CategoriesPage() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Description
+                        </label>
                         <textarea
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             placeholder="Brief description..."
                             rows={3}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
                             id="is_active"
@@ -322,17 +351,12 @@ export default function CategoriesPage() {
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                             className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                         />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Active
+                        <label htmlFor="is_active" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Active Status
                         </label>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={saving} className="bg-gradient-to-r from-emerald-600 to-teal-600">{saving ? 'Saving...' : 'Save'}</Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}

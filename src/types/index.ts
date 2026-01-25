@@ -259,3 +259,60 @@ export interface ExpiryReport {
     total_loss_value: number;
     items: ExpiryItem[];
 }
+
+// API Error Types
+export interface ValidationError {
+    loc: (string | number)[];
+    msg: string;
+    type: string;
+}
+
+export interface ApiErrorResponse {
+    detail?: string | ValidationError[] | { msg?: string; [key: string]: unknown };
+    message?: string;
+    status?: number;
+}
+
+// Common API Request/Response Types
+export interface PaginationParams {
+    page?: number;
+    size?: number;
+    search?: string;
+}
+
+export interface FilterParams extends PaginationParams {
+    [key: string]: unknown;
+}
+
+// Master Data Types
+export interface MasterDataItem {
+    id: string;
+    code: string;
+    name: string;
+    is_active: boolean;
+    sort_order?: number;
+    description?: string;
+}
+
+export interface GSTSlab extends MasterDataItem {
+    rate: number;
+    description?: string;
+}
+
+export interface HSNCode extends MasterDataItem {
+    hsn_code: string;
+    gst_slab_id: string;
+    gst_rate: number;
+    cgst_rate: number;
+    sgst_rate: number;
+    igst_rate: number;
+    description: string;
+}
+
+// Form Data Types
+export interface FormState<T> {
+    data: T;
+    errors: Partial<Record<keyof T, string>>;
+    touched: Partial<Record<keyof T, boolean>>;
+    isSubmitting: boolean;
+}

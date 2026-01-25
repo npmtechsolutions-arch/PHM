@@ -33,12 +33,13 @@ interface NavItemType {
 const superAdminItems: NavItemType[] = [
     // ─────────────────────────────────────────────────────────────────────────
     // 1️⃣ DASHBOARD - Read-only system overview
+    // Available to Super Admin (global) and Warehouse Admin (warehouse-scoped)
     // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/',
         label: 'Dashboard',
         icon: 'dashboard',
-        permissions: ['dashboard.view']
+        permissions: ['dashboard.view', 'inventory.view.warehouse']
     },
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -46,14 +47,15 @@ const superAdminItems: NavItemType[] = [
     // Define warehouse identity (name, code, location)
     // Control whether a warehouse is active in the system
     // 🚫 No stock, no batch, no GST here - just entity definition
+    // Available to Super Admin (global) and Warehouse Admin (warehouse-scoped)
     // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/warehouses',
         label: 'Warehouses',
         icon: 'warehouse',
-        permissions: ['warehouses.view', 'warehouses.create'],
+        permissions: ['warehouses.view', 'warehouses.create', 'warehouses.view.warehouse', 'warehouses.update.warehouse'],
         children: [
-            { path: '/warehouses', label: 'View All Warehouses', icon: 'list', permissions: ['warehouses.view'] },
+            { path: '/warehouses', label: 'View All Warehouses', icon: 'list', permissions: ['warehouses.view', 'warehouses.view.warehouse'] },
             { path: '/warehouses/add', label: 'Add Warehouse', icon: 'add_circle', permissions: ['warehouses.create'] },
         ]
     },
@@ -171,10 +173,10 @@ const superAdminItems: NavItemType[] = [
         path: '/medicines',
         label: 'Medicine Master',
         icon: 'medication',
-        permissions: ['medicines.view', 'medicines.create'],
+        permissions: ['medicines.view', 'medicines.create', 'medicines.view.warehouse', 'medicines.create.warehouse'],
         children: [
-            { path: '/medicines', label: 'View Medicines', icon: 'list', permissions: ['medicines.view'] },
-            { path: '/medicines/add', label: 'Add Medicine', icon: 'add_circle', permissions: ['medicines.create'] },
+            { path: '/medicines', label: 'View Medicines', icon: 'list', permissions: ['medicines.view', 'medicines.view.warehouse'] },
+            { path: '/medicines/add', label: 'Add Medicine', icon: 'add_circle', permissions: ['medicines.create', 'medicines.create.warehouse'] },
         ]
     },
 
@@ -184,16 +186,17 @@ const superAdminItems: NavItemType[] = [
     // Monitor: Expiry monitoring, Dead stock
     // What you do: Monitor health, Identify risks, Drill down to reports
     // 🚫 No stock entry, 🚫 No batch creation
+    // Available to Super Admin (global) and Warehouse Admin (warehouse-scoped)
     // ─────────────────────────────────────────────────────────────────────────
     {
         path: '/inventory-oversight',
         label: 'Inventory Oversight',
         icon: 'inventory_2',
-        permissions: ['inventory.view.global'],
+        permissions: ['inventory.view.global', 'inventory.view.warehouse', 'inventory.manage.warehouse'],
         children: [
-            { path: '/inventory-oversight', label: 'Overview', icon: 'analytics', permissions: ['inventory.view.global'] },
-            { path: '/inventory-oversight/expiry', label: 'Expiry Monitoring', icon: 'event_busy', permissions: ['inventory.view.global'] },
-            { path: '/inventory-oversight/dead-stock', label: 'Dead Stock', icon: 'warning', permissions: ['inventory.view.global'] },
+            { path: '/inventory-oversight', label: 'Overview', icon: 'analytics', permissions: ['inventory.view.global', 'inventory.view.warehouse'] },
+            { path: '/inventory-oversight/expiry', label: 'Expiry Monitoring', icon: 'event_busy', permissions: ['inventory.view.global', 'inventory.view.warehouse', 'expiry.view.warehouse'] },
+            { path: '/inventory-oversight/dead-stock', label: 'Dead Stock', icon: 'warning', permissions: ['inventory.view.global', 'inventory.view.warehouse'] },
         ]
     },
 
@@ -255,10 +258,10 @@ const operationalItems: NavItemType[] = [
 
     // 8. Stock Entry - Warehouse operational
     {
-        path: '/shops/stock', // Adjusted for shop path specifically or shared route
+        path: '/warehouses/stock',
         label: 'Stock Entry',
         icon: 'add_box',
-        permissions: ['inventory.entry.warehouse', 'stock.entry.warehouse'], // HIDDEN FOR SHOPS (Access via Dispatches)
+        permissions: ['inventory.entry.warehouse', 'stock.entry.warehouse'],
         excludeFromSuperAdmin: true
     },
 
@@ -276,7 +279,7 @@ const operationalItems: NavItemType[] = [
         path: '/inventory/adjust',
         label: 'Stock Adjustment',
         icon: 'tune',
-        permissions: ['inventory.adjust.warehouse', 'stock.adjust.warehouse'],
+        permissions: ['inventory.adjust.warehouse', 'stock.adjust.warehouse', 'inventory.adjust.shop'],
         excludeFromSuperAdmin: true
     },
 
@@ -285,7 +288,7 @@ const operationalItems: NavItemType[] = [
         path: '/dispatches',
         label: 'Dispatches', // This will be dynamic in the Sidebar component render
         icon: 'local_shipping',
-        permissions: ['dispatches.view.warehouse', 'dispatches.view.shop', 'dispatches.manage.warehouse'],
+        permissions: ['dispatches.view.warehouse', 'dispatches.view.shop', 'dispatches.create.warehouse'],
         excludeFromSuperAdmin: true
     },
 
@@ -294,7 +297,7 @@ const operationalItems: NavItemType[] = [
         path: '/purchase-requests',
         label: 'Purchase Requests',
         icon: 'shopping_cart',
-        permissions: ['purchase_requests.view.warehouse', 'purchase_requests.view.shop', 'purchase_requests.create.shop', 'purchase_requests.approve'],
+        permissions: ['purchase_requests.view.warehouse', 'purchase_requests.view.shop', 'purchase_requests.create.shop', 'purchase_requests.approve.warehouse'],
         excludeFromSuperAdmin: true
     },
 
@@ -303,7 +306,7 @@ const operationalItems: NavItemType[] = [
         path: '/employees',
         label: 'Employees',
         icon: 'badge',
-        permissions: ['employees.view.warehouse', 'employees.view.shop', 'employees.create.warehouse', 'employees.view'],
+        permissions: ['employees.view.warehouse', 'employees.view.shop', 'employees.view.global', 'employees.manage.warehouse', 'employees.manage.shop'],
         excludeFromSuperAdmin: true
     },
 
@@ -325,7 +328,7 @@ const operationalItems: NavItemType[] = [
                 path: '/employees/attendance/report',
                 label: 'Attendance Report',
                 icon: 'summarize',
-                permissions: ['attendance.view.warehouse', 'attendance.manage.warehouse']
+                permissions: ['attendance.view.warehouse', 'attendance.manage.warehouse', 'attendance.manage.shop']
             },
         ]
     },
@@ -335,7 +338,7 @@ const operationalItems: NavItemType[] = [
         path: '/employees/salary',
         label: 'Salary',
         icon: 'payments',
-        permissions: ['salary.manage.warehouse', 'salary.manage.shop', 'payroll.view.warehouse', 'payroll.process.warehouse'],
+        permissions: ['salary.manage.warehouse', 'salary.manage.shop'],
         excludeFromSuperAdmin: true
     },
 
@@ -383,28 +386,35 @@ export default function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
-    const userRole = user?.role || 'user';
-    const isSuperAdmin = userRole === 'super_admin';
-
     // Check if user can see an item based on permissions
     const canSeeItem = (item: NavItemType | SubItem): boolean => {
-        // Super Admin sees EVERYTHING (for testing and oversight)
-        // if (isSuperAdmin && 'excludeFromSuperAdmin' in item && item.excludeFromSuperAdmin) {
-        //     return false;
-        // }
+        // Super Admin (checked via role or permissions) sees everything
+        // except items explicitly excluded
+        if ('excludeFromSuperAdmin' in item && item.excludeFromSuperAdmin) {
+            // Check if user is super admin by role OR by having all global permissions
+            const isSuperAdminByRole = user?.role === 'super_admin';
+            const isSuperAdminByPermissions = hasAnyPermission(['users.view', 'roles.view']) 
+                && hasAnyPermission(['shops.view']) 
+                && hasAnyPermission(['warehouses.view']);
+            if (isSuperAdminByRole || isSuperAdminByPermissions) {
+                return false; // Excluded from super admin
+            }
+        }
 
         // Warehouse Admin CANNOT see items marked for exclusion
-        if (userRole === 'warehouse_admin' && 'excludeFromWarehouseAdmin' in item && item.excludeFromWarehouseAdmin) {
-            return false;
+        // Check via permissions instead of role
+        if ('excludeFromWarehouseAdmin' in item && item.excludeFromWarehouseAdmin) {
+            // If user has warehouse-scoped permissions but not global admin permissions, they're warehouse admin
+            // Warehouse admin has: inventory.view.warehouse, inventory.entry.warehouse, dispatches.view.warehouse
+            // But does NOT have: users.view (global), shops.view (global)
+            const hasWarehouseScope = hasAnyPermission(['inventory.view.warehouse', 'inventory.entry.warehouse', 'dispatches.view.warehouse', 'dispatches.create.warehouse']);
+            const isNotSuperAdmin = !hasAnyPermission(['users.view', 'roles.view']) || !hasAnyPermission(['shops.view']);
+            if (hasWarehouseScope && isNotSuperAdmin) {
+                return false; // Excluded from warehouse admin
+            }
         }
 
-        // ✅ Super Admin sees ALL Super Admin items without permission checks
-        // Super Admin is the platform owner with full access to structure, masters, and visibility
-        if (isSuperAdmin) {
-            return true;
-        }
-
-        // For non-Super Admin: If permissions are specified, check them
+        // If permissions are specified, check them (Super Admin bypass handled in PermissionContext)
         if (item.permissions && item.permissions.length > 0) {
             return hasAnyPermission(item.permissions);
         }
@@ -415,7 +425,8 @@ export default function Sidebar() {
 
     // Auto-expand groups based on current path
     useEffect(() => {
-        const allItems = isSuperAdmin ? superAdminItems : [...superAdminItems, ...operationalItems];
+        // Combine all items - visibility is controlled by canSeeItem
+        const allItems = [...superAdminItems, ...operationalItems];
         allItems.forEach(item => {
             if (item.children) {
                 const isChildActive = item.children.some(child =>
@@ -426,7 +437,7 @@ export default function Sidebar() {
                 }
             }
         });
-    }, [location.pathname, isSuperAdmin]);
+    }, [location.pathname]);
 
     useEffect(() => {
         const savedState = localStorage.getItem('sidebarCollapsed');
@@ -461,7 +472,8 @@ export default function Sidebar() {
     const renderNavItem = (item: NavItemType, index: number) => {
         // Dynamic Label Override for Dispatches (Shop Role)
         let label = item.label;
-        if (item.path === '/dispatches' && (userRole !== 'warehouse_admin' && userRole !== 'warehouse_employee')) {
+        // If user doesn't have warehouse dispatch permissions, they see it as "Incoming Shipments"
+        if (item.path === '/dispatches' && !hasAnyPermission(['dispatches.create.warehouse', 'dispatches.view.warehouse'])) {
             label = 'Incoming Shipments';
         }
 
@@ -555,13 +567,23 @@ export default function Sidebar() {
         );
     };
 
-    // Get visible items based on role
+    // Get visible items based on permissions
     const getVisibleItems = (): NavItemType[] => {
+        // Check if user is super admin by role OR by having all key global permissions
+        // Super admin has: users.view (global), shops.view (global), warehouses.view (global)
+        // Warehouse admin has: warehouses.view, dashboard.view, but NOT users.view or shops.view (global)
+        const isSuperAdminByRole = user?.role === 'super_admin';
+        const isSuperAdminByPermissions = hasAnyPermission(['users.view', 'roles.view']) 
+            && hasAnyPermission(['shops.view']) 
+            && hasAnyPermission(['warehouses.view'])
+            && hasAnyPermission(['dashboard.view']);
+        const isSuperAdmin = isSuperAdminByRole || isSuperAdminByPermissions;
+        
         if (isSuperAdmin) {
             // Super Admin sees ONLY the Super Admin items
             return superAdminItems.filter(item => canSeeItem(item));
         } else {
-            // Other roles see all items (superAdmin + operational) filtered by permissions
+            // Other roles (Warehouse Admin, Shop Admin) see all items (superAdmin + operational) filtered by permissions
             const allItems = [...superAdminItems, ...operationalItems];
             return allItems.filter(item => canSeeItem(item));
         }
@@ -585,7 +607,7 @@ export default function Sidebar() {
                         <div className="animate-fadeIn">
                             <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">PharmaEC</h1>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                {isSuperAdmin ? 'Super Admin' : 'Management System'}
+                                {user?.role === 'super_admin' || (hasAnyPermission(['users.view', 'roles.view']) && hasAnyPermission(['shops.view'])) ? 'Super Admin' : 'Management System'}
                             </p>
                         </div>
                     )}

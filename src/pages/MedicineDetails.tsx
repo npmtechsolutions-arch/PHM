@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
+import { usePermissions } from '../contexts/PermissionContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
+import { PermissionGate } from '../components/PermissionGate';
 import type { Medicine, Batch } from '../types';
 
 export default function MedicineDetails() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { hasPermission } = usePermissions();
     const [loading, setLoading] = useState(true);
     const [medicine, setMedicine] = useState<Medicine | null>(null);
     const [batches, setBatches] = useState<Batch[]>([]);
@@ -68,14 +71,18 @@ export default function MedicineDetails() {
             description={`${medicine.generic_name} • ${medicine.manufacturer}`}
             actions={
                 <div className="flex gap-3">
-                    <Button variant="secondary" onClick={() => navigate(`/medicines/${medicine.id}/edit`)}>
-                        <span className="material-symbols-outlined text-[18px] mr-2">edit</span>
-                        Edit
-                    </Button>
-                    <Button variant="primary">
-                        <span className="material-symbols-outlined text-[18px] mr-2">add</span>
-                        Add Stock
-                    </Button>
+                    <PermissionGate permission="medicines.edit">
+                        <Button variant="secondary" onClick={() => navigate(`/medicines/${medicine.id}/edit`)}>
+                            <span className="material-symbols-outlined text-[18px] mr-2">edit</span>
+                            Edit
+                        </Button>
+                    </PermissionGate>
+                    <PermissionGate anyOf={['inventory.entry.warehouse', 'inventory.entry.shop']}>
+                        <Button variant="primary" onClick={() => navigate('/warehouses/stock')}>
+                            <span className="material-symbols-outlined text-[18px] mr-2">add</span>
+                            Add Stock
+                        </Button>
+                    </PermissionGate>
                 </div>
             }
         >

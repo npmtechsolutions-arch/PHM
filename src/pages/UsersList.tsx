@@ -5,6 +5,7 @@ import StatCard from '../components/StatCard';
 import Badge from '../components/Badge';
 import { type Column } from '../components/Table';
 import Button from '../components/Button';
+import Drawer from '../components/Drawer';
 
 
 interface User {
@@ -21,10 +22,11 @@ interface User {
 }
 
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 
 export default function UsersList() {
     const { user: currentUser } = useUser();
-    const userRole = currentUser?.role || '';
+    const { hasPermission } = usePermissions();
 
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -293,15 +295,17 @@ export default function UsersList() {
             align: 'right',
             render: (user) => (
                 <div className="flex justify-end gap-1">
-                    <Button
-                        variant="secondary"
-                        onClick={() => openEditModal(user)}
-                        className="!p-1.5 h-8 w-8 justify-center"
-                        title="Edit User"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                    </Button>
-                    {(userRole === 'super_admin') && (
+                    {hasPermission('users.edit') && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => openEditModal(user)}
+                            className="!p-1.5 h-8 w-8 justify-center"
+                            title="Edit User"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('users.delete') && (
                         <Button
                             variant="secondary"
                             onClick={() => handleDeleteClick(user)}
@@ -322,10 +326,12 @@ export default function UsersList() {
                 title="User Management"
                 subtitle={`Manage ${stats.total} users across your organization`}
                 actions={
-                    <Button variant="primary" onClick={openCreateModal}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">person_add</span>
-                        Add User
-                    </Button>
+                    hasPermission('users.create') && (
+                        <Button variant="primary" onClick={openCreateModal}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">person_add</span>
+                            Add User
+                        </Button>
+                    )
                 }
             />
 
@@ -417,45 +423,67 @@ export default function UsersList() {
                 }
             />
 
-            {/* Modal - keeping existing inline style for now, but wrapped in container */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 animate-scaleIn">
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
-                            {editingUser ? 'Edit User' : 'Add User'}
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+            {/* User Form Drawer */}
+            <Drawer
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title={editingUser ? 'Edit User' : 'Add User'}
+                subtitle={editingUser ? 'Update user information and permissions' : 'Create a new user account'}
+                width="md"
+                footer={
+                    <div className="flex gap-3">
+                        <Button variant="secondary" type="button" onClick={() => setShowModal(false)} className="flex-1">
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" form="user-form" className="flex-1">
+                            {editingUser ? 'Update' : 'Create'}
+                        </Button>
+                    </div>
+                }
+            >
+                <form id="user-form" onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Full Name <span className="text-red-500">*</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={formData.full_name}
                                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    placeholder="Enter full name"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Email <span className="text-red-500">*</span>
+                                </label>
                                 <input
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    placeholder="Enter email address"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Phone
+                                </label>
                                 <input
                                     type="tel"
                                     value={formData.phone}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    placeholder="Enter phone number"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Role <span className="text-red-500">*</span>
+                                </label>
                                 <select
                                     value={formData.role}
                                     onChange={(e) => {
@@ -469,19 +497,19 @@ export default function UsersList() {
                                             assigned_shop_id: ''
                                         });
                                     }}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                                     required
                                     style={{
                                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                         backgroundRepeat: 'no-repeat',
-                                        backgroundPosition: 'right 0.5rem center',
-                                        backgroundSize: '1.5em 1.5em',
+                                        backgroundPosition: 'right 0.75rem center',
+                                        backgroundSize: '1.25em 1.25em',
                                         paddingRight: '2.5rem'
                                     }}
                                 >
-                                    <option value="" className="text-slate-500">Select Role</option>
+                                    <option value="">Select Role</option>
                                     {assignableRoles.map(role => (
-                                        <option key={role.id} value={role.name} className="text-slate-900 dark:text-white bg-white dark:bg-slate-800">
+                                        <option key={role.id} value={role.name}>
                                             {role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                         </option>
                                     ))}
@@ -490,50 +518,50 @@ export default function UsersList() {
 
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'warehouse' && (
                                 <div className="animate-fadeIn">
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assign to Warehouse</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Assign to Warehouse <span className="text-red-500">*</span>
+                                    </label>
                                     <select
                                         value={formData.assigned_warehouse_id}
                                         onChange={(e) => setFormData({ ...formData, assigned_warehouse_id: e.target.value })}
-                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                                         required
                                         style={{
                                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                             backgroundRepeat: 'no-repeat',
-                                            backgroundPosition: 'right 0.5rem center',
-                                            backgroundSize: '1.5em 1.5em',
+                                            backgroundPosition: 'right 0.75rem center',
+                                            backgroundSize: '1.25em 1.25em',
                                             paddingRight: '2.5rem'
                                         }}
                                     >
-                                        <option value="" className="text-slate-500">Select Warehouse</option>
+                                        <option value="">Select Warehouse</option>
                                         {warehouses.map(w => (
-                                            <option key={w.id} value={w.id} className="text-slate-900 dark:text-white bg-white dark:bg-slate-800">
-                                                {w.name}
-                                            </option>
+                                            <option key={w.id} value={w.id}>{w.name}</option>
                                         ))}
                                     </select>
                                 </div>
                             )}
                             {assignableRoles.find(r => r.name === formData.role)?.entity_type === 'shop' && (
                                 <div className="animate-fadeIn">
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assign to Medical Shop</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Assign to Medical Shop <span className="text-red-500">*</span>
+                                    </label>
                                     <select
                                         value={formData.assigned_shop_id}
                                         onChange={(e) => setFormData({ ...formData, assigned_shop_id: e.target.value })}
-                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                                         required
                                         style={{
                                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                             backgroundRepeat: 'no-repeat',
-                                            backgroundPosition: 'right 0.5rem center',
-                                            backgroundSize: '1.5em 1.5em',
+                                            backgroundPosition: 'right 0.75rem center',
+                                            backgroundSize: '1.25em 1.25em',
                                             paddingRight: '2.5rem'
                                         }}
                                     >
-                                        <option value="" className="text-slate-500">Select Shop</option>
+                                        <option value="">Select Shop</option>
                                         {shops.map(s => (
-                                            <option key={s.id} value={s.id} className="text-slate-900 dark:text-white bg-white dark:bg-slate-800">
-                                                {s.name}
-                                            </option>
+                                            <option key={s.id} value={s.id}>{s.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -541,15 +569,17 @@ export default function UsersList() {
 
                             {!editingUser && (
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Password <span className="text-xs text-slate-500">(min. 8 characters)</span>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Password <span className="text-red-500">*</span>
+                                        <span className="text-xs text-slate-500 ml-2">(min. 8 characters)</span>
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showPassword ? "text" : "password"}
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="w-full px-3 pr-10 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                            className="w-full px-4 pr-10 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                            placeholder="Enter password"
                                             required={!editingUser}
                                             minLength={8}
                                         />
@@ -559,25 +589,15 @@ export default function UsersList() {
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                                             title={showPassword ? "Hide password" : "Show password"}
                                         >
-                                            <span className="material-symbols-outlined text-[18px]">
+                                            <span className="material-symbols-outlined text-[20px]">
                                                 {showPassword ? 'visibility_off' : 'visibility'}
                                             </span>
                                         </button>
                                     </div>
                                 </div>
                             )}
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                    {editingUser ? 'Update' : 'Create'}
-                                </button>
-                            </div>
                         </form>
-                    </div>
-                </div>
-            )}
+            </Drawer>
 
             {/* Delete Confirmation Modal */}
             {deleteModalOpen && userToDelete && (

@@ -2,14 +2,18 @@ import { useState, useEffect } from 'react';
 import { customersApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useOperationalContext } from '../contexts/OperationalContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { formatCurrency } from '../utils/formatting';
+import { PermissionGate } from '../components/PermissionGate';
 import { CustomerTypeSelect, GenderSelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
+import Drawer from '../components/Drawer';
 import { type Column } from '../components/Table';
-import Modal from '../components/Modal';
 
 interface Customer {
     id: string;
@@ -29,6 +33,7 @@ export default function CustomersList() {
     const { isLoading: mastersLoading } = useMasterData();
     const { user } = useUser();
     const { activeEntity, scope } = useOperationalContext();
+    const { handleError, handleSuccess } = useErrorHandler();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -99,9 +104,9 @@ export default function CustomersList() {
                     shopId = activeEntity.id;
                 }
 
-                if (!shopId && user?.role === 'super_admin') {
-                    // Fallback or error if super admin hasn't selected a shop context
-                    // For now, if no shop_id, we might let backend validation fail or default to something if possible
+                if (!shopId) {
+                    // Backend will validate shop_id requirement
+                    // Super Admin should select shop context before creating customers
                 }
 
                 await customersApi.create({
@@ -110,16 +115,14 @@ export default function CustomersList() {
                     customer_type: (formData.customer_type || 'regular').toLowerCase()
                 });
             }
+            handleSuccess(editingCustomer ? 'Customer updated successfully' : 'Customer created successfully');
             setShowModal(false);
             fetchCustomers();
         } catch (error) {
-            console.error('Failed to save customer:', error);
+            handleError(error, editingCustomer ? 'Failed to update customer' : 'Failed to create customer');
         }
     };
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
-    };
 
     const columns: Column<Customer>[] = [
         {
@@ -180,9 +183,11 @@ export default function CustomersList() {
             key: 'id',
             align: 'right',
             render: (c) => (
-                <Button variant="ghost" onClick={() => openEditModal(c)} className="!p-1.5 h-8 w-8 text-blue-600" title="Edit Customer">
-                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                </Button>
+                <PermissionGate permission="customers.manage.shop">
+                    <Button variant="ghost" onClick={() => openEditModal(c)} className="!p-1.5 h-8 w-8 text-blue-600" title="Edit Customer">
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </Button>
+                </PermissionGate>
             )
         }
     ];
@@ -195,10 +200,12 @@ export default function CustomersList() {
                 title="Customers"
                 subtitle="Manage customer profiles and history"
                 actions={
-                    <Button variant="primary" onClick={openCreateModal}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        Add Customer
-                    </Button>
+                    <PermissionGate permission="customers.manage.shop">
+                        <Button variant="primary" onClick={openCreateModal}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            Add Customer
+                        </Button>
+                    </PermissionGate>
                 }
             />
 
@@ -244,81 +251,101 @@ export default function CustomersList() {
                 }
             />
 
-            {/* Edit/Create Modal */}
-            <Modal
+            {/* Edit/Create Drawer */}
+            <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title={editingCustomer ? 'Edit Customer' : 'Add Customer'}
+                subtitle={editingCustomer ? 'Update customer information' : 'Create a new customer profile'}
+                width="md"
+                footer={
+                    <div className="flex gap-3">
+                        <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" form="customer-form" className="flex-1">
+                            {editingCustomer ? 'Update' : 'Create'}
+                        </Button>
+                    </div>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form id="customer-form" onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name *</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Name <span className="text-red-500">*</span>
+                        </label>
                         <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Enter customer name"
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone *</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Phone <span className="text-red-500">*</span>
+                        </label>
                         <input
                             type="tel"
                             value={formData.phone}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Enter phone number"
                             required
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Customer Type
+                            </label>
                             <CustomerTypeSelect
                                 value={formData.customer_type}
                                 onChange={(val) => setFormData({ ...formData, customer_type: val })}
-                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                className="w-full"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gender</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Gender
+                            </label>
                             <GenderSelect
                                 value={formData.gender}
                                 onChange={(val) => setFormData({ ...formData, gender: val })}
-                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                className="w-full"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Email
+                        </label>
                         <input
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Enter email address"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Address
+                        </label>
                         <textarea
                             value={formData.address}
                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                            rows={2}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                            rows={3}
+                            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                            placeholder="Enter address"
                         />
                     </div>
-                    <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <Button type="button" variant="ghost" onClick={() => setShowModal(false)} className="flex-1">
-                            Cancel
-                        </Button>
-                        <Button type="submit" variant="primary" className="flex-1">
-                            {editingCustomer ? 'Update' : 'Create'}
-                        </Button>
-                    </div>
                 </form>
-            </Modal>
+            </Drawer>
         </UniversalListPage>
     );
 }

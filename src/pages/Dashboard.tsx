@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import { warehousesApi, shopsApi, reportsApi, inventoryApi, medicinesApi, invoicesApi, customersApi, employeesApi, purchaseRequestsApi, dispatchesApi } from '../services/api';
 
@@ -42,6 +43,7 @@ interface TopMedicine {
 export default function Dashboard() {
     const navigate = useNavigate();
     const { user } = useUser();
+    const { hasPermission } = usePermissions();
     const { scope, activeEntity } = useOperationalContext();
 
     // Global Stats for Super Admin Landing handled by stats state directly
@@ -300,8 +302,8 @@ export default function Dashboard() {
                         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
                         Refresh
                     </button>
-                    {/* New Sale button - Only for operational users, NOT for Super Admin */}
-                    {scope !== 'global' && (
+                    {/* New Sale button - Permission based */}
+                    {hasPermission('billing.create.shop') && (
                         <button
                             onClick={() => navigate('/sales/pos')}
                             className="btn btn-primary"

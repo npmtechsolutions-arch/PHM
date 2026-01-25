@@ -1,43 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
+import { mastersApi } from '../services/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import Badge from '../components/Badge';
 import Drawer from '../components/Drawer';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { type Column } from '../components/Table';
 
-interface AdjustmentReason {
+interface Brand {
     id: string;
     code: string;
     name: string;
     description?: string;
-    adjustment_type: 'increase' | 'decrease';
     is_active: boolean;
-    created_at: string;
 }
 
-export default function AdjustmentReasonsPage() {
+export default function BrandsPage() {
     const { user } = useUser();
     const { hasPermission } = usePermissions();
     const navigate = useNavigate();
-    const [items, setItems] = useState<AdjustmentReason[]>([]);
+    const [items, setItems] = useState<Brand[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [editingItem, setEditingItem] = useState<AdjustmentReason | null>(null);
-    const [formData, setFormData] = useState({
-        name: '',
-        code: '',
-        description: '',
-        adjustment_type: 'decrease' as 'increase' | 'decrease',
-        is_active: true
-    });
+    const [editing, setEditing] = useState<Brand | null>(null);
+    const [formData, setFormData] = useState({ code: '', name: '', description: '', is_active: true });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { handleError, handleSuccess } = useErrorHandler();
 
     // Pagination & Search
     const [search, setSearch] = useState('');
@@ -45,7 +40,7 @@ export default function AdjustmentReasonsPage() {
     const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
-        if (user && !hasPermission('adjustment_reasons.view')) {
+        if (user && !hasPermission('brands.view')) {
             navigate('/');
         }
     }, [user, navigate, hasPermission]);
@@ -55,67 +50,60 @@ export default function AdjustmentReasonsPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const res = await mastersApi.listAdjustmentReasons();
+            const res = await mastersApi.listBrands();
             setItems(res.data.items || []);
         } catch (err) {
-            console.error('Failed to load adjustment reasons:', err);
-            // Fallback for demo if API fails
-            if (items.length === 0) {
-                setItems([]);
-            }
+            console.error('Failed to load brands:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    const openCreateModal = () => {
-        setEditingItem(null);
-        setFormData({ name: '', code: '', description: '', adjustment_type: 'decrease', is_active: true });
+    const openCreate = () => {
+        setEditing(null);
+        setFormData({ code: '', name: '', description: '', is_active: true });
         setError('');
         setShowModal(true);
     };
 
-    const openEditModal = (item: AdjustmentReason) => {
-        setEditingItem(item);
-        setFormData({
-            name: item.name,
-            code: item.code,
-            description: item.description || '',
-            adjustment_type: item.adjustment_type,
-            is_active: item.is_active
-        });
+    const openEdit = (item: Brand) => {
+        setEditing(item);
+        setFormData({ code: item.code, name: item.name, description: item.description || '', is_active: item.is_active });
         setError('');
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (item: AdjustmentReason) => {
+    const handleToggleStatus = async (item: Brand) => {
         try {
-            await mastersApi.updateAdjustmentReason(item.id, { is_active: !item.is_active });
-            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
+            await mastersApi.updateBrand(item.id, { is_active: !item.is_active });
+            handleSuccess(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
             loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
+        } catch (err) {
+            handleError(err);
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name.trim() || !formData.code.trim()) {
-            setError('Name and code are required');
+        if (!formData.code || !formData.name) {
+            setError('Code and Name are required');
             return;
         }
         setSaving(true);
         setError('');
         try {
-            if (editingItem) {
-                await mastersApi.updateAdjustmentReason(editingItem.id, formData);
+            if (editing) {
+                await mastersApi.updateBrand(editing.id, formData);
+                handleSuccess('Brand updated successfully');
             } else {
-                await mastersApi.createAdjustmentReason(formData);
+                await mastersApi.createBrand(formData);
+                handleSuccess('Brand created successfully');
             }
             setShowModal(false);
             loadData();
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to save');
+        } catch (err) {
+            const errorMsg = handleError(err);
+            setError(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -123,9 +111,9 @@ export default function AdjustmentReasonsPage() {
 
     // Delete Confirmation
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [itemToDelete, setItemToDelete] = useState<AdjustmentReason | null>(null);
+    const [itemToDelete, setItemToDelete] = useState<Brand | null>(null);
 
-    const handleDeleteClick = (item: AdjustmentReason) => {
+    const handleDeleteClick = (item: Brand) => {
         setItemToDelete(item);
         setIsDeleteModalOpen(true);
     };
@@ -134,12 +122,11 @@ export default function AdjustmentReasonsPage() {
         if (!itemToDelete) return;
 
         try {
-            await mastersApi.deleteAdjustmentReason(itemToDelete.id);
-            window.toast?.success('Adjustment reason deleted successfully');
+            await mastersApi.deleteBrand(itemToDelete.id);
+            handleSuccess('Brand deleted successfully');
             loadData();
-        } catch (err: any) {
-            console.error('Failed to delete adjustment reason:', err);
-            window.toast?.error(err.response?.data?.detail || 'Failed to delete adjustment reason');
+        } catch (err) {
+            handleError(err, 'Failed to delete brand');
         } finally {
             setIsDeleteModalOpen(false);
             setItemToDelete(null);
@@ -157,18 +144,18 @@ export default function AdjustmentReasonsPage() {
     // Stats
     const stats = {
         total: items.length,
-        increase: items.filter(i => i.adjustment_type === 'increase').length,
-        decrease: items.filter(i => i.adjustment_type === 'decrease').length
+        active: items.filter(i => i.is_active).length,
+        inactive: items.filter(i => !i.is_active).length
     };
 
-    const columns: Column<AdjustmentReason>[] = [
+    const columns: Column<Brand>[] = [
         {
             header: 'Code',
             key: 'code',
             render: (item) => <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{item.code}</span>
         },
         {
-            header: 'Reason Name',
+            header: 'Brand',
             key: 'name',
             render: (item) => (
                 <div>
@@ -178,19 +165,14 @@ export default function AdjustmentReasonsPage() {
             )
         },
         {
-            header: 'Type',
-            key: 'adjustment_type',
+            header: 'Status',
+            key: 'is_active',
             render: (item) => (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${item.adjustment_type === 'increase'
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                    <span className="material-symbols-outlined text-[14px]">
-                        {item.adjustment_type === 'increase' ? 'arrow_upward' : 'arrow_downward'}
-                    </span>
-                    {item.adjustment_type === 'increase' ? 'Increase' : 'Decrease'}
-                </span>
-            )
+                <Badge variant={item.is_active ? 'success' : 'secondary'}>
+                    {item.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            ),
+            align: 'center'
         },
         {
             header: 'Actions',
@@ -198,12 +180,12 @@ export default function AdjustmentReasonsPage() {
             align: 'right',
             render: (item) => (
                 <div className="flex justify-end gap-1">
-                    {hasPermission('adjustment_reasons.edit') && (
-                        <Button variant="ghost" onClick={() => openEditModal(item)} className="!p-1.5 h-8 w-8 text-blue-600">
+                    {hasPermission('brands.edit') && (
+                        <Button variant="ghost" onClick={() => openEdit(item)} className="!p-1.5 h-8 w-8 text-blue-600">
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                         </Button>
                     )}
-                    {hasPermission('adjustment_reasons.delete') && (
+                    {hasPermission('brands.delete') && (
                         <Button variant="ghost" onClick={() => handleDeleteClick(item)} className="!p-1.5 h-8 w-8 text-red-600 hover:bg-red-50">
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                         </Button>
@@ -216,29 +198,29 @@ export default function AdjustmentReasonsPage() {
     return (
         <UniversalListPage>
             <UniversalListPage.Header
-                title="Adjustment Reasons"
-                subtitle="Manage stock adjustment reasons"
+                title="Brands"
+                subtitle="Manage medicine brand masters"
                 actions={
-                    hasPermission('adjustment_reasons.create') && (
-                        <Button variant="primary" onClick={openCreateModal}>
+                    hasPermission('brands.create') && (
+                        <Button variant="primary" onClick={openCreate}>
                             <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                            Add Reason
+                            Add Brand
                         </Button>
                     )
                 }
             />
 
             <UniversalListPage.KPICards>
-                <StatCard title="Total Reasons" value={stats.total} icon="swap_vert" isActive={true} />
-                <StatCard title="Increase Types" value={stats.increase} icon="trending_up" trend="up" valueClassName="text-green-600" />
-                <StatCard title="Decrease Types" value={stats.decrease} icon="trending_down" trend="down" valueClassName="text-red-600" />
+                <StatCard title="Total Brands" value={stats.total} icon="label" isActive={true} />
+                <StatCard title="Active" value={stats.active} icon="check_circle" trend="neutral" />
+                <StatCard title="Inactive" value={stats.inactive} icon="cancel" trend="neutral" />
             </UniversalListPage.KPICards>
 
             <UniversalListPage.DataTable
                 columns={columns}
                 data={paginatedData}
                 loading={loading}
-                emptyMessage="No adjustment reasons found."
+                emptyMessage="No brands found."
                 pagination={{
                     currentPage: currentPage,
                     totalPages: Math.ceil(filtered.length / pageSize),
@@ -249,12 +231,12 @@ export default function AdjustmentReasonsPage() {
                 }}
                 headerSlot={
                     <UniversalListPage.ListControls
-                        title="Reason List"
+                        title="Brand List"
                         count={filtered.length}
                         searchProps={{
                             value: search,
                             onChange: (val) => { setSearch(val); setCurrentPage(1); },
-                            placeholder: "Search reasons..."
+                            placeholder: "Search brands..."
                         }}
                         embedded={true}
                     />
@@ -264,50 +246,46 @@ export default function AdjustmentReasonsPage() {
             <Drawer
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
-                title={editingItem ? 'Edit Reason' : 'Add Reason'}
-                subtitle={editingItem ? 'Update adjustment reason' : 'Create a new adjustment reason'}
+                title={editing ? 'Edit Brand' : 'Add Brand'}
+                subtitle={editing ? 'Update brand information' : 'Create a new brand master'}
                 width="md"
                 footer={
                     <div className="flex justify-end gap-3">
                         <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
                             Cancel
                         </Button>
-                        <Button variant="primary" type="submit" form="adjustment-reason-form" loading={saving}>
-                            {saving ? 'Saving...' : 'Save'}
+                        <Button variant="primary" type="submit" form="brand-form" loading={saving}>
+                            {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
                         </Button>
                     </div>
                 }
             >
-                <form id="adjustment-reason-form" onSubmit={handleSubmit} className="space-y-5">
+                <form id="brand-form" onSubmit={handleSubmit} className="space-y-5">
                     {error && (
                         <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
                             {error}
                         </div>
                     )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input label="Code" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="DAMAGE" required />
-                        <Input label="Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Damaged Goods" required />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Adjustment Type <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <label className="flex items-center gap-3 cursor-pointer p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-slate-200 dark:border-slate-700">
-                                <input type="radio" checked={formData.adjustment_type === 'decrease'} onChange={() => setFormData({ ...formData, adjustment_type: 'decrease' })} className="text-primary w-4 h-4" />
-                                <span className="text-sm font-medium">Decrease (Stock Out)</span>
-                            </label>
-                            <label className="flex items-center gap-3 cursor-pointer p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-slate-200 dark:border-slate-700">
-                                <input type="radio" checked={formData.adjustment_type === 'increase'} onChange={() => setFormData({ ...formData, adjustment_type: 'increase' })} className="text-primary w-4 h-4" />
-                                <span className="text-sm font-medium">Increase (Stock In)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <Input label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Explain when this reason is used" />
-
+                    <Input
+                        label="Code"
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase() })}
+                        placeholder="e.g., cipla"
+                        required
+                    />
+                    <Input
+                        label="Name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="e.g., Cipla"
+                        required
+                    />
+                    <Input
+                        label="Description (Optional)"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Brand description"
+                    />
                     <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <input
                             type="checkbox"
@@ -327,9 +305,9 @@ export default function AdjustmentReasonsPage() {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                title="Delete Adjustment Reason"
+                title="Delete Brand"
                 message={`Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone.`}
-                confirmText="Delete Reason"
+                confirmText="Delete Brand"
             />
         </UniversalListPage>
     );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { medicinesApi, inventoryApi, racksApi, dispatchesApi } from '../services/api';
+import { usePermissions } from '../contexts/PermissionContext';
 import { useOperationalContext } from '../contexts/OperationalContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
@@ -32,6 +33,18 @@ interface Batch {
 export default function StockEntry() {
     const navigate = useNavigate();
     const { activeEntity } = useOperationalContext();
+    const { hasPermission } = usePermissions();
+
+    // Check permissions based on entity type
+    const canEntry = activeEntity?.type === 'warehouse' 
+        ? hasPermission('inventory.entry.warehouse')
+        : hasPermission('inventory.entry.shop');
+
+    useEffect(() => {
+        if (!canEntry && activeEntity) {
+            navigate('/');
+        }
+    }, [canEntry, activeEntity, navigate]);
 
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [existingBatches, setExistingBatches] = useState<Batch[]>([]);

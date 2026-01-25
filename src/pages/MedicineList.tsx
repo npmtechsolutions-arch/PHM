@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { CategorySelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
@@ -36,8 +37,7 @@ interface Medicine {
 export default function MedicineList() {
     const navigate = useNavigate();
     const { user } = useUser();
-    const userRole = user?.role || 'user';
-    const canDelete = userRole === 'super_admin';
+    const { hasPermission } = usePermissions();
 
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [loading, setLoading] = useState(true);
@@ -178,15 +178,17 @@ export default function MedicineList() {
             align: 'right',
             render: (medicine) => (
                 <div className="flex justify-end gap-1">
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate(`/medicines/${medicine.id}/edit`)}
-                        className="!p-1.5 h-8 w-8 text-blue-600"
-                        title="Edit Medicine"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                    </Button>
-                    {canDelete && (
+                    {hasPermission('medicines.edit') && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate(`/medicines/${medicine.id}/edit`)}
+                            className="!p-1.5 h-8 w-8 text-blue-600"
+                            title="Edit Medicine"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </Button>
+                    )}
+                    {hasPermission('medicines.delete') && (
                         <Button
                             variant="ghost"
                             onClick={() => handleDeleteClick(medicine)}
@@ -207,10 +209,12 @@ export default function MedicineList() {
                 title="Medicines"
                 subtitle="Manage your medicine catalog"
                 actions={
-                    <Button variant="primary" onClick={() => navigate('/medicines/add')}>
-                        <span className="material-symbols-outlined text-[20px] mr-2">add</span>
-                        Add Medicine
-                    </Button>
+                    hasPermission('medicines.create') && (
+                        <Button variant="primary" onClick={() => navigate('/medicines/add')}>
+                            <span className="material-symbols-outlined text-[20px] mr-2">add</span>
+                            Add Medicine
+                        </Button>
+                    )
                 }
             />
 
