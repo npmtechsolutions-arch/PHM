@@ -83,15 +83,7 @@ export default function PaymentMethodsPage() {
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (item: PaymentMethod) => {
-        try {
-            await mastersApi.updatePaymentMethod(item.id, { is_active: !item.is_active });
-            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
-            loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
-        }
-    };
+    // handleToggleStatus removed - unused
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

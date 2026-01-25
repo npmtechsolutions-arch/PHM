@@ -69,16 +69,7 @@ export default function GSTSlabsPage() {
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (slab: GSTSlab) => {
-        try {
-            await mastersApi.updateGSTSlab(slab.id, { is_active: !slab.is_active });
-            window.toast?.success(`GST ${slab.rate}% ${slab.is_active ? 'deactivated' : 'activated'}`);
-            loadData();
-            refresh();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
-        }
-    };
+    // handleToggleStatus removed - unused
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

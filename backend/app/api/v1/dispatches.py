@@ -105,17 +105,33 @@ def create_dispatch(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
 ):
-    """Create a new dispatch"""
+    """
+    Create a new dispatch from warehouse to shop.
+    
+    BUSINESS LOGIC:
+    1. Only warehouse_admin or super_admin can create dispatches
+    2. Stock is deducted from WarehouseStock immediately when dispatch is CREATED
+    3. This prevents double-dispatching and reserves stock
+    4. When pharmacy receives (status = DELIVERED), stock is added to ShopStock
+    """
     # current_user is AuthContext object here
     user_role = current_user.role
     user_warehouse_id = current_user.warehouse_id
     
-    # Enforce Warehouse Admin scope
+    # Enforce Warehouse Admin scope - Pharmacy CANNOT create dispatches
     if user_role == "warehouse_admin":
         if not user_warehouse_id:
             raise HTTPException(status_code=403, detail="User not assigned to any warehouse")
         if dispatch_data.warehouse_id != user_warehouse_id:
              raise HTTPException(status_code=403, detail="Cannot create dispatch from another warehouse")
+    
+    # CRITICAL: Pharmacy/Shop users CANNOT create dispatches
+    shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+    if user_role in shop_roles:
+        raise HTTPException(
+            status_code=403, 
+            detail="Pharmacy users cannot create dispatches. Only warehouse can dispatch stock to shops."
+        )
 
     # Validate warehouse and shop
     warehouse = db.query(Warehouse).filter(Warehouse.id == dispatch_data.warehouse_id).first()
@@ -125,6 +141,13 @@ def create_dispatch(
     shop = db.query(MedicalShop).filter(MedicalShop.id == dispatch_data.shop_id).first()
     if not shop:
         raise HTTPException(status_code=404, detail="Shop not found")
+    
+    # Validate shop is linked to warehouse (business rule)
+    if shop.warehouse_id != dispatch_data.warehouse_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Shop '{shop.name}' is not linked to warehouse '{warehouse.name}'. Cannot dispatch to unlinked shop."
+        )
     
     dispatch_number = generate_dispatch_number(db)
     
@@ -158,21 +181,22 @@ def create_dispatch(
         if not batch:
             raise HTTPException(status_code=400, detail=f"Batch {item_data.batch_id} not found")
         
-        # Check warehouse stock
+        # Check warehouse stock availability and deduct immediately
         wh_stock = db.query(WarehouseStock).filter(
             WarehouseStock.warehouse_id == dispatch_data.warehouse_id,
             WarehouseStock.batch_id == item_data.batch_id
         ).first()
         
-        # Fallback to batch quantity if no wh_stock record (legacy/global behavior)
-        available = wh_stock.quantity if wh_stock else batch.quantity
+        # Validate stock availability
+        available = wh_stock.quantity if wh_stock else (batch.quantity or 0)
         
         if item_data.quantity > available:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient warehouse stock for {medicine.name}. Available: {available}"
+                detail=f"Insufficient warehouse stock for {medicine.name}. Available: {available}, Requested: {item_data.quantity}"
             )
         
+        # Create dispatch item
         item = DispatchItem(
             dispatch_id=dispatch.id,
             medicine_id=item_data.medicine_id,
@@ -180,6 +204,65 @@ def create_dispatch(
             quantity=item_data.quantity
         )
         db.add(item)
+
+        # CRITICAL: Deduct from warehouse stock immediately when dispatch is CREATED
+        # This reserves the stock and prevents double-dispatching
+        if wh_stock:
+            # Validate stock availability again (double-check before deduction)
+            if wh_stock.quantity < item_data.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient warehouse stock for {medicine.name}. Available: {wh_stock.quantity}, Requested: {item_data.quantity}"
+                )
+            
+            # Deduct from warehouse stock
+            wh_stock.quantity -= item_data.quantity
+            
+            # CRITICAL: Ensure stock doesn't go negative (safety check)
+            if wh_stock.quantity < 0:
+                # Rollback the deduction
+                wh_stock.quantity += item_data.quantity
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Stock deduction would result in negative quantity. Available: {wh_stock.quantity + item_data.quantity}, Requested: {item_data.quantity}"
+                )
+            
+            # Create stock movement record for audit with purchase request link
+            purchase_ref_note = ""
+            if dispatch_data.purchase_request_id:
+                purchase_ref_note = f" | PR: {dispatch_data.purchase_request_id}"
+            
+            movement = StockMovement(
+                movement_type=MovementType.TRANSFER,
+                source_type="warehouse",
+                source_id=dispatch_data.warehouse_id,
+                destination_type="shop",
+                destination_id=dispatch_data.shop_id,
+                medicine_id=item_data.medicine_id,
+                batch_id=item_data.batch_id,
+                quantity=item_data.quantity,
+                reference_type="dispatch",
+                reference_id=dispatch.id,
+                notes=f"Dispatch created - stock deducted from warehouse{purchase_ref_note}",
+                created_by=current_user.user_id
+            )
+            db.add(movement)
+        else:
+            # Fallback: if no WarehouseStock record, deduct from Batch (legacy behavior)
+            if (batch.quantity or 0) < item_data.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient batch stock for {medicine.name}. Available: {batch.quantity or 0}, Requested: {item_data.quantity}"
+                )
+            batch.quantity = (batch.quantity or 0) - item_data.quantity
+            
+            # Ensure batch quantity doesn't go negative
+            if batch.quantity < 0:
+                batch.quantity += item_data.quantity
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Batch stock deduction would result in negative quantity"
+                )
 
         # Update Purchase Request Item if linked
         if purchase_request:
@@ -225,11 +308,24 @@ def create_dispatch(
     )
     db.add(history)
     
-    db.commit()
+    # CRITICAL: Commit all changes (dispatch, items, stock deduction, movements)
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create dispatch: {str(e)}"
+        )
     
     return APIResponse(
-        message="Dispatch created successfully",
-        data={"id": dispatch.id, "dispatch_number": dispatch_number}
+        message="Dispatch created successfully. Stock deducted from warehouse.",
+        data={
+            "id": dispatch.id, 
+            "dispatch_number": dispatch_number,
+            "status": "created",
+            "note": "Stock has been deducted from warehouse inventory"
+        }
     )
 
 
@@ -329,61 +425,121 @@ def update_dispatch_status(
     
     if new_status == DStatus.DISPATCHED:
         dispatch.dispatched_at = datetime.utcnow()
-        
-        # Deduct from warehouse stock on dispatch
-        items = db.query(DispatchItem).filter(DispatchItem.dispatch_id == dispatch_id).all()
-        for item in items:
-            # Record movement
-            movement = StockMovement(
-                movement_type=MovementType.TRANSFER,
-                source_type="warehouse",
-                source_id=dispatch.warehouse_id,
-                destination_type="shop",
-                destination_id=dispatch.shop_id,
-                medicine_id=item.medicine_id,
-                batch_id=item.batch_id,
-                quantity=item.quantity,
-                reference_type="dispatch",
-                reference_id=dispatch.id,
-                created_by=current_user.get("user_id")
-            )
-            db.add(movement)
-            
-            # Deduct from warehouse
-            wh_stock = db.query(WarehouseStock).filter(
-                WarehouseStock.warehouse_id == dispatch.warehouse_id,
-                WarehouseStock.batch_id == item.batch_id
-            ).first()
-            if wh_stock:
-                wh_stock.quantity -= item.quantity
-            else:
-                batch = db.query(Batch).filter(Batch.id == item.batch_id).first()
-                if batch:
-                    batch.quantity -= item.quantity
+        # Note: Stock was already deducted when dispatch was CREATED
+        # This status update just marks it as physically dispatched
     
     elif new_status == DStatus.DELIVERED:
+        # CRITICAL: Only shop users or super admin can mark as delivered
+        user_role = current_user.get("role")
+        user_shop_id = current_user.get("shop_id")
+        
+        shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+        if user_role not in ["super_admin"] + shop_roles:
+            raise HTTPException(
+                status_code=403,
+                detail="Only pharmacy/shop users can receive dispatches. Warehouse cannot mark as delivered."
+            )
+        
+        # Verify shop user can only receive dispatches for their shop
+        if user_role in shop_roles:
+            if not user_shop_id or user_shop_id != dispatch.shop_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only receive dispatches for your assigned shop"
+                )
+        
         dispatch.delivered_at = datetime.utcnow()
         dispatch.received_by = current_user.get("user_id")
         
-        # Add to shop stock on delivery
+        # Get rack/box info from status update (global or per-item)
+        global_rack_number = status_update.global_rack_number
+        global_rack_name = status_update.global_rack_name
+        item_rack_map = {}
+        if status_update.item_rack_info:
+            for rack_info in status_update.item_rack_info:
+                item_rack_map[rack_info.item_id] = {
+                    "rack_number": rack_info.rack_number,
+                    "rack_name": rack_info.rack_name
+                }
+        
+        # Add to shop stock on delivery (automatic stock loading)
         items = db.query(DispatchItem).filter(DispatchItem.dispatch_id == dispatch_id).all()
         for item in items:
+            # Get rack/box info for this item (per-item overrides global)
+            item_rack_info = item_rack_map.get(item.id, {})
+            rack_number = item_rack_info.get("rack_number") or global_rack_number
+            rack_name = item_rack_info.get("rack_name") or global_rack_name
+            
+            # Check if shop stock already exists for this batch
             shop_stock = db.query(ShopStock).filter(
                 ShopStock.shop_id == dispatch.shop_id,
                 ShopStock.batch_id == item.batch_id
             ).first()
             
             if shop_stock:
+                # Update existing shop stock (auto-load into inventory)
                 shop_stock.quantity += item.quantity
+                # Update rack info if provided (only if not already set or if explicitly provided)
+                if rack_number:
+                    shop_stock.rack_number = rack_number
+                if rack_name:
+                    shop_stock.rack_name = rack_name
             else:
-                # Create new shop stock entry
+                # Create new shop stock entry (auto-load into inventory)
+                batch = db.query(Batch).filter(Batch.id == item.batch_id).first()
+                medicine = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
+                
+                if not batch:
+                    raise HTTPException(status_code=404, detail=f"Batch {item.batch_id} not found")
+                if not medicine:
+                    raise HTTPException(status_code=404, detail=f"Medicine {item.medicine_id} not found")
+                
                 new_stock = ShopStock(
                     shop_id=dispatch.shop_id,
                     medicine_id=item.medicine_id,
                     batch_id=item.batch_id,
-                    quantity=item.quantity
+                    quantity=item.quantity,
+                    selling_price=medicine.selling_price if medicine else 0.0,
+                    rack_number=rack_number,
+                    rack_name=rack_name
                 )
                 db.add(new_stock)
+            
+            # Update stock movement to mark as delivered and link to purchase request
+            movement = db.query(StockMovement).filter(
+                StockMovement.reference_type == "dispatch",
+                StockMovement.reference_id == dispatch.id,
+                StockMovement.batch_id == item.batch_id
+            ).first()
+            
+            # Build notes with purchase request reference for purchase bill tracking
+            purchase_ref = ""
+            if dispatch.purchase_request_id:
+                purchase_ref = f" | PR: {dispatch.purchase_request_id}"
+            
+            if movement:
+                movement.notes = (movement.notes or "") + f" | Delivered and auto-loaded to shop stock{purchase_ref}"
+            else:
+                # Create movement if not found (shouldn't happen, but safety)
+                movement = StockMovement(
+                    movement_type=MovementType.TRANSFER,
+                    source_type="warehouse",
+                    source_id=dispatch.warehouse_id,
+                    destination_type="shop",
+                    destination_id=dispatch.shop_id,
+                    medicine_id=item.medicine_id,
+                    batch_id=item.batch_id,
+                    quantity=item.quantity,
+                    reference_type="dispatch",
+                    reference_id=dispatch.id,
+                    notes=f"Delivered and auto-loaded to shop stock{purchase_ref}",
+                    created_by=current_user.get("user_id")
+                )
+                db.add(movement)
+            
+            # CRITICAL: Link stock to purchase request for purchase bill tracking
+            # This allows tracking which stock came from which purchase request
+            # The ShopStock entry is implicitly linked via the dispatch -> purchase_request relationship
     
     # Add status history
     history = DispatchStatusHistory(
@@ -394,6 +550,24 @@ def update_dispatch_status(
     )
     db.add(history)
     
-    db.commit()
-    
-    return APIResponse(message=f"Dispatch status updated to {new_status.value}")
+    # CRITICAL: Commit all changes with error handling
+    try:
+        db.commit()
+        
+        # Return appropriate message based on status
+        if new_status == DStatus.DELIVERED:
+            return APIResponse(
+                message="Dispatch received successfully. Stock automatically added to shop inventory.",
+                data={
+                    "status": "delivered",
+                    "note": "Stock has been automatically loaded into shop inventory"
+                }
+            )
+        else:
+            return APIResponse(message=f"Dispatch status updated to {new_status.value}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update dispatch status: {str(e)}"
+        )

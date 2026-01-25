@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useErrorHandler, type ApiError } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
@@ -104,15 +104,7 @@ export default function SuppliersPage() {
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (item: Supplier) => {
-        try {
-            await mastersApi.updateSupplier(item.id, { is_active: !item.is_active });
-            handleSuccess(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
-            loadData();
-        } catch (err) {
-            handleError(err);
-        }
-    };
+    // handleToggleStatus removed - unused
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -133,7 +125,7 @@ export default function SuppliersPage() {
             setShowModal(false);
             loadData();
         } catch (err) {
-            const errorMsg = handleError(err);
+            const errorMsg = handleError(err as ApiError);
             setError(errorMsg);
         } finally {
             setSaving(false);
@@ -157,7 +149,7 @@ export default function SuppliersPage() {
             handleSuccess('Supplier deleted successfully');
             loadData();
         } catch (err) {
-            handleError(err, 'Failed to delete supplier');
+            handleError(err as ApiError, 'Failed to delete supplier');
         } finally {
             setIsDeleteModalOpen(false);
             setSupplierToDelete(null);

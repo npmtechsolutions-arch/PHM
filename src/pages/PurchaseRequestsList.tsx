@@ -112,8 +112,8 @@ export default function PurchaseRequestsList() {
             await purchaseRequestsApi.approve(id, {});
             handleSuccess('Purchase request approved successfully');
             fetchRequests();
-        } catch (e) {
-            handleError(e, 'Failed to approve purchase request');
+        } catch (e: any) {
+            handleError(e as any, 'Failed to approve purchase request');
         }
     };
 
@@ -122,8 +122,8 @@ export default function PurchaseRequestsList() {
             await purchaseRequestsApi.reject(id);
             handleSuccess('Purchase request rejected');
             fetchRequests();
-        } catch (e) {
-            handleError(e, 'Failed to reject purchase request');
+        } catch (e: any) {
+            handleError(e as any, 'Failed to reject purchase request');
         }
     };
 
@@ -155,7 +155,7 @@ export default function PurchaseRequestsList() {
             setShowCreateModal(false);
             setNewRequest({ shop_id: '', warehouse_id: '', priority: 'medium', items: [{ medicine_id: '', quantity: 1 }] });
             fetchRequests();
-        } catch (e) {
+        } catch (e: any) {
             handleError(e, 'Failed to create purchase request');
         } finally {
             setCreating(false);
@@ -575,29 +575,87 @@ function ViewRequestModal({ requestId, onClose, onApprove, onReject, canAction }
                             </div>
 
                             <div>
-                                <h3 className="font-medium text-slate-900 dark:text-white mb-3">Requested Items</h3>
+                                <h3 className="font-medium text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+                                    Requested Items
+                                    {request.items && (
+                                        <span className="text-xs font-normal text-slate-500">
+                                            ({request.items.length} items)
+                                        </span>
+                                    )}
+                                </h3>
                                 <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-medium">
                                             <tr>
                                                 <th className="px-4 py-3">Medicine</th>
-                                                <th className="px-4 py-3 text-right">Qty</th>
+                                                <th className="px-4 py-3 text-right">Requested</th>
+                                                <th className="px-4 py-3 text-right">Available Stock</th>
+                                                <th className="px-4 py-3 text-center">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                            {request.items?.map((item: any, idx: number) => (
-                                                <tr key={idx}>
-                                                    <td className="px-4 py-3">
-                                                        <div className="font-medium text-slate-900 dark:text-white">{item.medicine_name}</div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right font-mono">
-                                                        {item.quantity_requested}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {request.items?.map((item: any, idx: number) => {
+                                                const isAvailable = item.is_stock_available !== false;
+                                                const availableStock = item.available_stock ?? 0;
+                                                const requestedQty = item.quantity_requested ?? 0;
+                                                
+                                                return (
+                                                    <tr key={idx} className={!isAvailable ? 'bg-red-50/50 dark:bg-red-900/10' : ''}>
+                                                        <td className="px-4 py-3">
+                                                            <div className="font-medium text-slate-900 dark:text-white">{item.medicine_name}</div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-mono">
+                                                            {requestedQty}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <span className={`font-mono ${isAvailable ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                                {availableStock}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {isAvailable ? (
+                                                                <Badge variant="success" className="!text-xs">
+                                                                    <span className="material-symbols-outlined text-[14px] mr-1">check_circle</span>
+                                                                    Available
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="error" className="!text-xs">
+                                                                    <span className="material-symbols-outlined text-[14px] mr-1">error</span>
+                                                                    Insufficient
+                                                                </Badge>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
+                                
+                                {/* Stock Availability Summary */}
+                                {request.items && request.items.length > 0 && (
+                                    <div className="mt-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                                        {(() => {
+                                            const allAvailable = request.items.every((item: any) => item.is_stock_available !== false);
+                                            const insufficientCount = request.items.filter((item: any) => item.is_stock_available === false).length;
+                                            
+                                            return allAvailable ? (
+                                                <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                                                    <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                                                    <span className="font-medium">All items have sufficient stock. Approval is allowed.</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                                    <span className="material-symbols-outlined text-[20px]">error</span>
+                                                    <span className="font-medium">
+                                                        {insufficientCount} item(s) have insufficient stock. Cannot approve without stock.
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -612,7 +670,22 @@ function ViewRequestModal({ requestId, onClose, onApprove, onReject, canAction }
                     {canAction && request && (
                         <>
                             <Button variant="danger" onClick={onReject}>Reject</Button>
-                            <Button variant="success" onClick={onApprove}>Approve</Button>
+                            <Button 
+                                variant="success" 
+                                onClick={onApprove}
+                                disabled={
+                                    request.items && 
+                                    request.items.some((item: any) => item.is_stock_available === false)
+                                }
+                                title={
+                                    request.items && 
+                                    request.items.some((item: any) => item.is_stock_available === false)
+                                        ? "Cannot approve: Some items have insufficient stock"
+                                        : "Approve purchase request"
+                                }
+                            >
+                                Approve
+                            </Button>
                         </>
                     )}
                 </div>

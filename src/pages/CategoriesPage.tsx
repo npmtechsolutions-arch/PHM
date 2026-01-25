@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { mastersApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
-import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useErrorHandler, type ApiError } from '../hooks/useErrorHandler';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
@@ -85,15 +85,7 @@ export default function CategoriesPage() {
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (category: Category) => {
-        try {
-            await mastersApi.updateCategory(category.id, { is_active: !category.is_active });
-            handleSuccess(`${category.name} ${category.is_active ? 'deactivated' : 'activated'}`);
-            loadData();
-        } catch (err) {
-            handleError(err);
-        }
-    };
+    // handleToggleStatus removed - unused
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -119,7 +111,7 @@ export default function CategoriesPage() {
             setShowModal(false);
             loadData();
         } catch (err) {
-            const errorMsg = handleError(err);
+            const errorMsg = handleError(err as ApiError);
             setError(errorMsg);
         } finally {
             setSaving(false);
@@ -143,7 +135,7 @@ export default function CategoriesPage() {
             handleSuccess('Category deleted successfully');
             loadData();
         } catch (err) {
-            handleError(err, 'Failed to delete category');
+            handleError(err as ApiError, 'Failed to delete category');
         } finally {
             setIsDeleteModalOpen(false);
             setCategoryToDelete(null);

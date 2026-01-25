@@ -176,7 +176,7 @@ export const shopsApi = {
 
     getStats: () => api.get('/shops/stats'),
 
-    getStock: (id: string, params?: { page?: number; size?: number; low_stock?: boolean }) =>
+    getStock: (id: string, params?: { page?: number; size?: number; low_stock?: boolean; search?: string }) =>
         api.get(`/shops/${id}/stock`, { params }),
 };
 
@@ -217,10 +217,18 @@ export const inventoryApi = {
         rack_number?: string;
     }) => api.post('/stock/entry', data),
 
-    adjustStock: (data: any) => api.post('/stock/adjust', data),
+    adjustStock: (data: {
+        medicine_id: string;
+        batch_id: string;
+        adjustment_type: 'increase' | 'decrease';
+        quantity: number;
+        reason: string;
+        warehouse_id?: string;
+        shop_id?: string;
+    }) => api.post('/stock/adjust', data),
 
-    getAlerts: (alertType?: string) =>
-        api.get('/stock/alerts', { params: { alert_type: alertType } }),
+    getAlerts: (params?: { alert_type?: string; warehouse_id?: string; shop_id?: string }) =>
+        api.get('/stock/alerts', { params }),
 };
 
 // Purchase Requests API
@@ -246,7 +254,11 @@ export const dispatchesApi = {
 
     create: (data: any) => api.post('/dispatches', data),
 
-    updateStatus: (id: string, status: string) => api.put(`/dispatches/${id}/status`, { status }),
+    updateStatus: (id: string, status: string, data?: {
+        global_rack_number?: string;
+        global_rack_name?: string;
+        item_rack_info?: Array<{ item_id: string; rack_number?: string; rack_name?: string }>;
+    }) => api.put(`/dispatches/${id}/status`, { status, ...data }),
 };
 
 // Invoices API
@@ -284,7 +296,7 @@ export const customersApi = {
 
 // Employees API
 export const employeesApi = {
-    list: (params?: { page?: number; size?: number; search?: string; department?: string; shop_id?: string }) =>
+    list: (params?: { page?: number; size?: number; search?: string; department?: string; shop_id?: string; warehouse_id?: string; status?: string }) =>
         api.get('/employees', { params }),
 
     get: (id: string) => api.get(`/employees/${id}`),
@@ -297,8 +309,8 @@ export const employeesApi = {
 
     markAttendance: (data: any) => api.post('/employees/attendance', data),
 
-    getDailyAttendance: (date: string) =>
-        api.get('/employees/attendance/daily', { params: { date } }),
+    getDailyAttendance: (date: string, params?: { warehouse_id?: string; shop_id?: string }) =>
+        api.get('/employees/attendance/daily', { params: { date, ...params } }),
 
     getAttendance: (id: string, params?: { month?: number; year?: number }) =>
         api.get(`/employees/attendance/${id}`, { params }),

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
 
 interface TaxSummary {
     total_sales: number;
@@ -20,6 +21,7 @@ interface GSTReport {
 }
 
 export default function TaxReports() {
+    const { activeEntity } = useOperationalContext();
     const [reportType, setReportType] = useState<'summary' | 'gst' | 'vat'>('summary');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -29,20 +31,25 @@ export default function TaxReports() {
 
     useEffect(() => {
         loadReport();
-    }, [reportType, selectedMonth, selectedYear]);
+    }, [reportType, selectedMonth, selectedYear, activeEntity]);
 
     const loadReport = async () => {
         setLoading(true);
         try {
+            // Entity-specific params - shop_id for shops
+            const params: { month: number; year: number; shop_id?: string } = {
+                month: selectedMonth,
+                year: selectedYear
+            };
+            if (activeEntity?.type === 'shop') {
+                params.shop_id = activeEntity.id;
+            }
+            
             if (reportType === 'summary') {
-                const response = await api.get('/tax/summary', {
-                    params: { month: selectedMonth, year: selectedYear }
-                });
+                const response = await api.get('/tax/summary', { params });
                 setTaxSummary(response.data);
             } else if (reportType === 'gst') {
-                const response = await api.get('/tax/gst', {
-                    params: { month: selectedMonth, year: selectedYear }
-                });
+                const response = await api.get('/tax/gst', { params });
                 setGstReport(response.data);
             }
         } catch (error) {
@@ -289,11 +296,32 @@ export default function TaxReports() {
             `}</style>
 
             <div className="page-header">
-                <h1>Tax Reports</h1>
+                <div>
+                    <h1>
+                        Tax Reports
+                        {activeEntity?.type === 'shop' && (
+                            <span style={{ fontSize: '18px', fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                                - {activeEntity.name}
+                            </span>
+                        )}
+                    </h1>
+                </div>
                 <button className="btn-export" onClick={exportReport}>
                     Export for CA Filing
                 </button>
             </div>
+
+            {/* Entity Badge */}
+            {activeEntity?.type === 'shop' && (
+                <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', background: '#e0f2fe', border: '1px solid #bae6fd' }}>
+                        <span style={{ fontSize: '20px' }}>🏪</span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#0369a1' }}>
+                            Pharmacy: {activeEntity.name}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <div className="controls-card">
                 <div className="controls-row">

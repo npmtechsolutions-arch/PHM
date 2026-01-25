@@ -88,15 +88,7 @@ export default function AdjustmentReasonsPage() {
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (item: AdjustmentReason) => {
-        try {
-            await mastersApi.updateAdjustmentReason(item.id, { is_active: !item.is_active });
-            window.toast?.success(`${item.name} ${item.is_active ? 'deactivated' : 'activated'}`);
-            loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
-        }
-    };
+    // handleToggleStatus removed - unused
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

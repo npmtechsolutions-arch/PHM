@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopsApi } from '../services/api';
-import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { StatusSelect } from '../components/MasterSelect';
@@ -32,7 +31,6 @@ interface Shop {
 
 export default function ShopList() {
     const navigate = useNavigate();
-    const { user } = useUser();
     const { isLoading: mastersLoading } = useMasterData();
     const { hasPermission } = usePermissions();
 

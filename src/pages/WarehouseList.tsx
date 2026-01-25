@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { warehousesApi, shopsApi } from '../services/api';
-import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import UniversalListPage from '../components/UniversalListPage';
 import StatCard from '../components/StatCard';
@@ -29,7 +28,6 @@ interface Warehouse {
 
 export default function WarehouseList() {
     const navigate = useNavigate();
-    const { user } = useUser();
     const { hasPermission } = usePermissions();
 
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);

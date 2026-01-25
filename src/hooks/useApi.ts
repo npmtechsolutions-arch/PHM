@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useErrorHandler, ApiError } from './useErrorHandler';
+import { useErrorHandler, type ApiError } from './useErrorHandler';
 
 /**
  * Generic API hook for common CRUD operations

@@ -21,11 +21,9 @@ interface User {
     assigned_shop_id?: string;
 }
 
-import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 
 export default function UsersList() {
-    const { user: currentUser } = useUser();
     const { hasPermission } = usePermissions();
 
     const [users, setUsers] = useState<User[]>([]);

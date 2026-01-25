@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { customersApi } from '../services/api';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useUser } from '../contexts/UserContext';
-import { usePermissions } from '../contexts/PermissionContext';
 import { useOperationalContext } from '../contexts/OperationalContext';
-import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useErrorHandler, type ApiError } from '../hooks/useErrorHandler';
 import { formatCurrency } from '../utils/formatting';
 import { PermissionGate } from '../components/PermissionGate';
 import { CustomerTypeSelect, GenderSelect } from '../components/MasterSelect';
@@ -119,7 +118,7 @@ export default function CustomersList() {
             setShowModal(false);
             fetchCustomers();
         } catch (error) {
-            handleError(error, editingCustomer ? 'Failed to update customer' : 'Failed to create customer');
+            handleError(error as ApiError, editingCustomer ? 'Failed to update customer' : 'Failed to create customer');
         }
     };
 

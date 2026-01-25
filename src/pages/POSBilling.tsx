@@ -23,6 +23,8 @@ interface Medicine {
     stock_quantity: number;
     gst_rate?: number; // GST rate from medicine
     is_prescription_required?: boolean;
+    medicine_id?: string; // From shop stock
+    medicine_name?: string; // From shop stock
 }
 
 interface Batch {
@@ -32,6 +34,21 @@ interface Batch {
     quantity: number;
     mrp: number;
     selling_price?: number;
+    batch_id?: string; // From shop stock
+}
+
+interface ShopStockItem {
+    id: string;
+    medicine_id: string;
+    medicine_name: string;
+    medicine_code?: string;
+    brand?: string;
+    batch_id: string;
+    batch_number: string;
+    expiry_date?: string;
+    quantity: number;
+    rack_name?: string;
+    rack_number?: string;
 }
 
 interface CartItem {
@@ -105,6 +122,7 @@ export default function POSBilling() {
     // State
     const [shopDetails, setShopDetails] = useState<any>(null);
     const [medicines, setMedicines] = useState<Medicine[]>([]);
+    const [shopStockItems, setShopStockItems] = useState<ShopStockItem[]>([]);
     const [search, setSearch] = useState('');
     const [cart, setCart] = useState<CartItem[]>([]);
     const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -159,33 +177,103 @@ export default function POSBilling() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-            // CRITICAL: Pass shop_id to filter medicines by SHOP stock only
-            // Backend will return medicines with stock_quantity from ShopStock table (not WarehouseStock)
-            // This ensures POS only shows medicines available in the shop's inventory
-            const res = await medicinesApi.list({ search, shop_id: shopId });
+            // CRITICAL: Use shop stock inventory instead of global medicines
+            // This ensures POS only shows medicines that actually exist in shop inventory (ShopStock table)
+            const res = await shopsApi.getStock(shopId, { search, size: 50 });
             clearTimeout(timeoutId);
-            setMedicines(res.data?.items || res.data || []);
+            
+            const stockItems: ShopStockItem[] = res.data?.items || [];
+            setShopStockItems(stockItems);
+            
+            // Transform shop stock items to medicines format for display
+            // Group by medicine_id and sum quantities
+            const medicineMap = new Map<string, Medicine>();
+            const medicineIds = new Set<string>();
+            
+            stockItems.forEach((stock: ShopStockItem) => {
+                if (stock.quantity > 0) { // Only show items with stock > 0
+                    medicineIds.add(stock.medicine_id);
+                    const existing = medicineMap.get(stock.medicine_id);
+                    if (existing) {
+                        existing.stock_quantity += stock.quantity;
+                    } else {
+                        medicineMap.set(stock.medicine_id, {
+                            id: stock.medicine_id,
+                            name: stock.medicine_name,
+                            generic_name: stock.medicine_name,
+                            brand: stock.brand,
+                            mrp: 0, // Will be fetched below
+                            stock_quantity: stock.quantity,
+                            gst_rate: 12.0, // Default, will be fetched below
+                            is_prescription_required: false
+                        });
+                    }
+                }
+            });
+            
+            // Fetch medicine details (MRP, GST) for all medicines in parallel
+            const medicineDetailsPromises = Array.from(medicineIds).map(id => 
+                medicinesApi.get(id).catch(() => null)
+            );
+            const medicineDetailsResults = await Promise.all(medicineDetailsPromises);
+            
+            // Update medicines with fetched details
+            medicineDetailsResults.forEach((result, index) => {
+                if (result?.data) {
+                    const medicineId = Array.from(medicineIds)[index];
+                    const medicine = medicineMap.get(medicineId);
+                    if (medicine) {
+                        medicine.mrp = result.data.mrp || 0;
+                        medicine.gst_rate = result.data.gst_rate || 12.0;
+                        medicine.is_prescription_required = result.data.is_prescription_required || false;
+                        medicine.generic_name = result.data.generic_name || medicine.name;
+                        medicine.manufacturer = result.data.manufacturer;
+                    }
+                }
+            });
+            
+            setMedicines(Array.from(medicineMap.values()));
         } catch (e: any) {
             console.error('Search error:', e);
             if (e.name === 'AbortError') {
                 toast.error('Search timed out. Please try again.');
+            } else {
+                toast.error('Failed to search shop inventory');
             }
+            setMedicines([]);
+            setShopStockItems([]);
         }
     };
 
     // Add to Cart Logic
     const handleMedicineClick = async (medicine: Medicine) => {
         try {
-            const res = await medicinesApi.getBatches(medicine.id);
-            const allBatches: Batch[] = res.data?.batches || [];
+            // Get batches from shop stock inventory (not global batches)
+            // Filter shop stock items for this medicine that have quantity > 0
+            const availableStock = shopStockItems.filter(
+                (stock: ShopStockItem) => 
+                    stock.medicine_id === medicine.id && 
+                    stock.quantity > 0
+            );
 
-            // Filter batches with stock > 0
-            const validBatches = allBatches.filter(b => b.quantity > 0);
-
-            if (validBatches.length === 0) {
+            if (availableStock.length === 0) {
                 toast.error('No stock available for this medicine');
                 return;
             }
+
+            // Transform shop stock items to batches
+            // Also fetch medicine details for MRP and GST
+            const medicineDetails = await medicinesApi.get(medicine.id).catch(() => null);
+            const medicineData = medicineDetails?.data || {};
+            
+            const validBatches: Batch[] = availableStock.map((stock: ShopStockItem) => ({
+                id: stock.batch_id,
+                batch_number: stock.batch_number,
+                expiry_date: stock.expiry_date || '',
+                quantity: stock.quantity,
+                mrp: medicineData.mrp || 0,
+                selling_price: medicineData.selling_price || medicineData.mrp || 0
+            }));
 
             if (validBatches.length === 1) {
                 // Auto-select the only batch

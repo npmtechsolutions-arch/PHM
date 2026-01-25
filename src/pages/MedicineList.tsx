@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
-import { useUser } from '../contexts/UserContext';
 import { usePermissions } from '../contexts/PermissionContext';
 import { CategorySelect } from '../components/MasterSelect';
 import UniversalListPage from '../components/UniversalListPage';
@@ -36,7 +35,6 @@ interface Medicine {
 
 export default function MedicineList() {
     const navigate = useNavigate();
-    const { user } = useUser();
     const { hasPermission } = usePermissions();
 
     const [medicines, setMedicines] = useState<Medicine[]>([]);

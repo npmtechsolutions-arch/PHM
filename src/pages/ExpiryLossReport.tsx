@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { reportsApi } from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
 import type { ExpiryItem } from '../types';
 
 export default function ExpiryLossReport() {
+    const { activeEntity } = useOperationalContext();
     const [selectedPeriod, setSelectedPeriod] = useState('current-month');
     const [selectedLocation, setSelectedLocation] = useState('all');
     const [loading, setLoading] = useState(true);
@@ -15,12 +17,17 @@ export default function ExpiryLossReport() {
 
     useEffect(() => {
         fetchExpiryData();
-    }, [selectedPeriod, selectedLocation]);
+    }, [selectedPeriod, selectedLocation, activeEntity]);
 
     const fetchExpiryData = async () => {
         try {
             setLoading(true);
-            const response = await reportsApi.getExpiry({ days_ahead: 60 });
+            // Entity-specific expiry report
+            const params: { days_ahead?: number; warehouse_id?: string; shop_id?: string } = { days_ahead: 60 };
+            if (activeEntity?.type === 'warehouse') params.warehouse_id = activeEntity.id;
+            if (activeEntity?.type === 'shop') params.shop_id = activeEntity.id;
+            
+            const response = await reportsApi.getExpiry(params);
             const data = response.data;
 
             setExpiryData(data.items || []);
@@ -49,9 +56,19 @@ export default function ExpiryLossReport() {
             {/* Page Head */}
             <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Expiry & Loss Report</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        Expiry & Loss Report
+                        {activeEntity && (
+                            <span className="text-lg font-normal text-slate-500 dark:text-slate-400 ml-2">
+                                - {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                            </span>
+                        )}
+                    </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Real-time expiry data from database
+                        {activeEntity 
+                            ? `Expiry data for ${activeEntity.type === 'shop' ? 'pharmacy' : 'warehouse'} inventory`
+                            : 'Real-time expiry data from database'
+                        }
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -69,6 +86,20 @@ export default function ExpiryLossReport() {
                 </div>
             </div>
 
+            {/* Entity Badge */}
+            {activeEntity && (
+                <div className="mb-6 flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                        <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">
+                            {activeEntity.type === 'shop' ? 'storefront' : 'warehouse'}
+                        </span>
+                        <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                            {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                        </span>
+                    </div>
+                </div>
+            )}
+
             {/* Filter Bar */}
             <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4">
@@ -84,16 +115,18 @@ export default function ExpiryLossReport() {
                             <option value="current-quarter">Current Quarter</option>
                         </select>
                     </div>
-                    <div className="flex-1 min-w-[200px]">
-                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">Location</label>
-                        <select
-                            value={selectedLocation}
-                            onChange={(e) => setSelectedLocation(e.target.value)}
-                            className="w-full rounded-lg border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 focus:ring-1 focus:ring-primary"
-                        >
-                            <option value="all">All Locations</option>
-                        </select>
-                    </div>
+                    {!activeEntity && (
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">Location</label>
+                            <select
+                                value={selectedLocation}
+                                onChange={(e) => setSelectedLocation(e.target.value)}
+                                className="w-full rounded-lg border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 focus:ring-1 focus:ring-primary"
+                            >
+                                <option value="all">All Locations</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -110,15 +110,7 @@ export default function HSNCodesPage() {
         setShowModal(true);
     };
 
-    const handleToggleStatus = async (hsn: HSN) => {
-        try {
-            await mastersApi.updateHSN(hsn.id, { is_active: !hsn.is_active });
-            window.toast?.success(`HSN ${hsn.hsn_code} ${hsn.is_active ? 'deactivated' : 'activated'}`);
-            loadData();
-        } catch (err: any) {
-            window.toast?.error(err.response?.data?.detail || 'Failed to update status');
-        }
-    };
+    // handleToggleStatus removed - unused
 
     const handleGSTSlabChange = (slabId: string) => {
         const slab = gstSlabs.find((s: any) => s.id === slabId);

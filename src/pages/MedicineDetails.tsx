@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { medicinesApi } from '../services/api';
-import { usePermissions } from '../contexts/PermissionContext';
 import PageLayout from '../components/PageLayout';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
@@ -12,7 +11,6 @@ import type { Medicine, Batch } from '../types';
 export default function MedicineDetails() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { hasPermission } = usePermissions();
     const [loading, setLoading] = useState(true);
     const [medicine, setMedicine] = useState<Medicine | null>(null);
     const [batches, setBatches] = useState<Batch[]>([]);

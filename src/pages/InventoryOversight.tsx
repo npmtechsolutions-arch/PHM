@@ -62,7 +62,12 @@ export default function InventoryOversight() {
     const loadStockData = async () => {
         setLoading(true);
         try {
-            const alerts = await inventoryApi.getAlerts();
+            // Entity-specific alerts
+            const params: { warehouse_id?: string; shop_id?: string } = {};
+            if (activeEntity?.type === 'warehouse') params.warehouse_id = activeEntity.id;
+            if (activeEntity?.type === 'shop') params.shop_id = activeEntity.id;
+            
+            const alerts = await inventoryApi.getAlerts(params);
             const alertData = alerts.data?.alerts || [];
 
             // Transform alerts to stock items for display
@@ -89,10 +94,10 @@ export default function InventoryOversight() {
     };
 
     const tabs = [
-        { id: 'warehouse' as TabType, label: 'Warehouse Stock', icon: 'warehouse', description: 'All warehouse inventory' },
-        { id: 'shop' as TabType, label: 'Shop Stock (Derived)', icon: 'storefront', description: 'Stock derived from dispatches' },
-        { id: 'expiry' as TabType, label: 'Expiry Monitoring', icon: 'schedule', description: 'Items expiring soon' },
-        { id: 'dead-stock' as TabType, label: 'Dead Stock', icon: 'block', description: 'No movement in 90+ days' },
+        { id: 'warehouse' as TabType, label: 'Warehouse Stock', icon: 'warehouse', description: activeEntity?.type === 'warehouse' ? `${activeEntity.name} inventory` : 'All warehouse inventory' },
+        { id: 'shop' as TabType, label: 'Shop Stock (Derived)', icon: 'storefront', description: activeEntity?.type === 'shop' ? `${activeEntity.name} stock` : 'Stock derived from dispatches' },
+        { id: 'expiry' as TabType, label: 'Expiry Monitoring', icon: 'schedule', description: activeEntity ? `Items expiring soon in ${activeEntity.name}` : 'Items expiring soon' },
+        { id: 'dead-stock' as TabType, label: 'Dead Stock', icon: 'block', description: activeEntity ? `No movement in 90+ days at ${activeEntity.name}` : 'No movement in 90+ days' },
     ];
 
     // Stats based on current data
@@ -125,13 +130,28 @@ export default function InventoryOversight() {
                 </div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
                     Inventory Oversight
+                    {activeEntity && (
+                        <span className="text-lg font-normal text-slate-500 dark:text-slate-400 ml-2">
+                            - {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                        </span>
+                    )}
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    Global view of all inventory across warehouses and shops. This is a read-only view for Super Admin oversight.
+                    {activeEntity 
+                        ? `${activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'} inventory view for ${activeEntity.name}. This is a read-only oversight view.`
+                        : 'Global view of all inventory across warehouses and shops. This is a read-only view for Super Admin oversight.'
+                    }
                 </p>
-                {activeEntity && scope !== 'global' && (
-                    <div className="mt-2 text-sm text-slate-500">
-                        Viewing as: <span className="font-semibold">{activeEntity.name}</span>
+                {activeEntity && (
+                    <div className="mt-3 flex items-center gap-2">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">
+                                {activeEntity.type === 'shop' ? 'storefront' : 'warehouse'}
+                            </span>
+                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                            </span>
+                        </div>
                     </div>
                 )}
             </div>

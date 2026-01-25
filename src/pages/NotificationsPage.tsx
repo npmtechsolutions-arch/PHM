@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { notificationsApi } from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
 
 interface Notification {
     id: string;
@@ -11,9 +12,11 @@ interface Notification {
     created_at: string;
     reference_type?: string;
     reference_id?: string;
+    shop_id?: string;
 }
 
 export default function NotificationsPage() {
+    const { activeEntity } = useOperationalContext();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
@@ -101,6 +104,15 @@ export default function NotificationsPage() {
         if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
         if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
         return date.toLocaleDateString();
+    };
+
+    const getEntityContext = (notification: Notification) => {
+        if (notification.reference_type === 'warehouse') {
+            return 'Warehouse';
+        } else if (notification.shop_id) {
+            return 'Pharmacy';
+        }
+        return null;
     };
 
     const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.is_read).length : 0;
@@ -307,7 +319,14 @@ export default function NotificationsPage() {
 
             <div className="page-header">
                 <div className="page-title">
-                    <h1>🔔 Notifications</h1>
+                    <h1>
+                        🔔 Notifications
+                        {activeEntity && (
+                            <span style={{ fontSize: '16px', fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                                - {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                            </span>
+                        )}
+                    </h1>
                     {unreadCount > 0 && (
                         <span className="unread-badge">{unreadCount} unread</span>
                     )}
@@ -391,6 +410,11 @@ export default function NotificationsPage() {
                                         {notification.priority}
                                     </span>
                                     <span className="type-badge">{notification.type.replace(/_/g, ' ')}</span>
+                                    {getEntityContext(notification) && (
+                                        <span className="type-badge" style={{ background: '#e0f2fe', color: '#0369a1' }}>
+                                            {getEntityContext(notification)}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <div className="notification-actions" onClick={(e) => e.stopPropagation()}>

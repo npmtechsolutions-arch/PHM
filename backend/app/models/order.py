@@ -107,11 +107,23 @@ class DispatchCreate(DispatchBase):
     items: list[DispatchItemBase]
 
 
+class DispatchItemRackInfo(BaseModel):
+    """Rack and box information for a specific dispatch item"""
+    item_id: str
+    rack_number: Optional[str] = None
+    rack_name: Optional[str] = None  # Box name
+
+
 class DispatchStatusUpdate(BaseModel):
     status: DispatchStatus
     notes: Optional[str] = None
     tracking_number: Optional[str] = None
     carrier: Optional[str] = None
+    # Global rack/box info (applies to all items if not specified per-item)
+    global_rack_number: Optional[str] = None
+    global_rack_name: Optional[str] = None  # Global box name
+    # Per-item rack/box info (overrides global if provided)
+    item_rack_info: Optional[list[DispatchItemRackInfo]] = None
 
 
 class DispatchResponse(DispatchBase):

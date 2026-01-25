@@ -40,6 +40,18 @@ interface TopMedicine {
     color: string;
 }
 
+interface DailySale {
+    date: string;
+    amount: number;
+}
+
+interface PaymentBreakdown {
+    cash: number;
+    card: number;
+    upi: number;
+    other: number;
+}
+
 export default function Dashboard() {
     const navigate = useNavigate();
     const { user } = useUser();
@@ -55,7 +67,9 @@ export default function Dashboard() {
     });
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [monthlySales, setMonthlySales] = useState<MonthlySale[]>([]);
+    const [dailySales, setDailySales] = useState<DailySale[]>([]);
     const [topMedicines, setTopMedicines] = useState<TopMedicine[]>([]);
+    const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown>({ cash: 0, card: 0, upi: 0, other: 0 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
@@ -69,20 +83,29 @@ export default function Dashboard() {
             setLoading(true);
             setError(null);
 
-            // Params based on context
+            // Params based on context - Entity-specific data
             const params: { [key: string]: any } = {};
             if (activeEntity?.type === 'warehouse') params['warehouse_id'] = activeEntity.id;
             if (activeEntity?.type === 'shop') params['shop_id'] = activeEntity.id;
 
+            // Sales report params - shop-specific for shops, no filter for global/warehouse
+            const salesParams: { [key: string]: any } = {};
+            if (activeEntity?.type === 'shop') salesParams['shop_id'] = activeEntity.id;
+
             const [warehousesRes, shopsRes, medicinesRes, invoicesRes, customersRes, employeesRes, salesRes, alertsRes, prRes, dispRes] = await Promise.allSettled([
-                warehousesApi.list({ page: 1, size: 1 }),
-                shopsApi.list({ page: 1, size: 1 }),
+                // Only fetch warehouses count if global scope or warehouse admin
+                (scope === 'global' || activeEntity?.type === 'warehouse') ? warehousesApi.list({ page: 1, size: 1 }) : Promise.resolve({ data: { total: 0 } }),
+                // Only fetch shops count if global scope or shop admin
+                (scope === 'global' || activeEntity?.type === 'shop') ? shopsApi.list({ page: 1, size: 1, ...params }) : Promise.resolve({ data: { total: 0 } }),
                 medicinesApi.list({ page: 1, size: 1 }),
                 invoicesApi.list({ page: 1, size: 5, ...params }),
-                customersApi.list({ page: 1, size: 1 }),
+                // Customers only for shops
+                (activeEntity?.type === 'shop' || scope === 'global') ? customersApi.list({ page: 1, size: 1, ...params }) : Promise.resolve({ data: { total: 0 } }),
                 employeesApi.list({ page: 1, size: 1, ...params }),
-                reportsApi.getSales(),
-                inventoryApi.getAlerts(),
+                // Sales data - shop-specific when viewing shop
+                reportsApi.getSales(salesParams),
+                // Alerts - entity-specific (warehouse_id or shop_id)
+                inventoryApi.getAlerts(params),
                 purchaseRequestsApi.list({ status: 'pending', size: 1, ...params }),
                 dispatchesApi.list({ size: 500, ...params }) // Fetch recent dispatches for daily count
             ]);
@@ -132,9 +155,139 @@ export default function Dashboard() {
                 type: a.type,
             })));
 
-            // Charts data - Set to empty or real data only (no demo data)
-            setMonthlySales([]);
-            setTopMedicines([]);
+            // Fetch charts data - Entity-specific
+            if (activeEntity?.type === 'shop') {
+                // Fetch monthly sales for last 6 months
+                const monthlyDataPromises = [];
+                const currentDate = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+                    monthlyDataPromises.push(
+                        reportsApi.getMonthlySales({
+                            shop_id: activeEntity.id,
+                            month: date.getMonth() + 1,
+                            year: date.getFullYear()
+                        }).catch(() => ({ data: { total_sales: 0 } }))
+                    );
+                }
+                
+                const monthlyResults = await Promise.allSettled(monthlyDataPromises);
+                const monthlySalesData: MonthlySale[] = monthlyResults.map((result, index) => {
+                    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - index), 1);
+                    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+                    const sales = result.status === 'fulfilled' ? (result.value.data?.total_sales || 0) : 0;
+                    return { month: monthName, amount: sales };
+                });
+                setMonthlySales(monthlySalesData);
+
+                // Fetch daily sales for last 7 days
+                const dailyDataPromises = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    const dateStr = date.toISOString().split('T')[0];
+                    dailyDataPromises.push(
+                        reportsApi.getDailySales({
+                            shop_id: activeEntity.id,
+                            date: dateStr
+                        }).catch(() => ({ data: { total_sales: 0 } }))
+                    );
+                }
+                
+                const dailyResults = await Promise.allSettled(dailyDataPromises);
+                const dailySalesData: DailySale[] = dailyResults.map((result, index) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (6 - index));
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    const sales = result.status === 'fulfilled' ? (result.value.data?.total_sales || 0) : 0;
+                    return { date: dayName, amount: sales };
+                });
+                setDailySales(dailySalesData);
+
+                // Fetch payment breakdown from today's sales
+                try {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todaySales = await reportsApi.getDailySales({
+                        shop_id: activeEntity.id,
+                        date: todayStr
+                    }).catch(() => ({ data: { payment_breakdown: { cash: 0, card: 0, upi: 0 } } }));
+                    
+                    const paymentData = todaySales.data?.payment_breakdown || { cash: 0, card: 0, upi: 0 };
+                    setPaymentBreakdown({
+                        cash: paymentData.cash || 0,
+                        card: paymentData.card || 0,
+                        upi: paymentData.upi || 0,
+                        other: 0
+                    });
+                } catch (err) {
+                    console.error('Error fetching payment breakdown:', err);
+                }
+
+                // Fetch top selling medicines from recent invoices
+                try {
+                    // Fetch more invoices to get better top medicines data
+                    const invoicesForTopMed = await invoicesApi.list({ 
+                        page: 1, 
+                        size: 50, 
+                        shop_id: activeEntity.id 
+                    }).catch(() => ({ data: { items: [] } }));
+                    
+                    const invoiceList = invoicesForTopMed.data?.items || [];
+                    
+                    if (invoiceList.length > 0) {
+                        // Fetch invoice items to calculate top medicines
+                        const invoiceItemsPromises = invoiceList.slice(0, 30).map((inv: any) =>
+                            invoicesApi.getItems(inv.id).catch(() => ({ data: [] }))
+                        );
+                        const invoiceItemsResults = await Promise.allSettled(invoiceItemsPromises);
+                        
+                        // Aggregate medicine sales
+                        const medicineSales: { [key: string]: { name: string; sales: number; quantity: number } } = {};
+                        
+                        invoiceItemsResults.forEach((result) => {
+                            if (result.status === 'fulfilled' && result.value.data) {
+                                const items = Array.isArray(result.value.data) ? result.value.data : [];
+                                items.forEach((item: any) => {
+                                    const medName = item.medicine_name || item.medicine?.name || 'Unknown';
+                                    if (!medicineSales[medName]) {
+                                        medicineSales[medName] = {
+                                            name: medName,
+                                            sales: 0,
+                                            quantity: 0
+                                        };
+                                    }
+                                    medicineSales[medName].sales += item.subtotal || (item.price || 0) * (item.quantity || 0);
+                                    medicineSales[medName].quantity += item.quantity || 0;
+                                });
+                            }
+                        });
+                        
+                        // Convert to array and sort by sales
+                        const topMedicinesList = Object.values(medicineSales)
+                            .sort((a, b) => b.sales - a.sales)
+                            .slice(0, 5)
+                            .map((med, index) => ({
+                                name: med.name.length > 25 ? med.name.substring(0, 25) + '...' : med.name,
+                                sales: med.sales,
+                                quantity: med.quantity,
+                                color: ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-cyan-500'][index] || 'bg-slate-500'
+                            }));
+                        
+                        setTopMedicines(topMedicinesList);
+                    } else {
+                        setTopMedicines([]);
+                    }
+                } catch (err) {
+                    console.error('Error fetching top medicines:', err);
+                    setTopMedicines([]);
+                }
+            } else {
+                // No sales charts for warehouse/global
+                setMonthlySales([]);
+                setDailySales([]);
+                setTopMedicines([]);
+                setPaymentBreakdown({ cash: 0, card: 0, upi: 0, other: 0 });
+            }
 
         } catch (err) {
             console.error('Dashboard fetch error:', err);
@@ -151,44 +304,132 @@ export default function Dashboard() {
         return `₹${value}`;
     };
 
-    const kpiCards = [
-        {
-            title: 'Total Revenue',
-            value: formatCurrency(stats.revenue),
-            icon: 'payments',
-            color: 'emerald',
-            trend: '+12.5%',
-            trendUp: true,
-            subtitle: 'vs last month'
-        },
-        {
-            title: 'Warehouses',
-            value: stats.warehouses.toString(),
-            icon: 'warehouse',
-            color: 'blue',
-            trend: '+2',
-            trendUp: true,
-            subtitle: 'Active locations'
-        },
-        {
-            title: 'Medical Shops',
-            value: stats.shops.toString(),
-            icon: 'storefront',
-            color: 'purple',
-            trend: '+5',
-            trendUp: true,
-            subtitle: 'Connected shops'
-        },
-        {
-            title: 'Total Medicines',
-            value: stats.medicines.toString(),
-            icon: 'medication',
-            color: 'cyan',
-            trend: '+1.2%',
-            trendUp: true,
-            subtitle: 'SKUs in catalog'
-        },
-    ];
+    // Entity-specific KPI cards
+    const getKpiCards = () => {
+        if (activeEntity?.type === 'shop') {
+            // Pharmacy/Shop Dashboard
+            return [
+                {
+                    title: 'Shop Revenue',
+                    value: formatCurrency(stats.revenue),
+                    icon: 'payments',
+                    color: 'emerald',
+                    trend: '+12.5%',
+                    trendUp: true,
+                    subtitle: 'Total sales revenue'
+                },
+                {
+                    title: 'Total Invoices',
+                    value: stats.invoices.toString(),
+                    icon: 'receipt_long',
+                    color: 'blue',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Completed invoices'
+                },
+                {
+                    title: 'Customers',
+                    value: stats.customers.toString(),
+                    icon: 'people',
+                    color: 'purple',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Registered customers'
+                },
+                {
+                    title: 'Stock Items',
+                    value: stats.medicines.toString(),
+                    icon: 'inventory_2',
+                    color: 'cyan',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Items in stock'
+                },
+            ];
+        } else if (activeEntity?.type === 'warehouse') {
+            // Warehouse Dashboard
+            return [
+                {
+                    title: 'Warehouse Stock',
+                    value: stats.medicines.toString(),
+                    icon: 'warehouse',
+                    color: 'blue',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Items in warehouse'
+                },
+                {
+                    title: 'Dispatches Today',
+                    value: stats.dispatchedToday.toString(),
+                    icon: 'local_shipping',
+                    color: 'teal',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Shipments sent'
+                },
+                {
+                    title: 'Pending Requests',
+                    value: stats.pendingRequests.toString(),
+                    icon: 'assignment',
+                    color: 'amber',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Awaiting approval'
+                },
+                {
+                    title: 'Employees',
+                    value: stats.employees.toString(),
+                    icon: 'badge',
+                    color: 'purple',
+                    trend: '',
+                    trendUp: true,
+                    subtitle: 'Warehouse staff'
+                },
+            ];
+        } else {
+            // Global/Super Admin Dashboard
+            return [
+                {
+                    title: 'Total Revenue',
+                    value: formatCurrency(stats.revenue),
+                    icon: 'payments',
+                    color: 'emerald',
+                    trend: '+12.5%',
+                    trendUp: true,
+                    subtitle: 'System-wide revenue'
+                },
+                {
+                    title: 'Warehouses',
+                    value: stats.warehouses.toString(),
+                    icon: 'warehouse',
+                    color: 'blue',
+                    trend: '+2',
+                    trendUp: true,
+                    subtitle: 'Active locations'
+                },
+                {
+                    title: 'Medical Shops',
+                    value: stats.shops.toString(),
+                    icon: 'storefront',
+                    color: 'purple',
+                    trend: '+5',
+                    trendUp: true,
+                    subtitle: 'Connected shops'
+                },
+                {
+                    title: 'Total Medicines',
+                    value: stats.medicines.toString(),
+                    icon: 'medication',
+                    color: 'cyan',
+                    trend: '+1.2%',
+                    trendUp: true,
+                    subtitle: 'SKUs in catalog'
+                },
+            ];
+        }
+    };
+
+    const kpiCards = getKpiCards();
 
     const alertCards = [
         {
@@ -229,14 +470,42 @@ export default function Dashboard() {
         },
     ];
 
-    const quickActions = [
-        { label: 'POS Billing', icon: 'point_of_sale', path: '/sales/pos', color: 'blue' },
-        { label: 'Add Stock', icon: 'add_box', path: '/warehouses/stock', color: 'green' },
-        { label: 'New Order', icon: 'shopping_cart', path: '/purchase-requests', color: 'purple' },
-        { label: 'Dispatches', icon: 'local_shipping', path: '/dispatches', color: 'orange' },
-        { label: 'Reports', icon: 'bar_chart', path: '/reports/sales', color: 'cyan' },
-        { label: 'Employees', icon: 'badge', path: '/employees', color: 'pink' },
-    ];
+    // Entity-specific quick actions
+    const getQuickActions = () => {
+        if (activeEntity?.type === 'shop') {
+            // Pharmacy/Shop quick actions
+            return [
+                { label: 'POS Billing', icon: 'point_of_sale', path: '/sales/pos', color: 'blue' },
+                { label: 'Invoices', icon: 'receipt_long', path: '/sales/invoices', color: 'green' },
+                { label: 'New Order', icon: 'shopping_cart', path: '/purchase-requests', color: 'purple' },
+                { label: 'Incoming Stock', icon: 'local_shipping', path: '/dispatches', color: 'orange' },
+                { label: 'Reports', icon: 'bar_chart', path: '/reports/sales', color: 'cyan' },
+                { label: 'Customers', icon: 'people', path: '/customers', color: 'pink' },
+            ];
+        } else if (activeEntity?.type === 'warehouse') {
+            // Warehouse quick actions
+            return [
+                { label: 'Stock Entry', icon: 'add_box', path: '/warehouses/stock', color: 'green' },
+                { label: 'Stock Adjustment', icon: 'tune', path: '/inventory/adjust', color: 'blue' },
+                { label: 'Dispatches', icon: 'local_shipping', path: '/dispatches', color: 'orange' },
+                { label: 'Purchase Requests', icon: 'shopping_cart', path: '/purchase-requests', color: 'purple' },
+                { label: 'Inventory', icon: 'inventory_2', path: '/inventory', color: 'cyan' },
+                { label: 'Employees', icon: 'badge', path: '/employees', color: 'pink' },
+            ];
+        } else {
+            // Global quick actions
+            return [
+                { label: 'Warehouses', icon: 'warehouse', path: '/warehouses', color: 'blue' },
+                { label: 'Shops', icon: 'storefront', path: '/shops', color: 'green' },
+                { label: 'Users', icon: 'people', path: '/users', color: 'purple' },
+                { label: 'Reports', icon: 'bar_chart', path: '/reports/sales', color: 'cyan' },
+                { label: 'Master Data', icon: 'database', path: '/categories', color: 'orange' },
+                { label: 'Settings', icon: 'settings', path: '/system/settings', color: 'pink' },
+            ];
+        }
+    };
+
+    const quickActions = getQuickActions();
 
     if (loading) {
         return (
@@ -254,7 +523,7 @@ export default function Dashboard() {
         );
     }
 
-    const maxSale = Math.max(...monthlySales.map(s => s.amount), 1);
+    const maxSale = monthlySales.length > 0 ? Math.max(...monthlySales.map(s => s.amount), 1) : 1;
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
@@ -270,17 +539,35 @@ export default function Dashboard() {
                         })()}, {user?.full_name || 'User'}
                     </h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        {activeEntity 
+                            ? `${activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: ${activeEntity.name}`
+                            : 'System Overview'
+                        } • {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                        <span className="material-symbols-outlined text-slate-600 dark:text-slate-400 text-[20px]">business</span>
-                        <div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Total Locations</p>
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">{stats.warehouses + stats.shops}</p>
+                    {activeEntity && (
+                        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span className="material-symbols-outlined text-slate-600 dark:text-slate-400 text-[20px]">
+                                {activeEntity.type === 'shop' ? 'storefront' : 'warehouse'}
+                            </span>
+                            <div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}
+                                </p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">{activeEntity.name}</p>
+                            </div>
                         </div>
-                    </div>
+                    )}
+                    {scope === 'global' && (
+                        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span className="material-symbols-outlined text-slate-600 dark:text-slate-400 text-[20px]">business</span>
+                            <div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Total Locations</p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">{stats.warehouses + stats.shops}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -288,10 +575,14 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                        Dashboard
+                        {activeEntity?.type === 'shop' ? 'Pharmacy Dashboard' : 
+                         activeEntity?.type === 'warehouse' ? 'Warehouse Dashboard' : 
+                         'System Dashboard'}
                     </h2>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Overview of pharmacy operations
+                        {activeEntity?.type === 'shop' ? 'Overview of pharmacy sales and inventory' : 
+                         activeEntity?.type === 'warehouse' ? 'Overview of warehouse operations and stock' : 
+                         'Overview of system-wide operations'}
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -409,59 +700,182 @@ export default function Dashboard() {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                {/* Monthly Sales Chart */}
-                <div className="xl:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sales Overview</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(stats.revenue)}</span>
-                                <span className="text-sm text-emerald-600 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">+12.5%</span>
+            {activeEntity?.type === 'shop' && (
+            <>
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Monthly Sales Chart - Only show for shops */}
+                    <div className="xl:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Monthly Sales Trend</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(stats.revenue)}</span>
+                                    <span className="text-sm text-emerald-600 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Last 6 months</span>
+                                </div>
                             </div>
                         </div>
+                        <div className="h-64 flex items-end gap-2 px-4 border-b border-slate-100 dark:border-slate-700 pb-4">
+                            {monthlySales.length > 0 ? monthlySales.map((sale, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
+                                    <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 dark:bg-slate-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                                        {formatCurrency(sale.amount)}
+                                    </div>
+                                    <div
+                                        className="w-full max-w-[60px] bg-gradient-to-t from-primary to-primary/70 rounded-t-lg hover:from-primary/90 hover:to-primary/60 transition-all cursor-pointer"
+                                        style={{ height: `${Math.max((sale.amount / maxSale) * 100, 5)}%`, minHeight: '20px' }}
+                                    />
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{sale.month}</span>
+                                </div>
+                            )) : (
+                                <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                    <div className="text-center">
+                                        <span className="material-symbols-outlined text-4xl mb-2">bar_chart</span>
+                                        <p className="text-sm">No sales data available</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="h-64 flex items-end gap-4 px-4 border-b border-slate-100 dark:border-slate-700 pb-4">
-                        {monthlySales.map((sale, i) => (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                                <div
-                                    className="w-full max-w-[60px] bg-primary rounded-t-lg"
-                                    style={{ height: `${(sale.amount / maxSale) * 100}%`, minHeight: '20px' }}
-                                />
-                                <span className="text-xs font-medium text-slate-500">{sale.month}</span>
-                            </div>
-                        ))}
+
+                    {/* Top Selling Medicines - Only show for shops */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Top Selling Medicines</h3>
+                        <div className="space-y-4">
+                            {topMedicines.length > 0 ? topMedicines.map((medicine, index) => {
+                                const maxSales = Math.max(...topMedicines.map(m => m.sales), 1);
+                                const percentage = (medicine.sales / maxSales) * 100;
+                                return (
+                                    <div key={medicine.name} className="group animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="font-semibold text-slate-700 dark:text-slate-300 truncate flex-1 mr-2" title={medicine.name}>
+                                                {medicine.name}
+                                            </span>
+                                            <span className="text-slate-900 dark:text-white font-bold whitespace-nowrap">{formatCurrency(medicine.sales)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+                                                <div
+                                                    className={`${medicine.color} h-3 rounded-full transition-all duration-700 ease-out`}
+                                                    style={{ width: `${percentage}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium w-12 text-right">{medicine.quantity} units</span>
+                                        </div>
+                                    </div>
+                                );
+                            }) : (
+                                <div className="text-center py-8 text-slate-400">
+                                    <span className="material-symbols-outlined text-4xl mb-2">medication</span>
+                                    <p className="text-sm">No sales data available</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Top Selling Medicines */}
+                {/* Additional Charts for Shops */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Daily Sales Trend (Last 7 Days) */}
                 <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Top Selling Medicine</h3>
-                    <div className="space-y-4">
-                        {topMedicines.map((medicine, index) => {
-                            const maxSales = Math.max(...topMedicines.map(m => m.sales));
-                            const percentage = (medicine.sales / maxSales) * 100;
-                            return (
-                                <div key={medicine.name} className="group animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
-                                    <div className="flex justify-between text-sm mb-2">
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">{medicine.name}</span>
-                                        <span className="text-slate-900 dark:text-white font-bold">₹{(medicine.sales / 1000).toFixed(1)}K</span>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Daily Sales (Last 7 Days)</h3>
+                    <div className="h-48 flex items-end gap-2 px-4">
+                        {dailySales.length > 0 ? (() => {
+                            const maxDaily = Math.max(...dailySales.map(d => d.amount), 1);
+                            return dailySales.map((sale, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
+                                    <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 dark:bg-slate-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                                        {formatCurrency(sale.amount)}
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className={`${medicine.color} h-3 rounded-full transition-all duration-700 ease-out`}
-                                                style={{ width: `${percentage}%` }}
+                                    <div
+                                        className="w-full max-w-[40px] bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg hover:from-blue-600 hover:to-blue-500 transition-all cursor-pointer"
+                                        style={{ height: `${Math.max((sale.amount / maxDaily) * 100, 5)}%`, minHeight: '10px' }}
+                                    />
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{sale.date}</span>
+                                </div>
+                            ));
+                        })() : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                <p className="text-sm">No daily sales data</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Payment Method Breakdown */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Payment Methods (Today)</h3>
+                    <div className="space-y-4">
+                        {(() => {
+                            const total = paymentBreakdown.cash + paymentBreakdown.card + paymentBreakdown.upi + paymentBreakdown.other;
+                            if (total === 0) {
+                                return (
+                                    <div className="text-center py-8 text-slate-400">
+                                        <span className="material-symbols-outlined text-4xl mb-2">payment</span>
+                                        <p className="text-sm">No payment data today</p>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 rounded bg-emerald-500"></div>
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Cash</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                                {formatCurrency(paymentBreakdown.cash)} ({(paymentBreakdown.cash / total * 100).toFixed(0)}%)
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                            <div 
+                                                className="bg-emerald-500 h-2 rounded-full transition-all"
+                                                style={{ width: `${(paymentBreakdown.cash / total) * 100}%` }}
                                             ></div>
                                         </div>
-                                        <span className="text-xs text-slate-500 font-medium w-12 text-right">{medicine.quantity}</span>
                                     </div>
-                                </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 rounded bg-blue-500"></div>
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Card</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                                {formatCurrency(paymentBreakdown.card)} ({(paymentBreakdown.card / total * 100).toFixed(0)}%)
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                            <div 
+                                                className="bg-blue-500 h-2 rounded-full transition-all"
+                                                style={{ width: `${(paymentBreakdown.card / total) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 rounded bg-purple-500"></div>
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">UPI</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                                {formatCurrency(paymentBreakdown.upi)} ({(paymentBreakdown.upi / total * 100).toFixed(0)}%)
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                            <div 
+                                                className="bg-purple-500 h-2 rounded-full transition-all"
+                                                style={{ width: `${(paymentBreakdown.upi / total) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </>
                             );
-                        })}
+                        })()}
                     </div>
                 </div>
             </div>
+            </>
+            )}
 
             {/* Bottom Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -505,7 +919,8 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Recent Invoices */}
+                {/* Recent Invoices - Only show for shops */}
+                {activeEntity?.type === 'shop' && (
                 <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                     <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -546,6 +961,7 @@ export default function Dashboard() {
                         )}
                     </div>
                 </div>
+                )}
             </div>
 
             {/* Quick Actions */}

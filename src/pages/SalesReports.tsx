@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { reportsApi, shopsApi } from '../services/api';
+import { useOperationalContext } from '../contexts/OperationalContext';
 
 interface SalesData {
     total_sales: number;
@@ -15,6 +16,7 @@ interface DailySale {
 }
 
 export default function SalesReports() {
+    const { activeEntity, scope } = useOperationalContext();
     const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom'>('daily');
     const [shops, setShops] = useState<any[]>([]);
     const [selectedShop, setSelectedShop] = useState('');
@@ -27,13 +29,23 @@ export default function SalesReports() {
     const [dailySales, setDailySales] = useState<DailySale[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Auto-select shop from activeEntity
     useEffect(() => {
-        loadShops();
-    }, []);
+        if (activeEntity?.type === 'shop') {
+            setSelectedShop(activeEntity.id);
+        }
+    }, [activeEntity]);
+
+    useEffect(() => {
+        // Only load shops if global scope (Super Admin can select any shop)
+        if (scope === 'global') {
+            loadShops();
+        }
+    }, [scope]);
 
     useEffect(() => {
         loadReport();
-    }, [reportType, selectedShop, selectedDate, selectedMonth, selectedYear]);
+    }, [reportType, selectedShop, selectedDate, selectedMonth, selectedYear, activeEntity]);
 
     const loadShops = async () => {
         try {
@@ -47,21 +59,24 @@ export default function SalesReports() {
     const loadReport = async () => {
         setLoading(true);
         try {
+            // Entity-specific shop_id - use activeEntity if shop, or selectedShop for global
+            const shopId = activeEntity?.type === 'shop' ? activeEntity.id : (selectedShop || undefined);
+            
             let response;
             if (reportType === 'daily') {
                 response = await reportsApi.getDailySales({
-                    shop_id: selectedShop || undefined,
+                    shop_id: shopId,
                     date: selectedDate
                 });
             } else if (reportType === 'monthly') {
                 response = await reportsApi.getMonthlySales({
-                    shop_id: selectedShop || undefined,
+                    shop_id: shopId,
                     month: selectedMonth,
                     year: selectedYear
                 });
             } else {
                 response = await reportsApi.getSales({
-                    shop_id: selectedShop || undefined,
+                    shop_id: shopId,
                     date_from: dateFrom,
                     date_to: dateTo
                 });
@@ -289,11 +304,32 @@ export default function SalesReports() {
             `}</style>
 
             <div className="page-header">
-                <h1>Sales Reports</h1>
+                <div>
+                    <h1>
+                        Sales Reports
+                        {activeEntity?.type === 'shop' && (
+                            <span style={{ fontSize: '18px', fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                                - {activeEntity.name}
+                            </span>
+                        )}
+                    </h1>
+                </div>
                 <button className="btn-export" onClick={exportReport}>
                     Export CSV
                 </button>
             </div>
+
+            {/* Entity Badge */}
+            {activeEntity?.type === 'shop' && (
+                <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', background: '#e0f2fe', border: '1px solid #bae6fd' }}>
+                        <span style={{ fontSize: '20px' }}>🏪</span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#0369a1' }}>
+                            Pharmacy: {activeEntity.name}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <div className="filters-card">
                 <div className="filters-row">
@@ -318,15 +354,33 @@ export default function SalesReports() {
                         </button>
                     </div>
 
-                    <div className="filter-group">
-                        <label>Shop</label>
-                        <select value={selectedShop} onChange={(e) => setSelectedShop(e.target.value)}>
-                            <option value="">All Shops</option>
-                            {shops.map(shop => (
-                                <option key={shop.id} value={shop.id}>{shop.name}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {scope === 'global' && (
+                        <div className="filter-group">
+                            <label>Shop</label>
+                            <select value={selectedShop} onChange={(e) => setSelectedShop(e.target.value)}>
+                                <option value="">All Shops</option>
+                                {shops.map(shop => (
+                                    <option key={shop.id} value={shop.id}>{shop.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {activeEntity?.type === 'shop' && (
+                        <div className="filter-group">
+                            <label>Shop</label>
+                            <div style={{ 
+                                padding: '10px 12px', 
+                                border: '1px solid #ddd', 
+                                borderRadius: '8px', 
+                                background: '#f5f5f5', 
+                                color: '#666',
+                                fontSize: '14px',
+                                fontWeight: '500'
+                            }}>
+                                {activeEntity.name}
+                            </div>
+                        </div>
+                    )}
 
                     {reportType === 'daily' && (
                         <div className="filter-group">

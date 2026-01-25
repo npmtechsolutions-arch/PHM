@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { employeesApi } from '../../services/api';
+import { useOperationalContext } from '../../contexts/OperationalContext';
 import SearchBar from '../../components/SearchBar';
 
 export default function AttendanceReport() {
+    const { activeEntity } = useOperationalContext();
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendance, setAttendance] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -10,12 +12,17 @@ export default function AttendanceReport() {
 
     useEffect(() => {
         loadAttendance();
-    }, [selectedDate]);
+    }, [selectedDate, activeEntity]);
 
     const loadAttendance = async () => {
         try {
             setLoading(true);
-            const response = await employeesApi.getDailyAttendance(selectedDate);
+            // Entity-specific attendance - pass warehouse_id or shop_id
+            const params: { date: string; warehouse_id?: string; shop_id?: string } = { date: selectedDate };
+            if (activeEntity?.type === 'warehouse') params.warehouse_id = activeEntity.id;
+            if (activeEntity?.type === 'shop') params.shop_id = activeEntity.id;
+            
+            const response = await employeesApi.getDailyAttendance(selectedDate, params);
             // Filter only marked attendance
             const marked = response.data.attendance.filter((a: any) => a.is_marked);
             setAttendance(marked);
@@ -35,13 +42,28 @@ export default function AttendanceReport() {
 
     return (
         <div className="attendance-marker" style={{ padding: '24px' }}>
-            <div className="header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h2>Attendance Report</h2>
+            <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#1a1a2e' }}>
+                        Attendance Report
+                        {activeEntity && (
+                            <span style={{ fontSize: '16px', fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                                - {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                            </span>
+                        )}
+                    </h2>
+                    {activeEntity && (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#888' }}>
+                            {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'} employee attendance records
+                        </p>
+                    )}
+                </div>
                 <input
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="date-picker"
+                    style={{ padding: '10px 16px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px' }}
                 />
             </div>
 

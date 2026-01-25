@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { employeesApi } from '../../services/api';
+import { useOperationalContext } from '../../contexts/OperationalContext';
 import SearchBar from '../../components/SearchBar';
 
 import './AttendanceMarker.css';
@@ -23,6 +24,7 @@ interface DailyAttendanceData {
 }
 
 export default function AttendanceMarker() {
+    const { activeEntity } = useOperationalContext();
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
     const [attendanceData, setAttendanceData] = useState<DailyAttendanceData | null>(null);
@@ -33,13 +35,18 @@ export default function AttendanceMarker() {
 
     useEffect(() => {
         loadAttendanceForDate();
-    }, [selectedDate]);
+    }, [selectedDate, activeEntity]);
 
     const loadAttendanceForDate = async () => {
         try {
             setLoading(true);
 
-            const response = await employeesApi.getDailyAttendance(selectedDate);
+            // Entity-specific attendance
+            const params: { warehouse_id?: string; shop_id?: string } = {};
+            if (activeEntity?.type === 'warehouse') params.warehouse_id = activeEntity.id;
+            if (activeEntity?.type === 'shop') params.shop_id = activeEntity.id;
+
+            const response = await employeesApi.getDailyAttendance(selectedDate, params);
             const data = response.data;
             setAttendanceData(data);
 
@@ -166,7 +173,21 @@ export default function AttendanceMarker() {
     return (
         <div className="attendance-marker">
             <div className="header">
-                <h2>Attendance Marker</h2>
+                <div>
+                    <h2>
+                        Attendance Marker
+                        {activeEntity && (
+                            <span style={{ fontSize: '16px', fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                                - {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'}: {activeEntity.name}
+                            </span>
+                        )}
+                    </h2>
+                    {activeEntity && (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#888' }}>
+                            {activeEntity.type === 'shop' ? 'Pharmacy' : 'Warehouse'} employee attendance marking
+                        </p>
+                    )}
+                </div>
                 <div className="header-controls">
                     <input
                         type="date"

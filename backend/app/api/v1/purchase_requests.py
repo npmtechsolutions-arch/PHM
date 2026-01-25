@@ -16,7 +16,7 @@ from app.core.security import get_current_user, require_role, AuthContext, get_a
 from app.db.database import get_db
 from app.db.models import (
     PurchaseRequest, PurchaseRequestItem, Medicine, MedicalShop, Warehouse,
-    PurchaseRequestStatus as PRStatus
+    PurchaseRequestStatus as PRStatus, WarehouseStock, Batch
 )
 
 router = APIRouter()
@@ -203,6 +203,21 @@ def get_purchase_request(
     item_list = []
     for item in items:
         medicine = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
+        
+        # CRITICAL: Calculate available stock for this medicine in warehouse
+        # This helps warehouse admin see stock availability before approval
+        total_warehouse_stock = db.query(func.sum(WarehouseStock.quantity)).filter(
+            WarehouseStock.warehouse_id == pr.warehouse_id,
+            WarehouseStock.medicine_id == item.medicine_id
+        ).scalar() or 0
+        
+        # Also check batch stock as fallback
+        batch_stock = db.query(func.sum(Batch.quantity)).filter(
+            Batch.medicine_id == item.medicine_id
+        ).scalar() or 0
+        
+        available_stock = max(total_warehouse_stock, batch_stock)
+        is_stock_available = available_stock >= item.quantity_requested
         item_list.append({
             "id": item.id,
             "medicine_id": item.medicine_id,
@@ -210,7 +225,11 @@ def get_purchase_request(
             "quantity_requested": item.quantity_requested,
             "quantity_approved": item.quantity_approved,
             "quantity_dispatched": item.quantity_dispatched,
-            "notes": item.notes
+            "notes": item.notes,
+            # CRITICAL: Stock availability information for approval decision
+            "available_stock": available_stock,
+            "is_stock_available": is_stock_available,
+            "stock_status": "available" if is_stock_available else "insufficient"
         })
     
     return {
@@ -239,7 +258,14 @@ def approve_purchase_request(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(require_role(["super_admin", "warehouse_admin", "warehouse_employee"]))
 ):
-    """Approve purchase request"""
+    """
+    Approve purchase request - CRITICAL: Only approve if warehouse has stock available.
+    
+    BUSINESS LOGIC:
+    1. Warehouse admin can only approve if they have stock
+    2. System validates stock availability before approval
+    3. Approval means warehouse commits to dispatch this stock
+    """
     pr = db.query(PurchaseRequest).filter(PurchaseRequest.id == request_id).first()
     if not pr:
         raise HTTPException(status_code=404, detail="Purchase request not found")
@@ -247,30 +273,86 @@ def approve_purchase_request(
     if pr.status != PRStatus.PENDING:
         raise HTTPException(status_code=400, detail="Request already processed")
     
-    # Update item quantities
+    # CRITICAL: Validate warehouse admin can only approve for their warehouse
+    if auth.role == "warehouse_admin":
+        if not auth.warehouse_id:
+            raise HTTPException(status_code=403, detail="User not assigned to any warehouse")
+        if pr.warehouse_id != auth.warehouse_id:
+            raise HTTPException(status_code=403, detail="Cannot approve purchase request for another warehouse")
+    
+    # Get all purchase request items
+    all_items = db.query(PurchaseRequestItem).filter(
+        PurchaseRequestItem.purchase_request_id == request_id
+    ).all()
+    
+    # Build approval map: item_id -> quantity_approved
+    approval_map = {}
     if not approval.items:
         # Quick Approve: Approve all items with requested quantity
-        items = db.query(PurchaseRequestItem).filter(
-            PurchaseRequestItem.purchase_request_id == request_id
-        ).all()
-        for item in items:
-            item.quantity_approved = item.quantity_requested
+        for item in all_items:
+            approval_map[item.id] = item.quantity_requested
     else:
-        # Partial/Specific Approve
+        # Partial/Specific Approve - build map from approval.items
         for item_approval in approval.items:
-            item = db.query(PurchaseRequestItem).filter(
-                PurchaseRequestItem.id == item_approval.get("item_id")
-            ).first()
-            if item:
-                item.quantity_approved = item_approval.get("quantity_approved", 0)
+            item_id = item_approval.get("item_id")
+            quantity_approved = item_approval.get("quantity_approved", 0)
+            if item_id and quantity_approved > 0:
+                approval_map[item_id] = quantity_approved
+    
+    # CRITICAL: Validate stock availability for each item BEFORE approval
+    stock_validation_errors = []
+    for item in all_items:
+        quantity_to_approve = approval_map.get(item.id, 0)
+        
+        if quantity_to_approve <= 0:
+            continue  # Skip items with zero approval
+        
+        # Check warehouse stock availability
+        # Note: We check total warehouse stock, not specific batches (batch selection happens during dispatch)
+        total_warehouse_stock = db.query(func.sum(WarehouseStock.quantity)).filter(
+            WarehouseStock.warehouse_id == pr.warehouse_id,
+            WarehouseStock.medicine_id == item.medicine_id
+        ).scalar() or 0
+        
+        # Also check batch stock as fallback
+        batch_stock = db.query(func.sum(Batch.quantity)).filter(
+            Batch.medicine_id == item.medicine_id
+        ).scalar() or 0
+        
+        available_stock = max(total_warehouse_stock, batch_stock)
+        
+        if quantity_to_approve > available_stock:
+            medicine = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
+            medicine_name = medicine.name if medicine else item.medicine_id
+            stock_validation_errors.append(
+                f"Insufficient stock for {medicine_name}. Available: {available_stock}, Requested: {quantity_to_approve}"
+            )
+    
+    if stock_validation_errors:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot approve purchase request - insufficient stock: " + "; ".join(stock_validation_errors)
+        )
+    
+    # All stock checks passed - proceed with approval
+    for item in all_items:
+        quantity_to_approve = approval_map.get(item.id, 0)
+        item.quantity_approved = quantity_to_approve
     
     pr.status = PRStatus.APPROVED
     pr.approved_by = auth.user_id
     pr.approval_notes = approval.notes
     
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to approve purchase request: {str(e)}")
     
-    return APIResponse(message="Purchase request approved")
+    return APIResponse(
+        message="Purchase request approved. Stock availability verified.",
+        data={"note": "Warehouse has sufficient stock to fulfill this request"}
+    )
 
 
 @router.put("/{request_id}/reject")

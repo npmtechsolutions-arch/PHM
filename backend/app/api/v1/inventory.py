@@ -1,11 +1,11 @@
 """
 Inventory & Stock API Routes - Database Connected
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from pydantic import BaseModel
 
 from app.models.common import APIResponse
@@ -24,6 +24,8 @@ class StockAdjustment(BaseModel):
     adjustment_type: str  # increase, decrease
     quantity: int
     reason: str
+    warehouse_id: Optional[str] = None
+    shop_id: Optional[str] = None
 
 
 @router.get("/movements")
@@ -135,26 +137,143 @@ def get_stock_movements(
 def adjust_stock(
     adjustment: StockAdjustment,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin"]))
+    current_user: dict = Depends(require_role(["super_admin", "warehouse_admin", "warehouse_employee", "shop_owner", "pharmacy_admin", "pharmacist", "pharmacy_employee"]))
 ):
-    """Adjust stock quantity for a batch"""
+    """
+    Adjust stock quantity for warehouse OR shop.
+    Updates WarehouseStock or ShopStock based on entity type.
+    """
+    from app.db.models import WarehouseStock, ShopStock, Warehouse, MedicalShop, StockMovement, MovementType
+    
+    # Validate batch exists
     batch = db.query(Batch).filter(Batch.id == adjustment.batch_id).first()
     if not batch:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Batch not found")
     
-    if adjustment.adjustment_type == "increase":
-        batch.quantity = (batch.quantity or 0) + adjustment.quantity
-    elif adjustment.adjustment_type == "decrease":
-        new_qty = (batch.quantity or 0) - adjustment.quantity
-        if new_qty < 0:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Cannot reduce stock below zero")
-        batch.quantity = new_qty
+    # ENTITY CONTEXT ENFORCEMENT
+    user_role = current_user.get("role")
+    assigned_warehouse_id = current_user.get("warehouse_id")
+    assigned_shop_id = current_user.get("shop_id")
+    
+    # Determine target type
+    target_type = None  # "warehouse" or "shop"
+    
+    if adjustment.warehouse_id:
+        target_type = "warehouse"
+        if user_role != "super_admin":
+            if user_role == "warehouse_admin" or user_role == "warehouse_employee":
+                if assigned_warehouse_id and adjustment.warehouse_id != assigned_warehouse_id:
+                    raise HTTPException(status_code=403, detail="Cannot adjust stock for another warehouse")
+            else:
+                raise HTTPException(status_code=403, detail="Warehouse stock adjustment not allowed for your role")
+    elif adjustment.shop_id:
+        target_type = "shop"
+        if user_role != "super_admin":
+            shop_roles = ["shop_owner", "pharmacist", "cashier", "pharmacy_admin", "pharmacy_employee"]
+            if user_role in shop_roles:
+                if assigned_shop_id and adjustment.shop_id != assigned_shop_id:
+                    raise HTTPException(status_code=403, detail="Cannot adjust stock for another shop")
+            else:
+                raise HTTPException(status_code=403, detail="Shop stock adjustment not allowed for your role")
+    else:
+        raise HTTPException(status_code=400, detail="Must specify either warehouse_id or shop_id")
+    
+    # Verify entity exists
+    if target_type == "warehouse":
+        entity = db.query(Warehouse).filter(Warehouse.id == adjustment.warehouse_id).first()
+        if not entity:
+            raise HTTPException(status_code=404, detail="Warehouse not found")
+    else:
+        entity = db.query(MedicalShop).filter(MedicalShop.id == adjustment.shop_id).first()
+        if not entity:
+            raise HTTPException(status_code=404, detail="Shop not found")
+    
+    # Update the correct stock table
+    stock_updated = False
+    new_quantity = 0
+    
+    if target_type == "warehouse":
+        # Update WarehouseStock
+        wh_stock = db.query(WarehouseStock).filter(
+            WarehouseStock.warehouse_id == adjustment.warehouse_id,
+            WarehouseStock.batch_id == adjustment.batch_id
+        ).first()
+        
+        if not wh_stock:
+            raise HTTPException(status_code=404, detail="Stock record not found for this warehouse and batch")
+        
+        if adjustment.adjustment_type == "increase":
+            wh_stock.quantity += adjustment.quantity
+        elif adjustment.adjustment_type == "decrease":
+            new_qty = wh_stock.quantity - adjustment.quantity
+            if new_qty < 0:
+                raise HTTPException(status_code=400, detail="Cannot reduce stock below zero")
+            wh_stock.quantity = new_qty
+        
+        new_quantity = wh_stock.quantity
+        stock_updated = True
+        
+    elif target_type == "shop":
+        # Update ShopStock
+        shop_stock = db.query(ShopStock).filter(
+            ShopStock.shop_id == adjustment.shop_id,
+            ShopStock.batch_id == adjustment.batch_id
+        ).first()
+        
+        if not shop_stock:
+            raise HTTPException(status_code=404, detail="Stock record not found for this shop and batch")
+        
+        if adjustment.adjustment_type == "increase":
+            shop_stock.quantity += adjustment.quantity
+        elif adjustment.adjustment_type == "decrease":
+            new_qty = shop_stock.quantity - adjustment.quantity
+            if new_qty < 0:
+                raise HTTPException(status_code=400, detail="Cannot reduce stock below zero")
+            shop_stock.quantity = new_qty
+        
+        new_quantity = shop_stock.quantity
+        stock_updated = True
+    
+    if not stock_updated:
+        raise HTTPException(status_code=400, detail="Failed to update stock")
+    
+    # Create stock movement record for audit trail
+    movement = StockMovement(
+        movement_type=MovementType.ADJUSTMENT,
+        source_type=target_type,
+        source_id=adjustment.warehouse_id if target_type == "warehouse" else adjustment.shop_id,
+        medicine_id=adjustment.medicine_id,
+        batch_id=adjustment.batch_id,
+        quantity=adjustment.quantity if adjustment.adjustment_type == "increase" else -adjustment.quantity,
+        reference_type="adjustment",
+        notes=adjustment.reason,
+        created_by=current_user.get("user_id")
+    )
+    db.add(movement)
+    
+    # Update Batch.quantity as sum of all WarehouseStock + ShopStock for this batch
+    # This keeps Batch.quantity in sync with actual stock
+    total_warehouse_stock = db.query(func.sum(WarehouseStock.quantity)).filter(
+        WarehouseStock.batch_id == adjustment.batch_id
+    ).scalar() or 0
+    
+    total_shop_stock = db.query(func.sum(ShopStock.quantity)).filter(
+        ShopStock.batch_id == adjustment.batch_id
+    ).scalar() or 0
+    
+    batch.quantity = total_warehouse_stock + total_shop_stock
     
     db.commit()
     
-    return APIResponse(message="Stock adjusted successfully", data={"new_quantity": batch.quantity})
+    return APIResponse(
+        message=f"Stock adjusted successfully in {target_type}",
+        data={
+            "new_quantity": new_quantity,
+            "batch_total_quantity": batch.quantity,
+            "entity_type": target_type,
+            "entity_id": adjustment.warehouse_id if target_type == "warehouse" else adjustment.shop_id
+        }
+    )
 
 
 # Stock Entry - creates batch implicitly

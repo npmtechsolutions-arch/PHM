@@ -35,13 +35,16 @@ export function formatDate(date: string | Date, format: 'short' | 'long' | 'full
         return 'Invalid Date';
     }
 
-    const options: Intl.DateTimeFormatOptions = {
-        short: { year: 'numeric', month: 'short', day: 'numeric' },
-        long: { year: 'numeric', month: 'long', day: 'numeric' },
-        full: { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' },
-    };
+    let options: Intl.DateTimeFormatOptions;
+    if (format === 'short') {
+        options = { year: 'numeric', month: 'short', day: 'numeric' };
+    } else if (format === 'long') {
+        options = { year: 'numeric', month: 'long', day: 'numeric' };
+    } else {
+        options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    }
 
-    return new Intl.DateTimeFormat('en-IN', options[format]).format(dateObj);
+    return new Intl.DateTimeFormat('en-IN', options).format(dateObj);
 }
 
 /**

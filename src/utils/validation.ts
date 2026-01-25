@@ -15,7 +15,6 @@ export function isValidEmail(email: string): boolean {
  * Validate phone number (Indian format)
  */
 export function isValidPhone(phone: string): boolean {
-    const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
     const digits = phone.replace(/\D/g, '');
     return digits.length >= 10 && digits.length <= 12;
 }

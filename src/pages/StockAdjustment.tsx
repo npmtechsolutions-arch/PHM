@@ -116,13 +116,27 @@ export default function StockAdjustment() {
         setMessage({ type: '', text: '' });
 
         try {
-            await inventoryApi.adjustStock({
+            // Add entity ID based on activeEntity type
+            const adjustData: any = {
                 medicine_id: selectedMedicine,
                 batch_id: selectedBatch,
                 adjustment_type: adjustmentType,
                 quantity: parseInt(quantity),
                 reason: reason
-            });
+            };
+
+            // Add warehouse_id or shop_id based on activeEntity
+            if (activeEntity?.type === 'warehouse') {
+                adjustData.warehouse_id = activeEntity.id;
+            } else if (activeEntity?.type === 'shop') {
+                adjustData.shop_id = activeEntity.id;
+            } else {
+                setMessage({ type: 'error', text: 'Please select a warehouse or shop context' });
+                setLoading(false);
+                return;
+            }
+
+            await inventoryApi.adjustStock(adjustData);
 
             setMessage({ type: 'success', text: 'Stock adjusted successfully' });
             // Reset form
