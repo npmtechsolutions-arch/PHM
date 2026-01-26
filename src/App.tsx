@@ -5,59 +5,82 @@ import { MasterDataProvider } from './contexts/MasterDataContext';
 import { OperationalProvider } from './contexts/OperationalContext';
 import ToastContainer from './components/Toast';
 import DashboardLayout from './layouts/DashboardLayout';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import WarehouseList from './pages/WarehouseList';
-import StockEntry from './pages/StockEntry';
-import ShopList from './pages/ShopList';
-import MedicineList from './pages/MedicineList';
-import MedicineDetails from './pages/MedicineDetails';
-import MedicineAdd from './pages/MedicineAdd';
-import MedicineEdit from './pages/MedicineEdit';
-import EditMedicalShop from './pages/EditMedicalShop';
-import ShopAdd from './pages/ShopAdd';
-import ApplicationSettings from './pages/ApplicationSettings';
-import SystemSettings from './pages/SystemSettings';
-import ExpiryLossReport from './pages/ExpiryLossReport';
-import SalesReports from './pages/SalesReports';
-import TaxReports from './pages/TaxReports';
-import ReturnRefund from './pages/ReturnRefund';
-import UsersList from './pages/UsersList';
-import CustomersList from './pages/CustomersList';
-import EmployeesList from './pages/EmployeesList';
-import AttendanceMarker from './pages/attendance/AttendanceMarker';
-import AttendanceReport from './pages/attendance/AttendanceReport';
-import SalaryManagement from './pages/SalaryManagement';
-import InvoicesList from './pages/InvoicesList';
-import DispatchesList from './pages/DispatchesList';
-import DispatchCreate from './pages/DispatchCreate';
-import DispatchDetails from './pages/DispatchDetails';
-import PurchaseRequestsList from './pages/PurchaseRequestsList';
-import POSBilling from './pages/POSBilling';
-import NotificationsPage from './pages/NotificationsPage';
-import InventoryPage from './pages/InventoryPage';
-import WarehouseAdd from './pages/WarehouseAdd';
-import WarehouseEdit from './pages/WarehouseEdit';
+// Auth
+import Login from './pages/auth/Login';
 
-// New Super Admin Dashboard Pages
-import WarehouseShopMapping from './pages/WarehouseShopMapping';
-import RackMaster from './pages/RackMaster';
-import InventoryOversight from './pages/InventoryOversight';
-import StockAdjustment from './pages/StockAdjustment'; // New page
-import AuditLogsPage from './pages/AuditLogsPage';
-import LoginActivityPage from './pages/LoginActivityPage';
-import RolesPermissionsPage from './pages/RolesPermissionsPage';
-import CategoriesPage from './pages/CategoriesPage';
-import UnitsPage from './pages/UnitsPage';
-import HSNCodesPage from './pages/HSNCodesPage';
-import GSTVATPage from './pages/GSTVATPage';
-import GSTSlabsPage from './pages/GSTSlabsPage';
-import SuppliersPage from './pages/SuppliersPage';
-import AdjustmentReasonsPage from './pages/AdjustmentReasonsPage';
-import PaymentMethodsPage from './pages/PaymentMethodsPage';
-import MedicineTypesPage from './pages/MedicineTypesPage';
-import ManufacturersPage from './pages/ManufacturersPage';
-import BrandsPage from './pages/BrandsPage';
+// Dashboard (stays at root)
+import Dashboard from './pages/Dashboard';
+
+// Entities
+import WarehouseList from './pages/entities/WarehouseList';
+import WarehouseAdd from './pages/entities/WarehouseAdd';
+import WarehouseEdit from './pages/entities/WarehouseEdit';
+import ShopList from './pages/entities/ShopList';
+import ShopAdd from './pages/entities/ShopAdd';
+import EditMedicalShop from './pages/entities/EditMedicalShop';
+import WarehouseShopMapping from './pages/entities/WarehouseShopMapping';
+
+// Inventory
+import StockEntry from './pages/inventory/StockEntry';
+import StockAdjustment from './pages/inventory/StockAdjustment';
+import InventoryPage from './pages/inventory/InventoryPage';
+import InventoryOversight from './pages/inventory/InventoryOversight';
+
+// Medicines
+import MedicineList from './pages/medicines/MedicineList';
+import MedicineDetails from './pages/medicines/MedicineDetails';
+import MedicineAdd from './pages/medicines/MedicineAdd';
+import MedicineEdit from './pages/medicines/MedicineEdit';
+
+// Sales
+import POSBilling from './pages/sales/POSBilling';
+import ReturnRefund from './pages/sales/ReturnRefund';
+import InvoicesList from './pages/sales/InvoicesList';
+
+// Supply Chain
+import DispatchCreate from './pages/supply-chain/DispatchCreate';
+import DispatchDetails from './pages/supply-chain/DispatchDetails';
+import DispatchesList from './pages/supply-chain/DispatchesList';
+import PurchaseRequestsList from './pages/supply-chain/PurchaseRequestsList';
+
+// Masters
+import CategoriesPage from './pages/masters/CategoriesPage';
+import UnitsPage from './pages/masters/UnitsPage';
+import HSNCodesPage from './pages/masters/HSNCodesPage';
+import GSTVATPage from './pages/masters/GSTVATPage';
+import GSTSlabsPage from './pages/masters/GSTSlabsPage';
+import SuppliersPage from './pages/masters/SuppliersPage';
+import AdjustmentReasonsPage from './pages/masters/AdjustmentReasonsPage';
+import PaymentMethodsPage from './pages/masters/PaymentMethodsPage';
+import MedicineTypesPage from './pages/masters/MedicineTypesPage';
+import ManufacturersPage from './pages/masters/ManufacturersPage';
+import BrandsPage from './pages/masters/BrandsPage';
+import RackMaster from './pages/masters/RackMaster';
+
+// HR
+import EmployeesList from './pages/hr/EmployeesList';
+import AttendanceMarker from './pages/hr/attendance/AttendanceMarker';
+import AttendanceReport from './pages/hr/attendance/AttendanceReport';
+import SalaryManagement from './pages/hr/SalaryManagement';
+
+// Reports
+import SalesReports from './pages/reports/SalesReports';
+import TaxReports from './pages/reports/TaxReports';
+import ExpiryLossReport from './pages/reports/ExpiryLossReport';
+
+// System
+import ApplicationSettings from './pages/system/ApplicationSettings';
+import SystemSettings from './pages/system/SystemSettings';
+import AuditLogsPage from './pages/system/AuditLogsPage';
+import LoginActivityPage from './pages/system/LoginActivityPage';
+import NotificationsPage from './pages/system/NotificationsPage';
+
+// Access Control
+import UsersList from './pages/access/UsersList';
+import RolesPermissionsPage from './pages/access/RolesPermissionsPage';
+
+// Customers
+import CustomersList from './pages/customers/CustomersList';
 
 // Auth guard component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
